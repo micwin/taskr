@@ -9,6 +9,7 @@ commands:
   binary                 Build the taskr binary.
   deb                    Build a Debian package.
   all                    Build the binary and Debian package.
+  install-completion     Install shell completion for the current user.
 
 options:
   --version-file PATH    File containing MAJOR.MINOR.PATCH (default: VERSION)
@@ -20,6 +21,7 @@ options:
   --commit SHA           Commit metadata to inject (default: git HEAD if available)
   --built-at ISO         Build timestamp to inject (default: current UTC time)
   --install-deb          Install the just-built .deb with sudo apt install
+  --shell PATH           Shell path/name for install-completion (default: SHELL)
 EOF
 }
 
@@ -44,6 +46,7 @@ raise_major=false
 install_deb=false
 commit=""
 built_at=""
+shell_name="${SHELL:-}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -78,6 +81,11 @@ while [ "$#" -gt 0 ]; do
     --install-deb)
       install_deb=true
       shift
+      ;;
+    --shell)
+      [ "$#" -ge 2 ] || fail "--shell needs a value"
+      shell_name="$2"
+      shift 2
       ;;
     --commit)
       [ "$#" -ge 2 ] || fail "--commit needs a value"
@@ -196,6 +204,81 @@ install_deb_package() {
   sudo apt install "${install_path}"
 }
 
+completion_shell() {
+  basename "${shell_name:-}"
+}
+
+completion_rc_path() {
+  case "$(completion_shell)" in
+  bash)
+    if [ -f "${HOME}/.bashrc" ] || [ ! -f "${HOME}/.bash_profile" ]; then
+      echo "${HOME}/.bashrc"
+    else
+      echo "${HOME}/.bash_profile"
+    fi
+    ;;
+  zsh)
+    echo "${ZDOTDIR:-${HOME}}/.zshrc"
+    ;;
+  fish)
+    echo "${XDG_CONFIG_HOME:-${HOME}/.config}/fish/conf.d/taskr.fish"
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+completion_block() {
+  case "$(completion_shell)" in
+  bash)
+    cat <<'EOF'
+# >>> taskr completion >>>
+source <(taskr completion bash)
+# <<< taskr completion <<<
+EOF
+    ;;
+  zsh)
+    cat <<'EOF'
+# >>> taskr completion >>>
+source <(taskr completion zsh)
+# <<< taskr completion <<<
+EOF
+    ;;
+  fish)
+    cat <<'EOF'
+# >>> taskr completion >>>
+taskr completion fish | source
+# <<< taskr completion <<<
+EOF
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
+install_completion() {
+  local shell rc_path rc_dir
+  shell="$(completion_shell)"
+  if ! rc_path="$(completion_rc_path)"; then
+    echo "completion unsupported shell=${shell:-unknown}"
+    return 0
+  fi
+  rc_dir="$(dirname "${rc_path}")"
+  mkdir -p "${rc_dir}"
+  touch "${rc_path}"
+  if grep -q "# >>> taskr completion >>>" "${rc_path}"; then
+    echo "completion already configured shell=${shell} path=${rc_path}"
+    return 0
+  fi
+  {
+    printf '\n'
+    completion_block
+  } >>"${rc_path}"
+  echo "completion configured shell=${shell} path=${rc_path}"
+}
+
 case "${command}" in
 binary)
   output_path="${output_dir}/taskr"
@@ -208,6 +291,7 @@ deb)
   persist_version
   if [ "${install_deb}" = true ]; then
     install_deb_package
+    install_completion
   fi
   ;;
 all)
@@ -218,7 +302,11 @@ all)
   persist_version
   if [ "${install_deb}" = true ]; then
     install_deb_package
+    install_completion
   fi
+  ;;
+install-completion)
+  install_completion
   ;;
 *)
   fail "unknown command ${command}"
