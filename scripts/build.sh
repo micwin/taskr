@@ -2,21 +2,25 @@
 set -euo pipefail
 
 usage() {
-  cat >&2 <<'EOF_USAGE'
+  cat >&2 <<'EOF'
 usage: scripts/build.sh <command> [options]
 
 commands:
   binary                 Build the taskr binary.
+  deb                    Build a Debian package.
+  all                    Build the binary and Debian package.
 
 options:
   --version-file PATH    File containing MAJOR.MINOR.PATCH (default: VERSION)
   --build-file PATH      File containing the monotonic build counter (default: BUILD)
   --output-dir DIR       Output directory (default: dist)
+  --work-dir DIR         Build work directory (default: work)
   --raise-minor          Increment minor and reset patch to 0
   --raise-major          Increment major and reset minor and patch to 0
   --commit SHA           Commit metadata to inject (default: git HEAD if available)
   --built-at ISO         Build timestamp to inject (default: current UTC time)
-EOF_USAGE
+  --install-deb          Install the just-built .deb with sudo apt install
+EOF
 }
 
 fail() {
@@ -34,8 +38,10 @@ shift
 version_file="VERSION"
 build_file="BUILD"
 output_dir="dist"
+work_dir="work"
 raise_minor=false
 raise_major=false
+install_deb=false
 commit=""
 built_at=""
 
@@ -56,12 +62,21 @@ while [ "$#" -gt 0 ]; do
       output_dir="$2"
       shift 2
       ;;
+    --work-dir)
+      [ "$#" -ge 2 ] || fail "--work-dir needs a value"
+      work_dir="$2"
+      shift 2
+      ;;
     --raise-minor)
       raise_minor=true
       shift
       ;;
     --raise-major)
       raise_major=true
+      shift
+      ;;
+    --install-deb)
+      install_deb=true
       shift
       ;;
     --commit)
@@ -133,6 +148,11 @@ if [ -z "${built_at}" ]; then
   built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 fi
 
+debian_revision="1"
+package_version="${full_version}-${debian_revision}"
+arch="$(dpkg --print-architecture 2>/dev/null || true)"
+[ -n "${arch}" ] || arch="amd64"
+
 build_binary() {
   local output_path="$1"
   mkdir -p "$(dirname "${output_path}")"
@@ -146,12 +166,59 @@ persist_version() {
   write_file "${build_file}" "${build_value}"
 }
 
+build_deb() {
+  local package_root="${work_dir}/deb/taskr"
+  package_path="${output_dir}/taskr_${package_version}_${arch}.deb"
+
+  rm -rf "${package_root}"
+  mkdir -p "${package_root}/DEBIAN" "${package_root}/usr/bin"
+  build_binary "${package_root}/usr/bin/taskr"
+  chmod 0755 "${package_root}/usr/bin/taskr"
+  cat >"${package_root}/DEBIAN/control" <<EOF
+Package: taskr
+Version: ${package_version}
+Section: utils
+Priority: optional
+Architecture: ${arch}
+Maintainer: Michael <michael@example.local>
+Description: Local-first task management for command-line workflows
+EOF
+  mkdir -p "${output_dir}"
+  dpkg-deb --build "${package_root}" "${package_path}" >/dev/null
+  echo "built package path=${package_path} version=${package_version}"
+}
+
+install_deb_package() {
+  local install_path="${package_path}"
+  if [[ "${install_path}" != /* ]]; then
+    install_path="./${install_path}"
+  fi
+  sudo apt install "${install_path}"
+}
+
 case "${command}" in
 binary)
   output_path="${output_dir}/taskr"
   build_binary "${output_path}"
   persist_version
   echo "built binary path=${output_path} version=${full_version}"
+  ;;
+deb)
+  build_deb
+  persist_version
+  if [ "${install_deb}" = true ]; then
+    install_deb_package
+  fi
+  ;;
+all)
+  output_path="${output_dir}/taskr"
+  build_binary "${output_path}"
+  echo "built binary path=${output_path} version=${full_version}"
+  build_deb
+  persist_version
+  if [ "${install_deb}" = true ]; then
+    install_deb_package
+  fi
   ;;
 *)
   fail "unknown command ${command}"
