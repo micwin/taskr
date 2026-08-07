@@ -105,7 +105,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "archive", "completion", "create", "doctor", "help", "init", "list", "open", "report", "show", "status", "version":
+	case "archive", "completion", "create", "doctor", "examples", "help", "init", "list", "open", "report", "show", "status", "version":
 		return true
 	default:
 		return false
@@ -133,10 +133,57 @@ func newRootCommand(rootPath string) *cobra.Command {
 		openCommand(rootPath),
 		reportCommand(rootPath),
 		archiveCommand(rootPath),
+		examplesCommand(),
 		versionCommand(),
 	)
 
 	return cmd
+}
+
+func examplesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "examples",
+		Short: "Show common Taskr workflows",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Fprint(cmd.OutOrStdout(), `Taskr workflow examples
+
+Initialize a project worktree:
+  taskr init
+
+Create a milestone:
+  taskr create milestone "MVP" --no-edit
+
+Create a ticket below a milestone:
+  taskr create task "Define workflows" --under 001 --no-edit
+
+Create a subtask below a ticket:
+  taskr create subtask "Define selectors" --under 002 --no-edit
+
+Edit an item:
+  taskr open 002
+
+Inspect work:
+  taskr list
+  taskr show 002
+  taskr report --under 001
+
+List tickets by status:
+  taskr list --type task --status open
+  taskr list --type task --status active --under 001
+  taskr list --type task --status done --under 001
+  taskr list --type task --status cancelled --under 001
+
+Close work:
+  taskr status 003 done
+  taskr status 002 done
+  taskr status 001 done
+
+Archive closed work:
+  taskr archive 002 --to 2026
+`)
+		},
+	}
 }
 
 func initCommand(rootPath string) *cobra.Command {
