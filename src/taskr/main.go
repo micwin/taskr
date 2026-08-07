@@ -509,9 +509,9 @@ func loadTree(rootPath string) (*tree, error) {
 }
 
 func loadTreeAllowEmpty(rootPath string) (*tree, error) {
-	root := rootPath
-	if root == "" {
-		root = "."
+	root, err := discoverRoot(rootPath)
+	if err != nil {
+		return nil, err
 	}
 	info, err := os.Stat(root)
 	if err != nil {
@@ -538,6 +538,52 @@ func loadTreeAllowEmpty(rootPath string) (*tree, error) {
 		}
 	}
 	return t, nil
+}
+
+func discoverRoot(rootPath string) (string, error) {
+	if rootPath != "" {
+		return rootPath, nil
+	}
+	current := "."
+	subdir := "taskr"
+	if isTaskrRoot(current) {
+		return current, nil
+	}
+	if isTaskrRoot(subdir) {
+		return subdir, nil
+	}
+	return current, nil
+}
+
+func isTaskrRoot(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.IsDir() {
+			if _, ok := markerTypes[name]; ok || name == "files.md" {
+				return true
+			}
+			continue
+		}
+		childEntries, err := os.ReadDir(filepath.Join(path, name))
+		if err != nil {
+			continue
+		}
+		for _, child := range childEntries {
+			childName := child.Name()
+			if _, ok := markerTypes[childName]; ok || childName == "files.md" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func scanDir(t *tree, dir string, parent *item) error {
