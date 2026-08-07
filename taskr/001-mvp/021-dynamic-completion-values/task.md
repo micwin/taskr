@@ -1,0 +1,35 @@
+---
+title: Complete status, type, and selector values
+status: designing
+created_at: 2026-08-07T00:00:00Z
+updated_at: 2026-08-07T00:00:00Z
+---
+
+# Description
+
+Add shell completion values for Taskr item types, statuses, and selectors so
+interactive CLI use does not require memorizing valid values or item IDs.
+
+# Acceptance
+
+- `taskr create` completes valid item types: `milestone`, `task`, and
+  `subtask`.
+- `--type` flags complete valid item types wherever the flag exists.
+- `--status` flags complete valid statuses wherever the flag exists.
+- `taskr status <selector> <status>` completes valid statuses for the status
+  argument.
+- Selector arguments complete known item IDs, slugs, and useful display labels
+  for `show`, `open`, `status`, and `archive`.
+- `--under` completes selectors for commands that accept a parent selector.
+- Completion handles missing or invalid roots without breaking shell completion.
+- Completion does not print normal command errors into the shell completion
+  stream.
+- Smokey or unit coverage verifies at least type, status, and selector
+  completion behavior.
+
+# Comments
+
+- 2026-08-07: Cobra currently completes command and flag names only. There are
+  no `ValidArgsFunction` or `RegisterFlagCompletionFunc` hooks yet.
+
+# Outcome
