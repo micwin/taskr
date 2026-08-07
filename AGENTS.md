@@ -84,3 +84,17 @@ conflict.
   behavior correctly. If they do not, update them in the active ticket before
   closing it. Do not close the ticket with stale `doctor`, help, completion, or
   API behavior.
+
+## Ticket Lifecycle
+
+- Create new tickets only in `designing`.
+- Develop ticket wording interactively with the user while the ticket is in
+  `designing`.
+- Write or change Smokey tests while the ticket is in `designing`, so the
+  expected behavior is fixed before implementation starts.
+- After a ticket leaves `designing`, change its `# Description`,
+  `# Acceptance`, or Smokey test program logic only with explicit user
+  interaction for that specific change.
+- After a ticket leaves `designing`, edits to the ticket `# Comments` section
+  and comments inside Smokey test scripts are allowed without changing the
+  agreed behavior.
