@@ -18,6 +18,8 @@ import (
 )
 
 var version = "dev"
+var commit = ""
+var builtAt = ""
 
 var markerTypes = map[string]string{
 	"milestone.md": "milestone",
@@ -373,7 +375,14 @@ func versionCommand() *cobra.Command {
 		Short: "Print Taskr version",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(cmd.OutOrStdout(), "taskr version %s\n", version)
+			fmt.Fprintf(cmd.OutOrStdout(), "taskr version %s", version)
+			if commit != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), " commit=%s", commit)
+			}
+			if builtAt != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), " built_at=%s", builtAt)
+			}
+			fmt.Fprintln(cmd.OutOrStdout())
 		},
 	}
 }
