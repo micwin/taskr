@@ -105,7 +105,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "archive", "completion", "create", "doctor", "help", "list", "open", "report", "show", "status", "version":
+	case "archive", "completion", "create", "doctor", "help", "init", "list", "open", "report", "show", "status", "version":
 		return true
 	default:
 		return false
@@ -124,6 +124,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&configFile, "config-file", "", "personal config file")
 
 	cmd.AddCommand(
+		initCommand(rootPath),
 		doctorCommand(rootPath),
 		createCommand(rootPath),
 		showCommand(rootPath),
@@ -136,6 +137,30 @@ func newRootCommand(rootPath string) *cobra.Command {
 	)
 
 	return cmd
+}
+
+func initCommand(rootPath string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "init",
+		Short: "Initialize a Taskr worktree",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			root := rootPath
+			if root == "" {
+				root = "taskr"
+			}
+			created, err := initializeRoot(root)
+			if err != nil {
+				return err
+			}
+			t, err := loadTree(root)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "initialized root=%s created=%t files=%d\n", t.Root, created, len(t.FileDirs))
+			return nil
+		},
+	}
 }
 
 func doctorCommand(rootPath string) *cobra.Command {
@@ -385,6 +410,33 @@ func versionCommand() *cobra.Command {
 			fmt.Fprintln(cmd.OutOrStdout())
 		},
 	}
+}
+
+func initializeRoot(root string) (bool, error) {
+	created := false
+	if _, err := os.Stat(root); errors.Is(err, fs.ErrNotExist) {
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			return false, err
+		}
+		created = true
+	} else if err != nil {
+		return false, err
+	}
+
+	filesDir := filepath.Join(root, "files")
+	filesMarker := filepath.Join(filesDir, "files.md")
+	if _, err := os.Stat(filesMarker); errors.Is(err, fs.ErrNotExist) {
+		if err := os.MkdirAll(filesDir, 0o755); err != nil {
+			return false, err
+		}
+		if err := os.WriteFile(filesMarker, []byte(newFilesMarker("Root files")), 0o644); err != nil {
+			return false, err
+		}
+		created = true
+	} else if err != nil {
+		return false, err
+	}
+	return created, nil
 }
 
 func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug string, edit, noEdit bool) error {
@@ -780,6 +832,24 @@ func newMarker(title string) string {
 	return fmt.Sprintf(`---
 title: %s
 status: open
+created_at: %s
+updated_at: %s
+---
+
+# Description
+
+# Acceptance
+
+# Comments
+
+# Outcome
+`, title, now, now)
+}
+
+func newFilesMarker(title string) string {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return fmt.Sprintf(`---
+title: %s
 created_at: %s
 updated_at: %s
 ---
