@@ -47,3 +47,32 @@ conflict.
   `taskr/012-dogfood/011-implementation-scope-policy/task.md`; update that
   ticket before changing how broadly implementation agents may act beyond the
   active ticket.
+
+## Implementation Scope
+
+- Work from the active Taskr ticket. Keep code, tests, docs, and ticket updates
+  close to that ticket's `# Acceptance` and `# Description`.
+- Do directly required supporting work inside the active ticket when it is
+  needed to satisfy acceptance. Examples: create required directories, add a Go
+  module for a Go CLI ticket, wire Smokey to a binary that the ticket requires,
+  or remove build artifacts created during verification.
+- Do small same-surface corrections inside the active ticket when they are
+  necessary for that ticket's stated behavior. Examples: add a missing
+  subcommand named in the ticket, fix help text for that subcommand, or expose
+  a flag already specified by the active ticket's command contract.
+- Create a new Taskr ticket instead of implementing silently when a discovered
+  issue changes behavior, data model, command names, flags, workflows,
+  validation policy, release process, or agent process beyond the active
+  ticket's acceptance.
+- Ask the user before editing when scope is ambiguous or a change affects
+  semantics. Examples: status meaning, ID rules, hierarchy derivation, archive
+  location, root discovery, selector matching, or exit-code policy.
+- If a follow-up is found while implementing, record it as dogfood when it
+  concerns Taskr development process or as MVP/product work when it concerns
+  user-visible Taskr behavior.
+- If a file change or decision changes a Taskr ticket's status, commit the
+  status change together with the corresponding intended file changes.
+- When closing a ticket as `done`, commit the ticket status, its `# Outcome`,
+  and the changes that make the ticket done in the same commit. This does not
+  apply to `cancelled` or other non-delivery closures where no implementation
+  changes are intended.
