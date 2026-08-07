@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Derive shared fixture paths from Smokey state for this runner.
-TASKR_BIN="${TASKR_BIN:-taskr}"
+TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
 TASKR_BASE_ROOT="${TASKR_BASE_ROOT:-${SMOKEY_STATE_DIR}/fixtures/base-root}"
 TASKR_INVALID_ROOT="${TASKR_INVALID_ROOT:-${SMOKEY_STATE_DIR}/fixtures/invalid-root}"
 

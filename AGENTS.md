@@ -38,3 +38,12 @@ conflict.
   or `tmp/` unless the user explicitly requests artifact versioning.
 - Do not run `sudo`; provide exact commands for the user when root access is
   required.
+
+## Dogfood Work
+
+- Tickets that concern Taskr itself are dogfood work. Track Taskr process,
+  policy, and agent-workflow changes under the Dogfood milestone in `taskr/`.
+- The implementation scope policy belongs in
+  `taskr/012-dogfood/011-implementation-scope-policy/task.md`; update that
+  ticket before changing how broadly implementation agents may act beyond the
+  active ticket.

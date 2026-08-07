@@ -6,7 +6,11 @@ export TASKR_BASE_ROOT="${SMOKEY_STATE_DIR}/fixtures/base-root"
 export TASKR_INVALID_ROOT="${SMOKEY_STATE_DIR}/fixtures/invalid-root"
 export TASKR_EMPTY_ROOT="${SMOKEY_STATE_DIR}/fixtures/empty-root"
 export TASKR_CONFIG_FILE="${SMOKEY_STATE_DIR}/config.yaml"
-export TASKR_BIN="${TASKR_BIN:-taskr}"
+export TASKR_BIN="${SMOKEY_STATE_DIR}/bin/taskr"
+
+# Build the current CLI source into Smokey-managed state.
+mkdir -p "${SMOKEY_STATE_DIR}/bin"
+go build -o "${TASKR_BIN}" ./src/taskr
 
 # Copy committed fixtures into Smokey-managed state for isolated mutation.
 mkdir -p "${SMOKEY_STATE_DIR}/fixtures"
