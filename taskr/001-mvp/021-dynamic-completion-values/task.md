@@ -1,6 +1,6 @@
 ---
 title: Complete status, type, and selector values
-status: designing
+status: done
 created_at: 2026-08-07T00:00:00Z
 updated_at: 2026-08-07T00:00:00Z
 ---
@@ -31,5 +31,33 @@ interactive CLI use does not require memorizing valid values or item IDs.
 
 - 2026-08-07: Cobra currently completes command and flag names only. There are
   no `ValidArgsFunction` or `RegisterFlagCompletionFunc` hooks yet.
+- 2026-08-07: Added red Smokey coverage through Cobra's hidden `__complete`
+  command for type values, status values, selectors, `--under`, and missing-root
+  behavior.
 
 # Outcome
+
+Implemented dynamic Cobra completion values.
+
+Covered behavior:
+
+- `taskr create` completes item types: `milestone`, `task`, and `subtask`.
+- `--type` flags complete item types on commands that expose the flag.
+- `--status` flags complete all valid statuses.
+- `taskr status <selector> <status>` completes statuses for the second
+  positional argument.
+- Selector arguments complete item IDs and slugs with labels containing type,
+  status, and title.
+- `--under` completes selectors.
+- Missing or invalid roots return no completion candidates and do not print
+  normal command errors into the completion stream.
+
+Pre-close checks:
+
+- `bash -n scripts/build.sh` passes.
+- `go test ./...` passes.
+- `taskr --help` renders successfully.
+- `taskr completion bash` renders successfully through Cobra's completion
+  command.
+- `smokey --tests-dir tests.d` passes (`15/15`) with final teardown executed.
+- No public API exists yet.

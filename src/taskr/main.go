@@ -33,6 +33,8 @@ var typeMarkers = map[string]string{
 	"subtask":   "subtask.md",
 }
 
+var itemTypes = []string{"milestone", "task", "subtask"}
+
 var validStatuses = map[string]bool{
 	"open":      true,
 	"designing": true,
@@ -41,6 +43,8 @@ var validStatuses = map[string]bool{
 	"done":      true,
 	"cancelled": true,
 }
+
+var statuses = []string{"open", "designing", "active", "blocked", "done", "cancelled"}
 
 type exitError struct {
 	code int
@@ -241,11 +245,18 @@ subtask.md.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, edit, noEdit)
 		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return filterCompletions(itemTypes, toComplete), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
 	}
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&slug, "slug", "", "directory slug override")
 	cmd.Flags().BoolVar(&edit, "edit", false, "open marker in editor after creation")
 	cmd.Flags().BoolVar(&noEdit, "no-edit", false, "do not open marker in editor after creation")
+	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
 	return cmd
 }
 
@@ -266,6 +277,7 @@ func showCommand(rootPath string) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "id=%s type=%s status=%s title=%q path=%s\n", it.IDText, it.Type, it.Status, it.Title, it.RelDir)
 			return nil
 		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
 	}
 }
 
@@ -292,6 +304,9 @@ func listCommand(rootPath string) *cobra.Command {
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
+	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
+	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	return cmd
 }
 
@@ -323,6 +338,16 @@ func statusCommand(rootPath string) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "status id=%s old=%s new=%s\n", it.IDText, it.Status, args[1])
 			return nil
 		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return selectorCompletion(rootPath)(cmd, args, toComplete)
+			case 1:
+				return filterCompletions(statuses, toComplete), cobra.ShellCompDirectiveNoFileComp
+			default:
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+		},
 	}
 }
 
@@ -352,6 +377,7 @@ func openCommand(rootPath string) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "opened path=%s/%s opener=%s\n", it.RelDir, it.Marker, opener)
 			return nil
 		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
 	}
 	cmd.Flags().BoolVar(&system, "system", false, "open with the system opener")
 	return cmd
@@ -401,6 +427,9 @@ func reportCommand(rootPath string) *cobra.Command {
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
 	cmd.Flags().StringVar(&output, "output", "", "write report to file")
+	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
+	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	return cmd
 }
 
@@ -440,6 +469,7 @@ func archiveCommand(rootPath string) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "archived id=%s to=%s\n", it.IDText, filepath.ToSlash(destRel))
 			return nil
 		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
 	}
 	cmd.Flags().StringVar(&to, "to", "", "archive destination below root archive directory")
 	return cmd
@@ -823,6 +853,71 @@ func resolveUnder(t *tree, under string) ([]*item, error) {
 		return nil, err
 	}
 	return descendants(parent), nil
+}
+
+func mustRegisterCompletion(cmd *cobra.Command, flagName string, fn func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective)) {
+	if err := cmd.RegisterFlagCompletionFunc(flagName, fn); err != nil {
+		panic(err)
+	}
+}
+
+func staticCompletion(values []string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return filterCompletions(values, toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func selectorArgCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return selectorCompletion(rootPath)(cmd, args, toComplete)
+	}
+}
+
+func selectorCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		t, err := loadTree(rootPath)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return filterCompletions(selectorCompletions(t), toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func selectorCompletions(t *tree) []string {
+	var values []string
+	seen := map[string]bool{}
+	for _, it := range t.Items {
+		label := fmt.Sprintf("%s %s %s", it.Type, it.Status, it.Title)
+		for _, value := range []string{it.IDText, it.Slug} {
+			if value == "" || seen[value] {
+				continue
+			}
+			seen[value] = true
+			values = append(values, fmt.Sprintf("%s\t%s", value, label))
+		}
+	}
+	sort.Strings(values)
+	return values
+}
+
+func filterCompletions(values []string, prefix string) []string {
+	if prefix == "" {
+		return append([]string(nil), values...)
+	}
+	var out []string
+	for _, value := range values {
+		candidate := value
+		if before, _, ok := strings.Cut(value, "\t"); ok {
+			candidate = before
+		}
+		if strings.HasPrefix(candidate, prefix) {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, error) {
