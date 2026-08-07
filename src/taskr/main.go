@@ -184,9 +184,13 @@ func createCommand(rootPath string) *cobra.Command {
 	var edit, noEdit bool
 
 	cmd := &cobra.Command{
-		Use:   "create <type> <title>",
+		Use:   "create {milestone|task|subtask} <title>",
 		Short: "Create a new item",
-		Args:  cobra.MinimumNArgs(2),
+		Long: `Create a new item.
+
+The item type determines the marker filename: milestone.md, task.md, or
+subtask.md.`,
+		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, edit, noEdit)
 		},

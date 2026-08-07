@@ -1,6 +1,6 @@
 ---
 title: Show valid create types in help
-status: designing
+status: done
 created_at: 2026-08-07T00:00:00Z
 updated_at: 2026-08-07T00:00:00Z
 ---
@@ -25,3 +25,23 @@ without having to trigger an error.
   type but the help output does not say what valid values are.
 
 # Outcome
+
+Improved `taskr create --help` with the valid types directly in usage:
+
+```text
+taskr create {milestone|task|subtask} <title>
+```
+
+The help now explains that the item type determines the marker filename. Invalid
+type errors still include the invalid value through the existing create
+validation.
+
+Pre-close checks:
+
+- `bash -n scripts/build.sh` passes.
+- `go test ./...` passes.
+- `taskr --help` and `taskr create --help` render successfully.
+- `taskr completion bash` renders successfully through Cobra's completion
+  command.
+- `smokey --tests-dir tests.d` passes (`13/13`) with final teardown executed.
+- No public API exists yet.
