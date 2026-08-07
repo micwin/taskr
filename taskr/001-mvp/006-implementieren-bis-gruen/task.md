@@ -1,6 +1,6 @@
 ---
 title: Implement until tests are green
-status: active
+status: done
 created_at: 2026-06-03T00:00:00Z
 updated_at: 2026-06-03T00:00:00Z
 ---
@@ -15,7 +15,7 @@ Build the Go and Cobra implementation until the full Smokey suite passes.
 - The CLI reads Markdown marker files with YAML frontmatter.
 - The CLI enforces marker-count and directory-ID validation.
 - MVP commands satisfy the red Smokey workflow tests.
-- `smokey --tests-dir tests.d` passes with final teardown executed.
+- `smokey --tests-dir tests.d` passes with final teardown executed (`9/9`).
 
 # Comments
 
