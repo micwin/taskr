@@ -16,18 +16,19 @@ changes before closing a Taskr ticket.
   after relevant code changes.
 - `AGENTS.md` tells agents to verify command-help coverage before closing
   tickets after relevant code changes.
-- Missing `doctor` or help coverage is handled in-scope when appropriate or
-  captured as a follow-up ticket before closing.
+- Missing `doctor` or help coverage must be fixed in the active ticket before
+  closing it.
 
 # Comments
 
 - 2026-08-07: Added because Taskr behavior changes should stay discoverable via
   CLI help and guarded by `doctor` where relevant.
+- 2026-08-07: Tightened the rule: stale `doctor` or help coverage blocks
+  closing the active ticket instead of becoming a follow-up ticket.
 
 # Outcome
 
 Added the pre-close `doctor` and command-help coverage check to `AGENTS.md`.
 When relevant code changes are made, an agent must check whether `doctor` and
 help already reflect those changes before closing the ticket. Missing coverage
-must be implemented inside the ticket when in scope or recorded as a follow-up
-ticket before closure.
+must be implemented inside the active ticket before closure.

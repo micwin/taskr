@@ -78,5 +78,5 @@ conflict.
   changes are intended.
 - Before closing a ticket after relevant code changes, check whether `doctor`
   and command help already cover the changed behavior correctly. If they do not,
-  either update them within the active ticket when in scope, or create a
-  follow-up ticket before closing.
+  update `doctor` and help in the active ticket before closing it. Do not close
+  the ticket with stale `doctor` or help behavior.
