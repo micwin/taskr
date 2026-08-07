@@ -76,7 +76,8 @@ conflict.
   and the changes that make the ticket done in the same commit. This does not
   apply to `cancelled` or other non-delivery closures where no implementation
   changes are intended.
-- Before closing a ticket after relevant code changes, check whether `doctor`
-  and command help already cover the changed behavior correctly. If they do not,
-  update `doctor` and help in the active ticket before closing it. Do not close
-  the ticket with stale `doctor` or help behavior.
+- Before closing a ticket after relevant code changes, check whether `doctor`,
+  command help, shell completion, and any public API already cover the changed
+  behavior correctly. If they do not, update them in the active ticket before
+  closing it. Do not close the ticket with stale `doctor`, help, completion, or
+  API behavior.
