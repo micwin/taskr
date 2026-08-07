@@ -70,6 +70,9 @@ conflict.
 - If a follow-up is found while implementing, record it as dogfood when it
   concerns Taskr development process or as MVP/product work when it concerns
   user-visible Taskr behavior.
+- Until this policy changes, create commits only after the user explicitly asks
+  for a commit. Prepare coherent commit scopes when status changes or ticket
+  closures require them, but leave the changes uncommitted until requested.
 - If a file change or decision changes a Taskr ticket's status, commit the
   status change together with the corresponding intended file changes.
 - When closing a ticket as `done`, commit the ticket status, its `# Outcome`,
