@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Derive shared fixture paths from Smokey state for this runner.
+TASKR_BIN="${TASKR_BIN:-taskr}"
+TASKR_BASE_ROOT="${TASKR_BASE_ROOT:-${SMOKEY_STATE_DIR}/fixtures/base-root}"
+
+# Run a command and capture its outputs for assertions.
+run_taskr() {
+  local name="$1"
+  shift
+  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
+  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
+  set +e
+  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
+  exit_code=$?
+  set -e
+}
+
+# Copy a valid root for archive moves.
+root="${SMOKEY_STATE_DIR}/archive-root"
+cp -R "${TASKR_BASE_ROOT}" "${root}"
+
+# Closed tasks can be archived below the root archive directory.
+run_taskr archive_done "${root}" archive 002 --to 2026
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q "archived id=002" "${stdout}"
+grep -q "to=archive/2026/002-verzeichnisstruktur" "${stdout}"
+test -f "${root}/archive/2026/002-verzeichnisstruktur/task.md"
+
+# The archive location should be inspectable through list.
+run_taskr list_archive "${root}" list --under archive/2026
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q "002 task done Define directory structure" "${stdout}"
+
+# Active or incomplete subtrees must not be archived.
+run_taskr archive_milestone "${root}" archive 001
+[ "${exit_code}" -ne 0 ] || { echo "active milestone archive should fail" >&2; exit 1; }
+grep -qi "active\\|unfinished\\|closed" "${stderr}"
+run_taskr archive_active_task "${root}" archive 003
+[ "${exit_code}" -ne 0 ] || { echo "active task archive should fail" >&2; exit 1; }
+grep -qi "active\\|unfinished\\|closed" "${stderr}"
