@@ -38,18 +38,18 @@ everything after it. IDs are unique across the whole root.
 taskr/
   001-mvp/
     milestone.md
-    002-verzeichnisstruktur/
+    002-directory-structure/
       task.md
       notes/
         files.md
         sketch.txt
-    003-workflows-definieren/
+    003-define-workflows/
       task.md
-    004-erste-kommandos/
+    004-first-commands/
       task.md
 ```
 
-For example, `004` identifies `004-erste-kommandos/` regardless of where that
+For example, `004` identifies `004-first-commands/` regardless of where that
 directory is nested. Allowed parent/child role pairs are derived from the
 existing root at startup.
 
@@ -60,7 +60,7 @@ file container is a directory with a `files.md` marker. It does not need an ID
 prefix, does not count as a work item, and does not affect completion.
 
 ```text
-002-verzeichnisstruktur/
+002-directory-structure/
   task.md
   notes/
     files.md

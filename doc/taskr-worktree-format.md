@@ -23,7 +23,7 @@ slug:
 ```text
 001-mvp/
   milestone.md
-  002-verzeichnisstruktur/
+  002-directory-structure/
     task.md
 ```
 
@@ -98,7 +98,7 @@ taskr/
     files.md
     root-note.md
 
-002-verzeichnisstruktur/
+002-directory-structure/
   task.md
   notes/
     files.md
