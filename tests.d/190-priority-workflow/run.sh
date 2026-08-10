@@ -183,6 +183,68 @@ run_taskr priority_list_group_completion "${root}" __complete list --group-by ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -qx 'priority' "${stdout}"
 
+# Tree should sort task siblings and show only non-normal priority by default.
+run_taskr priority_tree_default "${root}" tree 001 --all
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^  002 \[task done priority=high\] Define directory structure$' "${stdout}"
+grep -q '^  006 \[task open priority=high\] Workflow priority$' "${stdout}"
+grep -q '^  003 \[task active\] Define workflows$' "${stdout}"
+grep -q '^  005 \[task active priority=low\] Open work$' "${stdout}"
+tree_ids="$(awk '/^  [0-9]/{print $1}' "${stdout}" | paste -sd ' ' -)"
+[ "${tree_ids}" = "002 006 003 005" ]
+
+# Force and hide modes should alter priority text without changing ordering.
+run_taskr priority_tree_show "${root}" tree 001 --all --show-priority
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^  003 \[task active priority=normal\] Define workflows$' "${stdout}"
+
+run_taskr priority_tree_hide "${root}" tree 001 --all --hide-priority
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+if grep -q 'priority=' "${stdout}"; then
+  echo "tree --hide-priority should suppress all priority values" >&2
+  exit 1
+fi
+hidden_tree_ids="$(awk '/^  [0-9]/{print $1}' "${stdout}" | paste -sd ' ' -)"
+[ "${hidden_tree_ids}" = "002 006 003 005" ]
+
+# Existing layout and visibility flags should preserve their shape and meaning.
+run_taskr priority_tree_ascii "${root}" tree 001 --all --ascii
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^+- 002 \[task done priority=high\] Define directory structure$' "${stdout}"
+grep -q '^+- 006 \[task open priority=high\] Workflow priority$' "${stdout}"
+
+run_taskr priority_tree_tabs "${root}" tree 001 --all --tabs
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q $'^\t002 \[task done priority=high\] Define directory structure$' "${stdout}"
+
+run_taskr priority_tree_wide "${root}" tree 001 --all --wide
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^    002 \[task done priority=high\] Define directory structure$' "${stdout}"
+
+run_taskr priority_tree_open "${root}" tree 001 --all --open
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+if grep -q '^  002 ' "${stdout}"; then
+  echo "priority ordering should not make done tasks visible with --open" >&2
+  exit 1
+fi
+open_tree_ids="$(awk '/^  [0-9]/{print $1}' "${stdout}" | paste -sd ' ' -)"
+[ "${open_tree_ids}" = "006 003 005" ]
+
+# Priority display flags should be exclusive and documented.
+run_taskr priority_tree_conflicting_display "${root}" tree 001 --show-priority --hide-priority
+[ "${exit_code}" -ne 0 ] || { echo "tree priority display flags should be exclusive" >&2; exit 1; }
+grep -qi 'show-priority\|hide-priority\|exclusive' "${stderr}"
+
+run_taskr priority_tree_help "${root}" tree --help
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q -- '--show-priority' "${stdout}"
+grep -q -- '--hide-priority' "${stdout}"
+
+run_taskr priority_tree_flag_completion "${root}" __complete tree --
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^--show-priority' "${stdout}"
+grep -q '^--hide-priority' "${stdout}"
+
 # Mutation accepts task selectors only and follows shared selector diagnostics.
 run_taskr priority_milestone_rejected "${root}" priority 001 high
 [ "${exit_code}" -ne 0 ] || { echo "priority should reject milestone targets" >&2; exit 1; }
@@ -249,6 +311,8 @@ grep -q 'taskr priority 002 normal' "${stdout}"
 grep -q 'taskr list --type task --priority high' "${stdout}"
 grep -q 'taskr list --type task --show-priority' "${stdout}"
 grep -q 'taskr list --type task --group-by priority' "${stdout}"
+grep -q 'taskr tree 001 --all --show-priority' "${stdout}"
+grep -q 'taskr tree 001 --hide-priority' "${stdout}"
 
 # Unknown values and non-canonical spelling should fail validation.
 invalid_value_root="${SMOKEY_STATE_DIR}/priority-invalid-value-root"
