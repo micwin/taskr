@@ -255,3 +255,22 @@ smokey --tests-dir tests.d
 
 Tests must write generated roots, configs, logs, and binaries below
 `${SMOKEY_STATE_DIR}`.
+
+## Builds And Releases
+
+Normal builds increment the monotonic value in `BUILD`:
+
+```bash
+scripts/build.sh all
+```
+
+CI and release automation reproduce the already committed version without
+changing the counter:
+
+```bash
+scripts/build.sh all --keep-build-count
+```
+
+Release prerequisites, the guarded `develop` to `release` workflow, artifact
+verification, and failure recovery are documented in
+[`RELEASING.md`](RELEASING.md).

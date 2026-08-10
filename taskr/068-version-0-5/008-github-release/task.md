@@ -60,5 +60,15 @@ incrementing `BUILD`.
   separate and publishes the already committed `VERSION+BUILD` without a
   release-time increment. The frozen-build flag is named
   `--keep-build-count`.
+- 2026-08-10: GitHub connector inspection confirmed that `micwin/taskr` is
+  public, uses `develop` as its default branch, grants the connector admin and
+  push access, and has no existing `release` branch. The workflow needs no
+  additional repository secret because its scoped `GITHUB_TOKEN` receives
+  `contents: write`; branch protection and global Actions policy are not
+  exposed through the connector.
+- 2026-08-10: Local verification passes with Go tests, Go vet, Doctor,
+  actionlint 1.7.7, frozen binary and Debian version checks, and all 23 Smokey
+  workflows. The first real GitHub Actions run remains pending until the
+  implementation is committed and pushed by explicit user instruction.
 
 # Outcome

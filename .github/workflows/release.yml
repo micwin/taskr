@@ -1,0 +1,113 @@
+name: Taskr Release
+
+on:
+  push:
+    branches:
+      - release
+
+concurrency:
+  group: taskr-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Taskr
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Read frozen release version
+        id: version
+        shell: bash
+        run: |
+          version="$(tr -d '[:space:]' <VERSION)"
+          build="$(tr -d '[:space:]' <BUILD)"
+          [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${build}" =~ ^[0-9]+$ ]]
+          release_version="${version}+${build}"
+          grep -Fq "## [${release_version}]" CHANGELOG.md
+          echo "release_version=${release_version}" >>"${GITHUB_OUTPUT}"
+          echo "tag=v${release_version}" >>"${GITHUB_OUTPUT}"
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run Go vet
+        run: go vet ./...
+
+      - name: Validate the dogfood root
+        run: go run ./src/taskr doctor
+
+      - name: Checkout pinned Smokey
+        uses: actions/checkout@v4
+        with:
+          repository: micwin/smokey
+          ref: 7ca75a9e396f2b6341c9a2a6645b47413ec4a6a0
+          path: .ci/smokey
+
+      - name: Run Smokey workflows
+        run: .ci/smokey/smokey --tests-dir tests.d
+
+      - name: Build frozen release artifacts
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+        run: |
+          scripts/build.sh all --keep-build-count \
+            --commit "${GITHUB_SHA::7}" \
+            --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          binary="dist/taskr_${RELEASE_VERSION}_linux_amd64"
+          mv dist/taskr "${binary}"
+          "${binary}" version | grep -F "taskr version ${RELEASE_VERSION} commit=${GITHUB_SHA::7}"
+          package="dist/taskr_${RELEASE_VERSION}-1_amd64.deb"
+          test -f "${package}"
+          test "$(dpkg-deb --field "${package}" Version)" = "${RELEASE_VERSION}-1"
+          sha256sum "${binary}" "${package}" >"dist/taskr_${RELEASE_VERSION}_SHA256SUMS"
+
+      - name: Extract release notes
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
+        run: |
+          mkdir -p work
+          awk -v header="## [${RELEASE_VERSION}]" '
+            $0 == header { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md >work/release-notes.md
+          test -s work/release-notes.md
+
+      - name: Create or verify release tag
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git fetch --tags origin
+          if git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null; then
+            test "$(git rev-list -n1 "${RELEASE_TAG}")" = "${GITHUB_SHA}"
+          else
+            git tag -a "${RELEASE_TAG}" -m "Taskr ${RELEASE_TAG}"
+            git push origin "${RELEASE_TAG}"
+          fi
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Taskr ${{ steps.version.outputs.tag }}
+          body_path: work/release-notes.md
+          files: |
+            dist/taskr_${{ steps.version.outputs.release_version }}_linux_amd64
+            dist/taskr_${{ steps.version.outputs.release_version }}-1_amd64.deb
+            dist/taskr_${{ steps.version.outputs.release_version }}_SHA256SUMS
+          draft: false
+          prerelease: false
+

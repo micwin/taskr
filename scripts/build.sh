@@ -18,6 +18,7 @@ options:
   --work-dir DIR         Build work directory (default: work)
   --raise-minor          Increment minor and reset patch to 0
   --raise-major          Increment major and reset minor and patch to 0
+  --keep-build-count     Build with the current VERSION and BUILD unchanged
   --commit SHA           Commit metadata to inject (default: git HEAD if available)
   --built-at ISO         Build timestamp to inject (default: current UTC time)
   --install-deb          Install the just-built .deb with sudo apt install
@@ -43,6 +44,7 @@ output_dir="dist"
 work_dir="work"
 raise_minor=false
 raise_major=false
+keep_build_count=false
 install_deb=false
 commit=""
 built_at=""
@@ -78,6 +80,10 @@ while [ "$#" -gt 0 ]; do
       raise_major=true
       shift
       ;;
+    --keep-build-count)
+      keep_build_count=true
+      shift
+      ;;
     --install-deb)
       install_deb=true
       shift
@@ -108,6 +114,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ "${raise_minor}" = false ] || [ "${raise_major}" = false ] || fail "--raise-minor and --raise-major are mutually exclusive"
+[ "${keep_build_count}" = false ] || { [ "${raise_minor}" = false ] && [ "${raise_major}" = false ]; } || fail "--keep-build-count is mutually exclusive with --raise-minor and --raise-major"
 
 read_file() {
   local path="$1"
@@ -146,7 +153,9 @@ elif [ "${raise_minor}" = true ]; then
 fi
 
 version_value="${major}.${minor}.${patch}"
-build_value=$((build_value + 1))
+if [ "${keep_build_count}" = false ]; then
+  build_value=$((build_value + 1))
+fi
 full_version="${version_value}+${build_value}"
 
 if [ -z "${commit}" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -170,6 +179,9 @@ build_binary() {
 }
 
 persist_version() {
+  if [ "${keep_build_count}" = true ]; then
+    return
+  fi
   write_file "${version_file}" "${version_value}"
   write_file "${build_file}" "${build_value}"
 }

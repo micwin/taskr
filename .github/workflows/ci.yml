@@ -1,0 +1,60 @@
+name: Taskr CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Taskr
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Validate workflow files
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint"
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run Go vet
+        run: go vet ./...
+
+      - name: Validate the dogfood root
+        run: go run ./src/taskr doctor
+
+      - name: Checkout pinned Smokey
+        uses: actions/checkout@v4
+        with:
+          repository: micwin/smokey
+          ref: 7ca75a9e396f2b6341c9a2a6645b47413ec4a6a0
+          path: .ci/smokey
+
+      - name: Run Smokey workflows
+        run: .ci/smokey/smokey --tests-dir tests.d
+
+      - name: Build frozen artifacts
+        run: scripts/build.sh all --keep-build-count
+
+      - name: Upload CI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskr-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+
