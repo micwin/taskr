@@ -1,10 +1,11 @@
 ---
 title: Create and scope Version 0.5 milestone
-status: developing
+status: reviewing
 created_at: 2026-08-10T14:18:39Z
-updated_at: 2026-08-10T14:20:26Z
+updated_at: 2026-08-10T14:21:23Z
 designing_at: 2026-08-10T14:18:39Z
 developing_at: 2026-08-10T14:20:26Z
+reviewing_at: 2026-08-10T14:21:23Z
 ---
 
 # Description
@@ -42,3 +43,9 @@ hierarchy checks, and move constraints remain authoritative.
   `052`, and `061`; all are currently in `designing`.
 
 # Outcome
+
+Milestone `068` (`Version 0.5`) was created in `designing`. Tasks `008`, `009`,
+`026`, `043`, `046`, `052`, and `061` were moved beneath it with Taskr while
+retaining their identities, marker contents, and `designing` statuses. The
+empty `GitHub integration` milestone remains available for a later explicit
+decision, and the resulting worktree passes Doctor validation.
