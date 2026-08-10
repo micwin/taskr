@@ -1,0 +1,37 @@
+---
+title: Validate open parents for new items
+status: designing
+created_at: 2026-08-10T10:29:12Z
+updated_at: 2026-08-10T10:29:12Z
+---
+
+# Description
+
+Add startup/doctor and create-time validation so new Taskr items can only be
+added below open parent context. A closed milestone must not receive new tasks,
+and a closed task must not receive new subtasks.
+
+# Acceptance
+
+- The rule defines which statuses are open for accepting new children.
+- Creating a task below a closed milestone fails clearly.
+- Creating a subtask below a closed task fails clearly.
+- Creating a subtask also checks the containing milestone ancestry and fails if
+  the milestone is closed.
+- `taskr doctor` reports existing violations where an item has been added below
+  a closed parent context.
+- Normal command startup refuses invalid roots with those violations where the
+  command needs a valid loaded worktree.
+- The validation keeps archive behavior separate from active worktree creation.
+- Help or documentation explains that new work can only be added below open
+  parent context.
+- Smokey tests cover create-time rejection and doctor/startup detection for
+  manually corrupted fixtures.
+
+# Comments
+
+- 2026-08-10: Added after defining `tree`; closed context should stay stable.
+  New tasks belong only under open milestones, and new subtasks belong only
+  under open tasks whose milestone context is also open.
+
+# Outcome
