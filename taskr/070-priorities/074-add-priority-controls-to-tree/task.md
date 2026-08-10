@@ -1,11 +1,12 @@
 ---
 title: Add priority controls to tree
-status: reviewing
+status: done
 created_at: 2026-08-10T14:41:18Z
-updated_at: 2026-08-10T15:27:53Z
+updated_at: 2026-08-10T15:53:16Z
 designing_at: 2026-08-10T14:41:18Z
 developing_at: 2026-08-10T15:17:36Z
 reviewing_at: 2026-08-10T15:27:53Z
+done_at: 2026-08-10T15:53:16Z
 ---
 
 # Description

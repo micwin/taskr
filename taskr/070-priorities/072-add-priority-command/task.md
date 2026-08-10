@@ -1,11 +1,12 @@
 ---
 title: Add priority command
-status: reviewing
+status: done
 created_at: 2026-08-10T14:41:17Z
-updated_at: 2026-08-10T15:24:30Z
+updated_at: 2026-08-10T15:53:16Z
 designing_at: 2026-08-10T14:41:17Z
 developing_at: 2026-08-10T15:07:28Z
 reviewing_at: 2026-08-10T15:24:30Z
+done_at: 2026-08-10T15:53:16Z
 ---
 
 # Description

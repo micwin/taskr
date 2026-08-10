@@ -1,11 +1,12 @@
 ---
 title: Add priority statistics to report
-status: reviewing
+status: done
 created_at: 2026-08-10T14:41:19Z
-updated_at: 2026-08-10T15:30:41Z
+updated_at: 2026-08-10T15:53:17Z
 designing_at: 2026-08-10T14:41:19Z
 developing_at: 2026-08-10T15:22:35Z
 reviewing_at: 2026-08-10T15:30:41Z
+done_at: 2026-08-10T15:53:17Z
 ---
 
 # Description

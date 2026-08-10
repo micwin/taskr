@@ -1,11 +1,12 @@
 ---
 title: Add priority controls to list
-status: reviewing
+status: done
 created_at: 2026-08-10T14:41:17Z
-updated_at: 2026-08-10T15:26:27Z
+updated_at: 2026-08-10T15:53:16Z
 designing_at: 2026-08-10T14:41:18Z
 developing_at: 2026-08-10T15:11:49Z
 reviewing_at: 2026-08-10T15:26:27Z
+done_at: 2026-08-10T15:53:16Z
 ---
 
 # Description
