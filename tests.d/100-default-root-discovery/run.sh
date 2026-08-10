@@ -23,7 +23,8 @@ run_taskr init_default init
 
 run_taskr report_default report
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "report root=${project}/taskr" "${stdout}"
+grep -q "^Taskr report$" "${stdout}"
+grep -q "^Project: taskr$" "${stdout}"
 
 run_taskr doctor_default doctor
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

@@ -182,26 +182,27 @@ Expected output:
 
 # Report Workflow
 
-User requests a report for a selected parent, role, and filter. Taskr writes the
-report to stdout or to a target file.
+User requests a repository report. Taskr summarizes the top-level root by
+status and milestone, then writes the report to stdout or to a target file.
 
 Normal flow:
 
-1. Resolve parent selector when provided.
-2. Apply role and status filters.
-3. Render a deterministic report.
+1. Render a deterministic report with root summary, status statistics, and
+   milestone sections.
+2. List open milestones without tickets in their own section.
+3. Use explicit headings when a list is truncated, for example a current-work
+   section that shows five of a larger set.
 4. Write to stdout unless a target file is provided.
 
 Failure cases:
 
-- Parent selector is ambiguous or not found.
-- Filter value is unknown.
+- Unsupported filter flags are rejected.
 - Target file cannot be written.
 
 Expected output:
 
 - For stdout reports: deterministic text.
-- For file reports: written path and item count.
+- For file reports: written path.
 
 # Doctor Workflow
 

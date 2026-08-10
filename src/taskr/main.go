@@ -65,6 +65,8 @@ type item struct {
 	Type       string
 	Title      string
 	Status     string
+	CreatedAt  string
+	UpdatedAt  string
 	Dir        string
 	RelDir     string
 	Marker     string
@@ -183,7 +185,7 @@ Inspect work:
   taskr tree 001 --all
   taskr tree 001 --ascii
   taskr show 002
-  taskr report --under 001
+  taskr report
 
 List tickets by status:
   taskr list --type task --status open
@@ -529,53 +531,244 @@ func openCommand(rootPath string) *cobra.Command {
 }
 
 func reportCommand(rootPath string) *cobra.Command {
-	var under, typeFilter, statusFilter, output string
+	var output string
 
 	cmd := &cobra.Command{
 		Use:   "report",
-		Short: "Render an item report",
+		Short: "Render a repository report",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
 			if err != nil {
 				return err
 			}
-			items, err := filteredItems(t, under, typeFilter, statusFilter)
-			if err != nil {
-				return err
-			}
-			var b strings.Builder
-			fmt.Fprintf(&b, "report root=%s", t.Root)
-			if under != "" {
-				fmt.Fprintf(&b, " under=%s", under)
-			}
-			if typeFilter != "" {
-				fmt.Fprintf(&b, " type=%s", typeFilter)
-			}
-			if statusFilter != "" {
-				fmt.Fprintf(&b, " status=%s", statusFilter)
-			}
-			b.WriteByte('\n')
-			writeItemLines(&b, items, false)
+			b := renderReport(t, time.Now())
 			if output != "" {
-				if err := os.WriteFile(output, []byte(b.String()), 0o644); err != nil {
+				if err := os.WriteFile(output, []byte(b), 0o644); err != nil {
 					return exitError{code: 1, msg: fmt.Sprintf("write report output %s: %v", output, err)}
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "wrote report path=%s\n", output)
 				return nil
 			}
-			fmt.Fprint(cmd.OutOrStdout(), b.String())
+			fmt.Fprint(cmd.OutOrStdout(), b)
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
-	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
-	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
 	cmd.Flags().StringVar(&output, "output", "", "write report to file")
-	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
-	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
-	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	return cmd
+}
+
+const reportCurrentLimit = 5
+
+func renderReport(t *tree, now time.Time) string {
+	items := append([]*item(nil), t.Items...)
+	sortItems(items)
+
+	var b strings.Builder
+	fmt.Fprintln(&b, "Taskr report")
+	fmt.Fprintf(&b, "Project: %s\n", filepath.Base(t.Root))
+	fmt.Fprintf(&b, "Report date: %s\n", now.Format("2006-01-02"))
+	b.WriteByte('\n')
+
+	fmt.Fprintln(&b, "# Status Summary")
+	writeStatusSummary(&b, items)
+	b.WriteByte('\n')
+
+	fmt.Fprintln(&b, "# Status Extremes")
+	writeStatusExtremes(&b, items)
+
+	writeMilestoneSections(&b, items)
+
+	if writeOpenMilestonesWithoutTickets(&b, items) {
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func writeStatusSummary(w interface{ Write([]byte) (int, error) }, items []*item) {
+	counts := map[string]map[string]int{}
+	for _, itemType := range itemTypes {
+		counts[itemType] = map[string]int{}
+	}
+	for _, it := range items {
+		if _, ok := counts[it.Type]; !ok {
+			counts[it.Type] = map[string]int{}
+		}
+		counts[it.Type][it.Status]++
+	}
+	for _, itemType := range itemTypes {
+		for _, status := range statuses {
+			if count := counts[itemType][status]; count > 0 {
+				fmt.Fprintf(w, "%s with status %q: %d\n", pluralItemType(itemType), status, count)
+			}
+		}
+	}
+}
+
+func writeStatusExtremes(w interface{ Write([]byte) (int, error) }, items []*item) {
+	for _, itemType := range itemTypes {
+		var wroteType bool
+		for _, status := range statuses {
+			var matches []*item
+			for _, it := range items {
+				if it.Type == itemType && it.Status == status {
+					matches = append(matches, it)
+				}
+			}
+			if len(matches) == 0 {
+				continue
+			}
+			if !wroteType {
+				fmt.Fprintf(w, "## %s\n", titlePluralItemType(itemType))
+				wroteType = true
+			}
+			sortItemsByAge(matches)
+			if closedStatus(status) {
+				fmt.Fprintf(w, "Newest %s: %s\n", status, reportItemLine(matches[len(matches)-1], false))
+			} else {
+				fmt.Fprintf(w, "Oldest %s: %s\n", status, reportItemLine(matches[0], false))
+			}
+		}
+		if wroteType {
+			fmt.Fprintln(w)
+		}
+	}
+}
+
+func writeMilestoneSections(w interface{ Write([]byte) (int, error) }, items []*item) bool {
+	var milestones []*item
+	for _, it := range items {
+		if it.Type == "milestone" {
+			milestones = append(milestones, it)
+		}
+	}
+	sortItems(milestones)
+	var wrote bool
+	for _, milestone := range milestones {
+		counts := map[string]int{}
+		var activeTickets []*item
+		for _, child := range milestone.Children {
+			if child.Type != "task" {
+				continue
+			}
+			counts[child.Status]++
+			if child.Status == "developing" || child.Status == "reviewing" {
+				activeTickets = append(activeTickets, child)
+			}
+		}
+		if len(counts) == 0 {
+			continue
+		}
+		if !wrote {
+			fmt.Fprintln(w, "# Milestones")
+			wrote = true
+		}
+		fmt.Fprintf(w, "## %s (%s) [%s]\n", milestone.Title, milestone.Slug, milestone.Status)
+		fmt.Fprintln(w, "### Ticket Status Counts")
+		for _, status := range statuses {
+			if count := counts[status]; count > 0 {
+				fmt.Fprintf(w, "tasks with status %q: %d\n", status, count)
+			}
+		}
+		if len(activeTickets) > 0 {
+			sortItems(activeTickets)
+			visible := activeTickets
+			if len(visible) > reportCurrentLimit {
+				visible = visible[:reportCurrentLimit]
+				fmt.Fprintf(w, "### Current %d developing/reviewing tasks (showing %d of %d)\n", reportCurrentLimit, len(visible), len(activeTickets))
+			} else {
+				fmt.Fprintln(w, "### Current developing/reviewing tasks")
+			}
+			for _, it := range visible {
+				fmt.Fprintln(w, reportItemLine(it, false))
+			}
+		}
+		fmt.Fprintln(w)
+	}
+	return wrote
+}
+
+func writeOpenMilestonesWithoutTickets(w interface{ Write([]byte) (int, error) }, items []*item) bool {
+	var milestones []*item
+	for _, it := range items {
+		if it.Type != "milestone" || closedStatus(it.Status) || directChildCount(it, "task") > 0 {
+			continue
+		}
+		milestones = append(milestones, it)
+	}
+	if len(milestones) == 0 {
+		return false
+	}
+	sortItems(milestones)
+	fmt.Fprintln(w, "# Open Milestones Without Tickets")
+	for _, it := range milestones {
+		fmt.Fprintln(w, reportItemLine(it, false))
+	}
+	return true
+}
+
+func directChildCount(it *item, itemType string) int {
+	var count int
+	for _, child := range it.Children {
+		if child.Type == itemType {
+			count++
+		}
+	}
+	return count
+}
+
+func reportItemLine(it *item, withType bool) string {
+	if withType {
+		return fmt.Sprintf("%s [%s %s] %s", it.IDText, it.Type, it.Status, it.Title)
+	}
+	return fmt.Sprintf("%s [%s] %s", it.IDText, it.Status, it.Title)
+}
+
+func titlePluralItemType(itemType string) string {
+	switch itemType {
+	case "milestone":
+		return "Milestones"
+	case "task":
+		return "Tasks"
+	case "subtask":
+		return "Subtasks"
+	default:
+		return pluralItemType(itemType)
+	}
+}
+
+func pluralItemType(itemType string) string {
+	switch itemType {
+	case "milestone":
+		return "milestones"
+	case "task":
+		return "tasks"
+	case "subtask":
+		return "subtasks"
+	default:
+		return itemType + "s"
+	}
+}
+
+func sortItemsByAge(items []*item) {
+	sort.Slice(items, func(i, j int) bool {
+		left := itemAgeKey(items[i])
+		right := itemAgeKey(items[j])
+		if left == right {
+			return items[i].ID < items[j].ID
+		}
+		return left < right
+	})
+}
+
+func itemAgeKey(it *item) string {
+	if it.CreatedAt != "" {
+		return it.CreatedAt
+	}
+	if it.UpdatedAt != "" {
+		return it.UpdatedAt
+	}
+	return it.IDText
 }
 
 func archiveCommand(rootPath string) *cobra.Command {
@@ -1136,6 +1329,8 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 		Type:       markerTypes[marker],
 		Title:      title,
 		Status:     status,
+		CreatedAt:  fields["created_at"],
+		UpdatedAt:  fields["updated_at"],
 		Dir:        dir,
 		RelDir:     relPath(root, dir),
 		Marker:     marker,

@@ -1,6 +1,6 @@
 ---
 title: Clarify report command
-status: developing
+status: done
 created_at: 2026-08-10T09:48:33Z
 updated_at: 2026-08-10T09:48:33Z
 ---
@@ -26,16 +26,23 @@ by default, with switches controlling which content and sections are included.
 - Each milestone section includes counts of child tickets by status.
 - Each milestone section lists tickets currently in `developing` or
   `reviewing`.
-- Report filters and switches can control what appears in the report, but must
-  preserve the repository-report role of the command.
+- Report is initially top-level only; item selectors and status/type filters
+  are rejected until their report semantics are deliberately designed.
+- Default report output includes open milestones that do not yet contain
+  tickets in a separate section.
+- Repeated report rows do not include the item type when the surrounding
+  heading already defines that context.
+- Truncated lists include an explicit heading that states the visible count and
+  the total count.
 - `report` does not become the primary way to inspect one item's complete
   marker text.
 - If report gains detail flags later, they are explicitly scoped to multi-item
   reporting.
 - Help documents the repository-report role of `report`.
 - Smokey tests cover the default repository report, report date, status
-  statistics, milestone sections, developing/reviewing ticket lists, and
-  filtered report output.
+  statistics, milestone sections, developing/reviewing ticket lists, truncated
+  list headings, open milestones without tickets, output files, and rejection
+  of unsupported filters.
 
 # Comments
 
@@ -45,5 +52,23 @@ by default, with switches controlling which content and sections are included.
   date, status statistics for milestones/tasks/subtasks, oldest open-ish items,
   newest done/cancelled items, and milestone sections with status counts plus
   developing/reviewing ticket lists.
+- 2026-08-10: Review feedback clarified that reports are initially top-level
+  only, open milestones without tickets need their own section, repeated rows
+  should avoid redundant type text, and truncated lists need headings that state
+  the visible and total counts.
 
 # Outcome
+
+Implemented `taskr report` as a repository report. Default output now includes
+project name, report date, status summary by item type, oldest non-closed items,
+newest closed items, milestone sections with task status counts,
+developing/reviewing ticket lists, and open milestones without tickets.
+`--output` writes the same top-level report to a file. `--under`, `--type`, and
+`--status` are intentionally not part of the initial report surface. Help,
+workflow documentation, and Smokey coverage were updated.
+
+Review feedback tightened the text format: report sections use explicit
+headings, status counts use readable phrases such as `tasks with status
+"designing": 3`, item lines omit redundant type text in typed sections, empty
+open milestones are listed separately, and truncated current-work lists state
+the visible count and total count in the heading.

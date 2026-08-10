@@ -189,7 +189,6 @@ assert_move_source_completion move_selector move ""
 # milestones and tasks with subtasks, but no leaf tasks or subtasks.
 assert_tree_root_completion tree_selector tree ""
 assert_tree_root_completion list_under list --under ""
-assert_tree_root_completion report_under report --under ""
 
 # Write parent selectors should complete possible parent items: milestones and
 # tasks, including leaf tasks for new subtasks, but no subtasks.
