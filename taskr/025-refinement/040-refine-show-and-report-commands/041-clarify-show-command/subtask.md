@@ -1,6 +1,6 @@
 ---
 title: Clarify show command
-status: designing
+status: developing
 created_at: 2026-08-10T09:48:33Z
 updated_at: 2026-08-10T09:48:33Z
 ---
@@ -16,8 +16,10 @@ sets of items.
 - `taskr show <selector>` prints the selected item's full readable content by
   default.
 - `taskr show <selector>` is console-oriented output for one item only.
-- `taskr show <selector>` fails when the selector matches zero or multiple
-  items.
+- `taskr show <selector>` fails when the selector matches zero items.
+- When a selector matches multiple items, `show` exits with a non-zero status
+  and prints every candidate's item ID and title so the user can immediately
+  retry with an unambiguous selector.
 - Full show output includes the item identity, title, status, marker path,
   `# Description`, `# Acceptance`, `# Comments`, and `# Outcome`.
 - `taskr show <selector> --meta` prints marker metadata/frontmatter fields
@@ -26,7 +28,8 @@ sets of items.
 - Selector completion still works for `show`.
 - Help documents the default full display and the `--meta` mode.
 - Smokey tests cover default full output, metadata output, comments visibility,
-  outcome visibility, missing selector errors, and ambiguous selector errors.
+  outcome visibility, missing selector errors, and ambiguous selector errors
+  containing every candidate's ID and title.
 
 # Comments
 
@@ -35,5 +38,8 @@ sets of items.
 - 2026-08-10: User clarified that `show` and `report` are completely separate:
   `show` is only for console output of a single item and must fail on ambiguous
   selectors. Future output formats or templates may be added later.
+- 2026-08-10: Ambiguous selectors keep a non-zero exit status, but the
+  diagnostic must list every matching item by ID and title instead of merely
+  reporting ambiguity.
 
 # Outcome

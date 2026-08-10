@@ -75,6 +75,8 @@ grep -qi "not found\\|no match" "${stderr}"
 run_taskr show_ambiguous "${root}" show workflow
 [ "${exit_code}" -ne 0 ] || { echo "ambiguous selector should fail" >&2; exit 1; }
 grep -qi "ambiguous\\|multiple\\|candidates" "${stderr}"
+grep -q '003 Define workflows' "${stderr}"
+grep -q '006 Workflow polish' "${stderr}"
 run_taskr list_bad_status "${root}" list --status nonsense
 [ "${exit_code}" -ne 0 ] || { echo "unknown status filter should fail" >&2; exit 1; }
 grep -qi "status\\|unknown\\|invalid" "${stderr}"
