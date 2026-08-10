@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -216,11 +217,25 @@ func initCommand(rootPath string) *cobra.Command {
 }
 
 func doctorCommand(rootPath string) *cobra.Command {
-	return &cobra.Command{
+	var fix bool
+
+	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "Validate a Taskr root",
-		Args:  cobra.NoArgs,
+		Long: `Validate a Taskr root.
+
+Current validation checks that the root can be loaded as a Taskr worktree:
+marker structure, item directory IDs, marker frontmatter used by Taskr, status
+values, and root-wide duplicate IDs.
+
+Fix mode currently repairs only duplicate IDs. The worktree must be loadable
+apart from duplicate IDs; unsupported errors are reported and leave the
+worktree unchanged.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if fix {
+				return runDoctorFix(cmd, rootPath)
+			}
 			t, err := loadTree(rootPath)
 			if err != nil {
 				return err
@@ -229,6 +244,8 @@ func doctorCommand(rootPath string) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&fix, "fix", false, "repair duplicate IDs when the rest of the worktree is loadable")
+	return cmd
 }
 
 func createCommand(rootPath string) *cobra.Command {
@@ -655,6 +672,186 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) 
 	return nil
 }
 
+type idRepair struct {
+	Item   *item
+	OldID  string
+	NewID  string
+	OldDir string
+	NewDir string
+	OldRel string
+	NewRel string
+}
+
+func runDoctorFix(cmd *cobra.Command, rootPath string) error {
+	t, err := loadTreeAllowDuplicateIDs(rootPath)
+	if err != nil {
+		return exitError{code: errorExitCode(err), msg: fmt.Sprintf("not fixable: %v", err)}
+	}
+	repairs, err := duplicateIDRepairs(t)
+	if err != nil {
+		return err
+	}
+	if len(repairs) == 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "ok root=%s items=%d files=%d fixed=0\n", t.Root, len(t.Items), len(t.FileDirs))
+		return nil
+	}
+	if err := applyIDRepairs(t.Root, repairs); err != nil {
+		return err
+	}
+	verified, err := loadTree(t.Root)
+	if err != nil {
+		return exitError{code: 1, msg: fmt.Sprintf("fix made invalid worktree: %v", err)}
+	}
+	for _, repair := range repairs {
+		fmt.Fprintf(cmd.OutOrStdout(), "fixed id=%s new_id=%s from=%s to=%s\n", repair.OldID, repair.NewID, repair.OldRel, repair.NewRel)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "ok root=%s items=%d files=%d fixed=%d\n", verified.Root, len(verified.Items), len(verified.FileDirs), len(repairs))
+	return nil
+}
+
+func duplicateIDRepairs(t *tree) ([]idRepair, error) {
+	maxID := 0
+	for _, it := range t.Items {
+		if it.ID > maxID {
+			maxID = it.ID
+		}
+	}
+	var duplicateIDs []string
+	for id, items := range t.ByID {
+		if len(items) < 2 {
+			continue
+		}
+		duplicateIDs = append(duplicateIDs, id)
+	}
+	sort.Slice(duplicateIDs, func(i, j int) bool {
+		left, _ := strconv.Atoi(duplicateIDs[i])
+		right, _ := strconv.Atoi(duplicateIDs[j])
+		if left == right {
+			return duplicateIDs[i] < duplicateIDs[j]
+		}
+		return left < right
+	})
+	var repairs []idRepair
+	for _, id := range duplicateIDs {
+		items := t.ByID[id]
+		sortItems(items)
+		for _, it := range items[1:] {
+			maxID++
+			newID := formatID(maxID, len(it.IDText))
+			newDir := filepath.Join(filepath.Dir(it.Dir), newID+"-"+it.Slug)
+			if _, err := os.Stat(newDir); err == nil {
+				return nil, exitError{code: 2, msg: fmt.Sprintf("not fixable: destination exists for duplicate id %s: %s", id, relPath(t.Root, newDir))}
+			} else if !errors.Is(err, fs.ErrNotExist) {
+				return nil, err
+			}
+			repairs = append(repairs, idRepair{
+				Item:   it,
+				OldID:  it.IDText,
+				NewID:  newID,
+				OldDir: it.Dir,
+				NewDir: newDir,
+				OldRel: it.RelDir,
+				NewRel: relPath(t.Root, newDir),
+			})
+		}
+	}
+	sort.Slice(repairs, func(i, j int) bool {
+		return repairs[i].OldRel < repairs[j].OldRel
+	})
+	return repairs, nil
+}
+
+func applyIDRepairs(root string, repairs []idRepair) error {
+	tmp, err := os.MkdirTemp("", "taskr-doctor-fix-*")
+	if err != nil {
+		return exitError{code: 1, msg: fmt.Sprintf("temporary directory unavailable: %v", err)}
+	}
+	defer os.RemoveAll(tmp)
+
+	// Keep restorable backups in the platform temp directory, then rename only
+	// inside the Taskr root so repair works across filesystem boundaries.
+	for i, repair := range repairs {
+		backupDir := filepath.Join(tmp, fmt.Sprintf("%03d-%s", i+1, filepath.Base(repair.OldDir)))
+		if err := copyDir(repair.OldDir, backupDir); err != nil {
+			return err
+		}
+	}
+	applied := make([]idRepair, 0, len(repairs))
+	for _, repair := range repairs {
+		if err := os.Rename(repair.OldDir, repair.NewDir); err != nil {
+			rollbackApplied(applied)
+			return err
+		}
+		applied = append(applied, repair)
+	}
+	if _, err := loadTree(root); err != nil {
+		rollbackApplied(applied)
+		return err
+	}
+	return nil
+}
+
+func rollbackApplied(repairs []idRepair) {
+	for i := len(repairs) - 1; i >= 0; i-- {
+		_ = os.Rename(repairs[i].NewDir, repairs[i].OldDir)
+	}
+}
+
+func copyDir(src, dest string) error {
+	return filepath.WalkDir(src, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dest, rel)
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		switch {
+		case entry.Type()&os.ModeSymlink != 0:
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(linkTarget, target)
+		case entry.IsDir():
+			return os.MkdirAll(target, info.Mode().Perm())
+		case entry.Type().IsRegular():
+			return copyFile(path, target, info.Mode().Perm())
+		default:
+			return nil
+		}
+	})
+}
+
+func copyFile(src, dest string, mode fs.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
+}
+
+func formatID(id, width int) string {
+	if width < 3 {
+		width = 3
+	}
+	return fmt.Sprintf("%0*d", width, id)
+}
+
 func loadTree(rootPath string) (*tree, error) {
 	t, err := loadTreeAllowEmpty(rootPath)
 	if err != nil {
@@ -664,6 +861,14 @@ func loadTree(rootPath string) (*tree, error) {
 }
 
 func loadTreeAllowEmpty(rootPath string) (*tree, error) {
+	return loadTreeWithOptions(rootPath, false)
+}
+
+func loadTreeAllowDuplicateIDs(rootPath string) (*tree, error) {
+	return loadTreeWithOptions(rootPath, true)
+}
+
+func loadTreeWithOptions(rootPath string, allowDuplicateIDs bool) (*tree, error) {
 	root, err := discoverRoot(rootPath)
 	if err != nil {
 		return nil, err
@@ -689,6 +894,9 @@ func loadTreeAllowEmpty(rootPath string) (*tree, error) {
 	}
 	for id, items := range t.ByID {
 		if len(items) > 1 {
+			if allowDuplicateIDs {
+				continue
+			}
 			return nil, exitError{code: 2, msg: fmt.Sprintf("duplicate id %s", id)}
 		}
 	}

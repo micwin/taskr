@@ -32,8 +32,9 @@ defines local identity. Directory nesting defines parent/child relationships.
 The marker frontmatter must not repeat role, ID, or parent.
 
 IDs are unique across the whole root, not only among siblings. If the same ID is
-found twice, Taskr must refuse every command except `doctor` and a future repair
-command. Taskr relies on IDs for identity, so duplicate IDs are a hard stop.
+found twice, Taskr refuses commands that need an unambiguous worktree. `taskr
+doctor --fix` can repair duplicate IDs when the rest of the worktree is
+loadable.
 
 ID width is not semantically important. `1-foo`, `01-foo`, and `001-foo` are
 different spellings of numeric IDs. A future repair command may normalize ID

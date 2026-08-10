@@ -39,5 +39,12 @@ test.
   state.
 - 2026-08-10: Moved from `Refinement` to `Governance` because this affects the
   ID model and repository repair policy.
+- 2026-08-10: Michael repaired the dogfood collision by manually running the
+  Taskr tool, which moved `taskr/018-github-integration/` to
+  `taskr/038-github-integration/`. This was not a direct filesystem edit by
+  the agent.
+- 2026-08-10: After the manual repair, `taskr doctor` reported
+  `ok root=/home/micwin/projects/taskr/taskr items=38 files=0`, and `taskr
+  list` loaded the worktree successfully.
 
 # Outcome

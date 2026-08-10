@@ -181,9 +181,8 @@ Zero or multiple marker files are invalid and stop the tool.
 
 ## Doctor
 
-`taskr doctor` validates a root before writes and on demand.
-
-Initial checks:
+`taskr doctor` validates the checks currently enforced while loading a Taskr
+root:
 
 - Every non-root work-tree directory outside file containers has exactly one
   recognized marker file.
@@ -192,13 +191,14 @@ Initial checks:
   count as completion children.
 - Item IDs are unique across the whole root.
 - Every marker parses as Markdown with YAML frontmatter.
-- Every marker has the required frontmatter keys.
-- Every marker body has `# Description`, `# Acceptance`, `# Comments`, and
-  final `# Outcome` sections.
-- Slugs are unique per role across the whole root.
+- Every marker has the frontmatter fields used by the loader: `title` and a
+  valid `status` when `status` is present.
 - Status values are allowed by personal config or built-in defaults.
-- Timestamps parse as RFC3339.
-- Effective completion is consistent with child completion.
+
+`taskr doctor --fix` currently repairs only duplicate item IDs. It renames
+later colliding item directories to the next free root-wide IDs and reports
+each changed path. The worktree must be loadable apart from duplicate IDs;
+unsupported marker or structure errors leave the worktree unchanged.
 
 ## Smokey
 
