@@ -44,5 +44,5 @@ The default repository report now includes deterministic effective task
 priority counts in global and populated milestone sections. Omitted priority is
 counted as normal; milestones and subtasks are excluded. Empty milestones keep
 their existing dedicated section, while status summaries and current-work
-selection remain unchanged. Help, workflow documentation, and isolated Smokey
-fixtures cover the final report behavior.
+selection remain unchanged. Help, workflow documentation, and the shared
+end-to-end Priority Smokey workflow cover the final report behavior.
