@@ -85,6 +85,7 @@ type tree struct {
 	ByID       map[string][]*item
 	FileDirs   []string
 	ArchiveDir string
+	Config     projectConfig
 }
 
 func main() {
@@ -266,7 +267,8 @@ func doctorCommand(rootPath string) *cobra.Command {
 Current validation checks that the root can be loaded as a Taskr worktree:
 marker structure, item directory IDs, marker frontmatter used by Taskr, status
 values, optional status-transition timestamps, task priority metadata, and
-root-wide duplicate IDs.
+root-wide duplicate IDs. Optional root-local taskr.toml project configuration
+is parsed strictly and validated with the worktree.
 
 Fix mode currently repairs only duplicate IDs. The worktree must be loadable
 apart from duplicate IDs; unsupported errors are reported and leave the
@@ -1522,7 +1524,11 @@ func loadTreeWithOptions(rootPath string, allowDuplicateIDs bool) (*tree, error)
 	if err != nil {
 		return nil, err
 	}
-	t := &tree{Root: abs, ByID: map[string][]*item{}, ArchiveDir: "archive"}
+	config, err := loadProjectConfig(abs)
+	if err != nil {
+		return nil, err
+	}
+	t := &tree{Root: abs, ByID: map[string][]*item{}, ArchiveDir: "archive", Config: config}
 	if err := scanDir(t, abs, nil); err != nil {
 		return nil, err
 	}

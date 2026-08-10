@@ -6,6 +6,25 @@ The worktree is the source of truth. Every MVP workflow must be possible with
 only the Taskr CLI and a text editor. Taskr must not require users to duplicate
 role, ID, parent, status, or outcome information in multiple places.
 
+# Project Configuration
+
+An optional `taskr.toml` may live directly in the Taskr root. It configures
+project features without describing the worktree. The initial schema is:
+
+```toml
+[site]
+directory = "../site"
+```
+
+The `[site]` table is optional. When present, `directory` is required, must be a
+nonempty string, and resolves relative to the Taskr root unless absolute.
+Unknown tables and keys are errors. `taskr.toml` does not identify a Taskr root
+and must not contain item roles, IDs, parents, status, priority, or other marker
+metadata.
+
+Invalid project configuration stops normal root-loading commands. Doctor
+reports the configuration error but does not repair the TOML file.
+
 # Items
 
 The MVP supports three work-item markers:

@@ -5,6 +5,9 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+- Added strict project-local `taskr.toml` configuration with initial site
+  settings and Doctor validation.
+
 ## [0.1.0+40] - 2026-08-10
 
 - Made published SHA-256 checksum files directly verifiable beside downloaded

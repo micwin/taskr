@@ -221,6 +221,26 @@ file unless it is below a `files.md` container. Work-item directories must use
 a root-unique ID prefix. File-container directories do not need an ID prefix.
 Zero or multiple marker files are invalid and stop the tool.
 
+### Project configuration
+
+A Taskr root may contain optional project-local configuration in
+`taskr.toml`. Project configuration supplements the worktree but never defines
+item roles, IDs, hierarchy, status, or priority. The initial schema reserves a
+strict `[site]` table:
+
+```toml
+[site]
+directory = "../site"
+```
+
+Relative project paths resolve from the Taskr root. Unknown tables and keys,
+invalid TOML, a non-string directory, and an empty site directory are errors.
+They stop commands that load the root and are reported by `taskr doctor`.
+`doctor --fix` does not rewrite project configuration.
+
+This project-local TOML file is independent from the personal YAML
+configuration and explicit `--config-file` surface described above.
+
 ## Doctor
 
 `taskr doctor` validates the checks currently enforced while loading a Taskr
@@ -236,6 +256,7 @@ root:
 - Every marker has the frontmatter fields used by the loader: `title` and a
   valid `status` when `status` is present.
 - Status values are allowed by personal config or built-in defaults.
+- Optional root-local `taskr.toml` parses against the strict project schema.
 
 `taskr doctor --fix` currently repairs only duplicate item IDs. It renames
 later colliding item directories to the next free root-wide IDs and reports
