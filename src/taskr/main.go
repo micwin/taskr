@@ -65,6 +65,7 @@ type item struct {
 	Type       string
 	Title      string
 	Status     string
+	Priority   string
 	CreatedAt  string
 	UpdatedAt  string
 	StatusAt   map[string]string
@@ -246,7 +247,8 @@ func doctorCommand(rootPath string) *cobra.Command {
 
 Current validation checks that the root can be loaded as a Taskr worktree:
 marker structure, item directory IDs, marker frontmatter used by Taskr, status
-values, optional status-transition timestamps, and root-wide duplicate IDs.
+values, optional status-transition timestamps, task priority metadata, and
+root-wide duplicate IDs.
 
 Fix mode currently repairs only duplicate IDs. The worktree must be loadable
 apart from duplicate IDs; unsupported errors are reported and leave the
@@ -345,8 +347,9 @@ func showCommand(rootPath string) *cobra.Command {
 		Long: `Show exactly one Taskr item on the console.
 
 By default, show prints readable item identity and the complete Markdown body.
-Use --meta to print marker metadata without the body. Ambiguous selectors fail
-and list every matching item's ID and title.`,
+Stored high and low task priorities are always visible. Use --meta to print all
+marker metadata, including effective normal priority, without the body.
+Ambiguous selectors fail and list every matching item's ID and title.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
@@ -366,7 +369,11 @@ and list every matching item's ID and title.`,
 }
 
 func writeShownItem(w io.Writer, it *item, metaOnly bool) error {
-	fmt.Fprintf(w, "ID: %s\nType: %s\nTitle: %s\nStatus: %s\nMarker: %s\n", it.IDText, it.Type, it.Title, it.Status, filepath.ToSlash(filepath.Join(it.RelDir, it.Marker)))
+	fmt.Fprintf(w, "ID: %s\nType: %s\nTitle: %s\nStatus: %s\n", it.IDText, it.Type, it.Title, it.Status)
+	if it.Type == "task" && (metaOnly || it.Priority != "normal") {
+		fmt.Fprintf(w, "Priority: %s\n", it.Priority)
+	}
+	fmt.Fprintf(w, "Marker: %s\n", filepath.ToSlash(filepath.Join(it.RelDir, it.Marker)))
 	if metaOnly {
 		fmt.Fprintf(w, "Created at: %s\nUpdated at: %s\n", it.CreatedAt, it.UpdatedAt)
 		for _, status := range statuses {
@@ -1393,6 +1400,11 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 	if !validStatuses[status] {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("%s: invalid status %q", relPath(root, dir), status)}
 	}
+	itemType := markerTypes[marker]
+	priority, err := effectivePriority(filepath.Join(dir, marker), itemType, fields["priority"])
+	if err != nil {
+		return nil, err
+	}
 	statusAt := make(map[string]string, len(statuses))
 	for _, candidate := range statuses {
 		field := candidate + "_at"
@@ -1408,9 +1420,10 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 		ID:         id,
 		IDText:     idText,
 		Slug:       slug,
-		Type:       markerTypes[marker],
+		Type:       itemType,
 		Title:      title,
 		Status:     status,
+		Priority:   priority,
 		CreatedAt:  fields["created_at"],
 		UpdatedAt:  fields["updated_at"],
 		StatusAt:   statusAt,
@@ -1421,6 +1434,25 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 		MarkerPath: filepath.Join(dir, marker),
 		Parent:     parent,
 	}, nil
+}
+
+func effectivePriority(path, itemType, stored string) (string, error) {
+	if itemType != "task" {
+		if stored != "" {
+			return "", exitError{code: 2, msg: fmt.Sprintf("%s: priority is not valid for %s items", path, itemType)}
+		}
+		return "", nil
+	}
+	if stored == "" {
+		return "normal", nil
+	}
+	if stored == "high" || stored == "low" {
+		return stored, nil
+	}
+	if stored == "normal" {
+		return "", exitError{code: 2, msg: fmt.Sprintf("%s: priority %q is redundant; omit it for normal", path, stored)}
+	}
+	return "", exitError{code: 2, msg: fmt.Sprintf("%s: invalid priority %q", path, stored)}
 }
 
 func validateOptionalTimestamp(path, field, value string) error {

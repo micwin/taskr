@@ -30,6 +30,15 @@ add_frontmatter_field "${root}/001-mvp/005-open-work/task.md" "priority: low"
 run_taskr priority_doctor_valid "${root}" doctor
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 
+# Full show output should always expose stored high and low priorities.
+run_taskr priority_show_full_high "${root}" show 002
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^Priority: high$' "${stdout}"
+
+run_taskr priority_show_full_low "${root}" show 005
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^Priority: low$' "${stdout}"
+
 # Metadata output should expose effective priority, including omitted-as-normal.
 run_taskr priority_show_high "${root}" show 002 --meta
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

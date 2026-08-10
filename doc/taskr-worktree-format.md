@@ -92,6 +92,13 @@ Each status field records the most recent entry into that status.
 `reopened_at` records the most recent transition from `done` or `cancelled` to
 a non-closed status. A real status transition also updates `updated_at`.
 
+Task markers may store `priority: high` or `priority: low`. If `priority` is
+absent, the effective task priority is `normal`. `priority: normal` is not
+stored because it duplicates the default. Priority metadata is invalid on
+milestones and subtasks, and values are lowercase and case-sensitive. Full
+`show` output always includes stored `high` and `low`; `show --meta` also shows
+the effective `normal` default.
+
 Required body sections:
 
 ```markdown

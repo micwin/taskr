@@ -98,6 +98,11 @@ Taskr may also store optional RFC3339 transition metadata such as
 records the most recent entry into that status. Missing transition fields are
 valid for compatibility with existing markers.
 
+Tasks may store `priority: high` or `priority: low`. An omitted priority means
+`normal`; Taskr does not persist redundant `priority: normal`. Priority is not
+valid on milestones or subtasks. Normal `show` output includes `high` and `low`
+priorities; `show --meta` also displays effective `normal`.
+
 Required body structure:
 
 ```markdown
