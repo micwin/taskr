@@ -94,6 +94,95 @@ run_taskr priority_normal_noop "${root}" priority 003 normal
 grep -q 'priority id=003 old=normal new=normal changed=false stored=false' "${stdout}"
 [ "$(sha256sum "${command_marker}")" = "${marker_before_noop}" ]
 
+# Add a second high-priority task for stable ordering and selector ambiguity.
+run_taskr priority_create_ambiguous "${root}" create task "Workflow priority" --under 001 --no-edit
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+second_high_marker="${root}/001-mvp/006-workflow-priority/task.md"
+add_frontmatter_field "${second_high_marker}" "priority: high"
+
+# Default task lists should sort by priority and show only non-normal values.
+run_taskr priority_list_default "${root}" list --type task
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^002 task done priority=high Define directory structure$' "${stdout}"
+grep -q '^006 task open priority=high Workflow priority$' "${stdout}"
+grep -q '^003 task active Define workflows$' "${stdout}"
+grep -q '^005 task active priority=low Open work$' "${stdout}"
+default_ids="$(awk '{print $1}' "${stdout}" | paste -sd ' ' -)"
+[ "${default_ids}" = "002 006 003 005" ]
+
+# Display flags should force all effective values or suppress all priority text.
+run_taskr priority_list_show "${root}" list --type task --show-priority
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^002 task done priority=high Define directory structure$' "${stdout}"
+grep -q '^003 task active priority=normal Define workflows$' "${stdout}"
+grep -q '^005 task active priority=low Open work$' "${stdout}"
+
+run_taskr priority_list_hide "${root}" list --type task --hide-priority
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+if grep -q 'priority=' "${stdout}"; then
+  echo "list --hide-priority should suppress all priority values" >&2
+  exit 1
+fi
+
+# Effective priority filters should include omitted normal and task items only.
+run_taskr priority_list_filter_high "${root}" list --priority high
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^002 task done priority=high Define directory structure$' "${stdout}"
+grep -q '^006 task open priority=high Workflow priority$' "${stdout}"
+[ "$(wc -l <"${stdout}")" -eq 2 ]
+
+run_taskr priority_list_filter_normal "${root}" list --priority normal
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^003 task active Define workflows$' "${stdout}"
+[ "$(wc -l <"${stdout}")" -eq 1 ]
+
+run_taskr priority_list_filter_low "${root}" list --priority low
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^005 task active priority=low Open work$' "${stdout}"
+[ "$(wc -l <"${stdout}")" -eq 1 ]
+
+# Grouping should be task-only and preserve the priority and stable ID order.
+run_taskr priority_list_grouped "${root}" list --type task --group-by priority
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^Priority: high$' "${stdout}"
+grep -q '^Priority: normal$' "${stdout}"
+grep -q '^Priority: low$' "${stdout}"
+grep -q '^  002 task done Define directory structure$' "${stdout}"
+grep -q '^  006 task open Workflow priority$' "${stdout}"
+grep -q '^  003 task active Define workflows$' "${stdout}"
+grep -q '^  005 task active Open work$' "${stdout}"
+grouped_ids="$(awk '/^  [0-9]/{print $1}' "${stdout}" | paste -sd ' ' -)"
+[ "${grouped_ids}" = "002 006 003 005" ]
+
+run_taskr priority_list_grouped_mixed "${root}" list --group-by priority
+[ "${exit_code}" -ne 0 ] || { echo "priority grouping should require --type task" >&2; exit 1; }
+grep -qi 'group.*priority.*type task\|type task.*group.*priority' "${stderr}"
+
+run_taskr priority_list_conflicting_display "${root}" list --type task --show-priority --hide-priority
+[ "${exit_code}" -ne 0 ] || { echo "priority display flags should be exclusive" >&2; exit 1; }
+grep -qi 'show-priority\|hide-priority\|exclusive' "${stderr}"
+
+run_taskr priority_list_invalid_filter "${root}" list --priority urgent
+[ "${exit_code}" -ne 0 ] || { echo "list should reject an invalid priority filter" >&2; exit 1; }
+grep -qi 'priority.*urgent\|urgent.*priority' "${stderr}"
+
+run_taskr priority_list_help "${root}" list --help
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q -- '--priority' "${stdout}"
+grep -q -- '--show-priority' "${stdout}"
+grep -q -- '--hide-priority' "${stdout}"
+grep -q -- '--group-by' "${stdout}"
+
+run_taskr priority_list_value_completion "${root}" __complete list --priority ""
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx 'high' "${stdout}"
+grep -qx 'normal' "${stdout}"
+grep -qx 'low' "${stdout}"
+
+run_taskr priority_list_group_completion "${root}" __complete list --group-by ""
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx 'priority' "${stdout}"
+
 # Mutation accepts task selectors only and follows shared selector diagnostics.
 run_taskr priority_milestone_rejected "${root}" priority 001 high
 [ "${exit_code}" -ne 0 ] || { echo "priority should reject milestone targets" >&2; exit 1; }
@@ -126,8 +215,6 @@ run_taskr priority_missing_selector "${root}" priority missing high
 [ "${exit_code}" -ne 0 ] || { echo "priority should reject missing selectors" >&2; exit 1; }
 grep -qi 'not found\|no match' "${stderr}"
 
-run_taskr priority_create_ambiguous "${root}" create task "Workflow priority" --under 001 --no-edit
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 run_taskr priority_ambiguous_selector "${root}" priority workflow high
 [ "${exit_code}" -ne 0 ] || { echo "priority should reject ambiguous selectors" >&2; exit 1; }
 grep -q '^003 Define workflows$' "${stderr}"
@@ -159,6 +246,9 @@ run_taskr priority_examples "${root}" examples
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q 'taskr priority 002 high' "${stdout}"
 grep -q 'taskr priority 002 normal' "${stdout}"
+grep -q 'taskr list --type task --priority high' "${stdout}"
+grep -q 'taskr list --type task --show-priority' "${stdout}"
+grep -q 'taskr list --type task --group-by priority' "${stdout}"
 
 # Unknown values and non-canonical spelling should fail validation.
 invalid_value_root="${SMOKEY_STATE_DIR}/priority-invalid-value-root"
