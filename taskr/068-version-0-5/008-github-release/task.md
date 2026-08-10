@@ -79,5 +79,9 @@ incrementing `BUILD`.
   artifact verification, then failed before creating `v0.1.0+38` because the
   runner had no Git identity for its annotated tag. The workflow now configures
   the local `github-actions[bot]` identity before creating a missing tag.
+- 2026-08-10: Release run `31414068183` successfully published `v0.1.0+39`.
+  Download verification found that its checksum entries retained the build-time
+  `dist/` prefix and therefore were not directly verifiable beside the flat
+  GitHub assets. Candidate `0.1.0+40` generates basename-only checksum entries.
 
 # Outcome

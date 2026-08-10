@@ -12,7 +12,7 @@ tags, and publishes that exact commit.
 - Confirm `VERSION` and `BUILD` contain the version to publish. The release
   process does not increment either value.
 - Add a `CHANGELOG.md` heading in the form `## [VERSION+BUILD] - YYYY-MM-DD`,
-  for example `## [0.1.0+39] - 2026-08-10`.
+  for example `## [0.1.0+40] - 2026-08-10`.
 - Ensure local Go, Doctor, and Smokey verification is green before release.
 
 Normal builds increment `BUILD`. Release and CI builds instead use:

@@ -5,6 +5,11 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+## [0.1.0+40] - 2026-08-10
+
+- Made published SHA-256 checksum files directly verifiable beside downloaded
+  GitHub Release assets.
+
 ## [0.1.0+39] - 2026-08-10
 
 - Added the Cobra-based Taskr CLI and local-first Markdown worktree model.

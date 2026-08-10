@@ -67,6 +67,9 @@ grep -q 'go vet ./...' .github/workflows/release.yml
 grep -q 'taskr doctor\|go run ./src/taskr doctor' .github/workflows/release.yml
 grep -q 'smokey --tests-dir tests.d' .github/workflows/release.yml
 grep -q 'sha256sum' .github/workflows/release.yml
+grep -q 'cd dist' .github/workflows/release.yml
+grep -q 'basename.*binary' .github/workflows/release.yml
+grep -q 'basename.*package' .github/workflows/release.yml
 grep -q 'action-gh-release' .github/workflows/release.yml
 grep -q 'git config user.name "github-actions\[bot\]"' .github/workflows/release.yml
 grep -q 'git config user.email' .github/workflows/release.yml
