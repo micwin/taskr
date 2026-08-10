@@ -1,6 +1,6 @@
 ---
 title: Require Taskr commands for dogfood structure changes
-status: designing
+status: done
 created_at: 2026-08-10T00:00:00Z
 updated_at: 2026-08-10T00:00:00Z
 ---
@@ -35,3 +35,10 @@ outcomes.
   agent workflow policy.
 
 # Outcome
+
+`AGENTS.md` now requires Taskr dogfood item creation and moves to use
+`taskr create` and `taskr move` when those commands can satisfy the needed
+operation. Direct marker text edits remain allowed under ticket lifecycle
+rules, direct filesystem structure edits require missing tool support or
+explicit user approval, and `taskr doctor` remains the validation gate after
+structural dogfood changes.

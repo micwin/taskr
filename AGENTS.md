@@ -47,6 +47,19 @@ conflict.
   `taskr/012-dogfood/011-implementation-scope-policy/task.md`; update that
   ticket before changing how broadly implementation agents may act beyond the
   active ticket.
+- Create Taskr dogfood items with `taskr create` when the command can satisfy
+  the needed operation. Do not create item directories or marker files by hand
+  merely for convenience.
+- Move Taskr dogfood items with `taskr move` when the command can satisfy the
+  needed operation. Do not move item directories by hand merely for
+  convenience.
+- Direct text edits inside existing dogfood marker files remain allowed for
+  `# Description`, `# Acceptance`, `# Comments`, and `# Outcome`, subject to
+  the ticket lifecycle rules below.
+- Direct filesystem manipulation of dogfood structure is acceptable only before
+  a supporting Taskr command exists, when the command cannot satisfy the needed
+  operation, or after explicit user approval.
+- Run `taskr doctor` after structural dogfood changes.
 
 ## Implementation Scope
 
