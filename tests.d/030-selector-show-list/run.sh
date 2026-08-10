@@ -75,10 +75,16 @@ if grep -q '^# Description$' "${stdout}"; then
   exit 1
 fi
 
-# List and show output should be stable enough for Smokey assertions.
+# Default list output should be stable and omit terminal items.
 run_taskr list_root "${root}" list
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "001 milestone active MVP" "${stdout}"
+if grep -q "002 task done Define directory structure" "${stdout}"; then
+  echo "default list should hide done items" >&2
+  exit 1
+fi
+run_taskr list_root_all "${root}" list --all
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "002 task done Define directory structure" "${stdout}"
 run_taskr list_under "${root}" list --under 001
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

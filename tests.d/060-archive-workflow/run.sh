@@ -28,8 +28,8 @@ grep -q "archived id=002" "${stdout}"
 grep -q "to=archive/2026/002-verzeichnisstruktur" "${stdout}"
 test -f "${root}/archive/2026/002-verzeichnisstruktur/task.md"
 
-# The archive location should be inspectable through list.
-run_taskr list_archive "${root}" list --under archive/2026
+# The archive location should be inspectable by opting into terminal items.
+run_taskr list_archive "${root}" list --all --under archive/2026
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "002 task done Define directory structure" "${stdout}"
 

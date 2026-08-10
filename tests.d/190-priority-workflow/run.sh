@@ -105,17 +105,15 @@ add_frontmatter_field "${second_high_marker}" "priority: high"
 # Default task lists should sort by priority and show only non-normal values.
 run_taskr priority_list_default "${root}" list --type task
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^002 task done priority=high Define directory structure$' "${stdout}"
 grep -q '^006 task open priority=high Workflow priority$' "${stdout}"
 grep -q '^003 task active Define workflows$' "${stdout}"
 grep -q '^005 task active priority=low Open work$' "${stdout}"
 default_ids="$(awk '{print $1}' "${stdout}" | paste -sd ' ' -)"
-[ "${default_ids}" = "002 006 003 005" ]
+[ "${default_ids}" = "006 003 005" ]
 
 # Display flags should force all effective values or suppress all priority text.
 run_taskr priority_list_show "${root}" list --type task --show-priority
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^002 task done priority=high Define directory structure$' "${stdout}"
 grep -q '^003 task active priority=normal Define workflows$' "${stdout}"
 grep -q '^005 task active priority=low Open work$' "${stdout}"
 
@@ -129,9 +127,8 @@ fi
 # Effective priority filters should include omitted normal and task items only.
 run_taskr priority_list_filter_high "${root}" list --priority high
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^002 task done priority=high Define directory structure$' "${stdout}"
 grep -q '^006 task open priority=high Workflow priority$' "${stdout}"
-[ "$(wc -l <"${stdout}")" -eq 2 ]
+[ "$(wc -l <"${stdout}")" -eq 1 ]
 
 run_taskr priority_list_filter_normal "${root}" list --priority normal
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -149,12 +146,11 @@ run_taskr priority_list_grouped "${root}" list --type task --group-by priority
 grep -q '^Priority: high$' "${stdout}"
 grep -q '^Priority: normal$' "${stdout}"
 grep -q '^Priority: low$' "${stdout}"
-grep -q '^  002 task done Define directory structure$' "${stdout}"
 grep -q '^  006 task open Workflow priority$' "${stdout}"
 grep -q '^  003 task active Define workflows$' "${stdout}"
 grep -q '^  005 task active Open work$' "${stdout}"
 grouped_ids="$(awk '/^  [0-9]/{print $1}' "${stdout}" | paste -sd ' ' -)"
-[ "${grouped_ids}" = "002 006 003 005" ]
+[ "${grouped_ids}" = "006 003 005" ]
 
 run_taskr priority_list_grouped_mixed "${root}" list --group-by priority
 [ "${exit_code}" -ne 0 ] || { echo "priority grouping should require --type task" >&2; exit 1; }
@@ -222,15 +218,6 @@ grep -q $'^\t002 \[task done priority=high\] Define directory structure$' "${std
 run_taskr priority_tree_wide "${root}" tree 001 --all --wide
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q '^    002 \[task done priority=high\] Define directory structure$' "${stdout}"
-
-run_taskr priority_tree_open "${root}" tree 001 --all --open
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-if grep -q '^  002 ' "${stdout}"; then
-  echo "priority ordering should not make done tasks visible with --open" >&2
-  exit 1
-fi
-open_tree_ids="$(awk '/^  [0-9]/{print $1}' "${stdout}" | paste -sd ' ' -)"
-[ "${open_tree_ids}" = "006 003 005" ]
 
 # Priority display flags should be exclusive and documented.
 run_taskr priority_tree_conflicting_display "${root}" tree 001 --show-priority --hide-priority

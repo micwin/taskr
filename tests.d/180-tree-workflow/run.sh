@@ -81,21 +81,25 @@ if grep -q '^001 ' "${stdout}"; then
   exit 1
 fi
 
-# Open mode should hide done and cancelled items by their own status.
+# Default mode should hide both terminal statuses while --all restores them.
 run_taskr status_cancelled "${root}" status 005 cancelled
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -Eq '^cancelled_at: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' "${root}/001-mvp/005-open-work/task.md"
-run_taskr tree_open "${root}" tree --open --all
+run_taskr tree_without_terminal "${root}" tree
 if [ "${exit_code}" -ne 0 ]; then
-  echo "tree --open should pass" >&2
+  echo "default tree should pass after cancellation" >&2
   cat "${stderr}" >&2
   exit 1
 fi
 grep -q '^001 \[milestone active\] MVP$' "${stdout}"
 if grep -q '\[task done\]\|\[task cancelled\]' "${stdout}"; then
-  echo "tree --open should hide closed items" >&2
+  echo "default tree should hide terminal items" >&2
   exit 1
 fi
+run_taskr tree_with_terminal "${root}" tree --all
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^  002 \[task done\] Define directory structure$' "${stdout}"
+grep -q '^  005 \[task cancelled\] Open work$' "${stdout}"
 
 # Refinement-style multi-milestone output should stay readable.
 run_taskr create_refinement "${root}" create milestone "Refinement" --no-edit
@@ -116,7 +120,10 @@ run_taskr tree_help "${root}" tree --help
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q 'taskr tree \[selector\]' "${stdout}"
 grep -q -- '--all' "${stdout}"
-grep -q -- '--open' "${stdout}"
+if grep -q -- '--open' "${stdout}"; then
+  echo "tree help should not expose removed --open flag" >&2
+  exit 1
+fi
 grep -q -- '--ascii' "${stdout}"
 grep -q -- '--tabs' "${stdout}"
 grep -q -- '--wide' "${stdout}"
