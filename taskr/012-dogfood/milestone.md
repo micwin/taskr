@@ -1,6 +1,6 @@
 ---
 title: Dogfood
-status: active
+status: done
 created_at: 2026-08-07T00:00:00Z
 updated_at: 2026-08-07T00:00:00Z
 ---
@@ -22,3 +22,8 @@ Manage Taskr development practices with Taskr itself.
   product milestone.
 
 # Outcome
+
+Dogfood process and policy work was established as first-class Taskr-managed
+work. The milestone captured agent implementation scope, closure checks for
+doctor/help/completion/API behavior, and the rule that Taskr dogfood structure
+changes use Taskr commands when possible.
