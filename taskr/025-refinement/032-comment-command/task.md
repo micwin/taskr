@@ -15,11 +15,12 @@ workflow without opening an editor for small updates.
 
 - `taskr comment <selector> <text>` appends the text to the selected item's
   `# Comments` section.
-- The appended comment includes the current date.
+- The appended comment includes the current local date and time.
+- Each invocation appends one complete comment entry.
 - The command errors if the selector is missing, unknown, or ambiguous.
 - The command preserves the required marker section order and keeps
   `# Outcome` as the final section.
-- Multi-line comments are supported through stdin or an explicit option.
+- Multi-line comments are supported through stdin so pipes and heredocs work.
 - Command help documents selector usage and comment input modes.
 - Shell completion covers selectors for the command.
 - Smokey tests cover single-line comments, multi-line comments, ambiguous
@@ -29,5 +30,7 @@ workflow without opening an editor for small updates.
 
 - 2026-08-10: Added so common dogfood ticket notes can be written through the
   CLI instead of manual marker editing.
+- 2026-08-10: Comments should include date and time. Multi-line comments should
+  be accepted through stdin so users can pipe text or use heredocs.
 
 # Outcome
