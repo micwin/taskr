@@ -245,6 +245,46 @@ run_taskr priority_tree_flag_completion "${root}" __complete tree --
 grep -q '^--show-priority' "${stdout}"
 grep -q '^--hide-priority' "${stdout}"
 
+# Report should count effective task priority globally and per milestone.
+run_taskr priority_report_mark_developing "${root}" status 003 developing
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+run_taskr priority_report_create_empty "${root}" create milestone "Priority future" --no-edit
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+
+run_taskr priority_report "${root}" report
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^# Task Priority Summary$' "${stdout}"
+[ "$(grep -c '^tasks with effective priority "high": 2$' "${stdout}")" -eq 2 ]
+[ "$(grep -c '^tasks with effective priority "normal": 1$' "${stdout}")" -eq 2 ]
+[ "$(grep -c '^tasks with effective priority "low": 1$' "${stdout}")" -eq 2 ]
+
+global_high_line="$(grep -n -m1 '^tasks with effective priority "high":' "${stdout}" | cut -d: -f1)"
+global_normal_line="$(grep -n -m1 '^tasks with effective priority "normal":' "${stdout}" | cut -d: -f1)"
+global_low_line="$(grep -n -m1 '^tasks with effective priority "low":' "${stdout}" | cut -d: -f1)"
+[ "${global_high_line}" -lt "${global_normal_line}" ]
+[ "${global_normal_line}" -lt "${global_low_line}" ]
+
+grep -q '^## MVP (mvp) \[active\]$' "${stdout}"
+grep -q '^### Task Priority Counts$' "${stdout}"
+grep -q '^# Open Milestones Without Tickets$' "${stdout}"
+grep -q '^007 \[open\] Priority future$' "${stdout}"
+if grep -q '^## Priority future ' "${stdout}"; then
+  echo "empty milestones should not receive a task priority count section" >&2
+  exit 1
+fi
+
+# Priority reporting must not replace status counts or current-work selection.
+grep -q '^tasks with status "developing": 1$' "${stdout}"
+grep -q '^tasks with status "active": 1$' "${stdout}"
+grep -q '^tasks with status "done": 1$' "${stdout}"
+grep -q '^tasks with status "open": 1$' "${stdout}"
+grep -q '^003 \[developing\] Define workflows$' "${stdout}"
+
+run_taskr priority_report_help "${root}" report --help
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qi 'repository.*report\|report.*repository' "${stdout}"
+grep -qi 'priority' "${stdout}"
+
 # Mutation accepts task selectors only and follows shared selector diagnostics.
 run_taskr priority_milestone_rejected "${root}" priority 001 high
 [ "${exit_code}" -ne 0 ] || { echo "priority should reject milestone targets" >&2; exit 1; }
@@ -313,6 +353,7 @@ grep -q 'taskr list --type task --show-priority' "${stdout}"
 grep -q 'taskr list --type task --group-by priority' "${stdout}"
 grep -q 'taskr tree 001 --all --show-priority' "${stdout}"
 grep -q 'taskr tree 001 --hide-priority' "${stdout}"
+grep -q 'taskr report' "${stdout}"
 
 # Unknown values and non-canonical spelling should fail validation.
 invalid_value_root="${SMOKEY_STATE_DIR}/priority-invalid-value-root"
