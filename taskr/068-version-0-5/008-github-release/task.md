@@ -70,5 +70,10 @@ incrementing `BUILD`.
   actionlint 1.7.7, frozen binary and Debian version checks, and all 23 Smokey
   workflows. The first real GitHub Actions run remains pending until the
   implementation is committed and pushed by explicit user instruction.
+- 2026-08-10: CI run `31413032135` passed on GitHub. The first release run
+  `31413129475` built and verified `0.1.0+37`, then failed before tagging because
+  release-note extraction required an exact changelog heading and did not
+  accept the documented date suffix. The parser and regression coverage were
+  corrected for release candidate `0.1.0+38`.
 
 # Outcome

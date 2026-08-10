@@ -82,6 +82,31 @@ grep -qi 'VERSION.*BUILD\|BUILD.*VERSION' RELEASING.md
 grep -qi 'failed release\|failure' RELEASING.md
 grep -q '^# Changelog' CHANGELOG.md
 
+# Release-note extraction accepts dated headings and stops at the next release.
+release_changelog="${SMOKEY_STATE_DIR}/release-notes-CHANGELOG.md"
+release_notes="${SMOKEY_STATE_DIR}/release-notes.md"
+cat >"${release_changelog}" <<'EOF'
+# Changelog
+
+## [Unreleased]
+
+## [0.1.0+41] - 2026-08-10
+
+- Expected release note.
+
+## [0.1.0+40] - 2026-08-09
+
+- Previous release note.
+EOF
+scripts/extract-release-notes.sh 0.1.0+41 "${release_changelog}" >"${release_notes}"
+grep -qx -- '- Expected release note.' "${release_notes}"
+if grep -q 'Previous release note' "${release_notes}"; then
+  echo "release notes should stop at the next release heading" >&2
+  exit 1
+fi
+run_command missing_release_notes scripts/extract-release-notes.sh 0.1.0+42 "${release_changelog}"
+[ "${exit_code}" -ne 0 ] || { echo "missing release notes should fail" >&2; exit 1; }
+
 # Build a local remote whose release branch can fast-forward to synchronized develop.
 release_remote="${SMOKEY_STATE_DIR}/release-origin.git"
 release_repo="${SMOKEY_STATE_DIR}/release-repo"

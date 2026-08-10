@@ -11,8 +11,8 @@ tags, and publishes that exact commit.
 - Keep the worktree and index clean, including untracked files.
 - Confirm `VERSION` and `BUILD` contain the version to publish. The release
   process does not increment either value.
-- Add a `CHANGELOG.md` heading in the form `## [VERSION+BUILD]`, for example
-  `## [0.1.0+37]`.
+- Add a `CHANGELOG.md` heading in the form `## [VERSION+BUILD] - YYYY-MM-DD`,
+  for example `## [0.1.0+38] - 2026-08-10`.
 - Ensure local Go, Doctor, and Smokey verification is green before release.
 
 Normal builds increment `BUILD`. Release and CI builds instead use:

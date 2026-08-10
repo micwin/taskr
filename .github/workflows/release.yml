@@ -79,11 +79,8 @@ jobs:
           RELEASE_VERSION: ${{ steps.version.outputs.release_version }}
         run: |
           mkdir -p work
-          awk -v header="## [${RELEASE_VERSION}]" '
-            $0 == header { found = 1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md >work/release-notes.md
+          scripts/extract-release-notes.sh "${RELEASE_VERSION}" CHANGELOG.md \
+            >work/release-notes.md
           test -s work/release-notes.md
 
       - name: Create or verify release tag
@@ -110,4 +107,3 @@ jobs:
             dist/taskr_${{ steps.version.outputs.release_version }}_SHA256SUMS
           draft: false
           prerelease: false
-
