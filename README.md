@@ -134,6 +134,18 @@ taskr comment 002 "Reviewed with Michael"
 printf 'first detail\nsecond detail\n' | taskr comment 002 --stdin
 ```
 
+Items can be renamed without changing their numeric ID or subtree. By default,
+the title also determines the new directory slug:
+
+```bash
+taskr rename 003 "Plan delivery workflows"
+taskr rename 003 "Plan delivery workflows" --slug delivery-plan
+taskr rename 003 "Plan delivery workflows" --keep-slug
+```
+
+`--slug` selects a custom normalized slug. `--keep-slug` changes only the
+marker title; the two flags are mutually exclusive.
+
 ## Status Lifecycle
 
 Built-in statuses are `open`, `designing`, `developing`, `active`,
@@ -157,9 +169,10 @@ Completion is structural:
 
 No task dependency links exist in the MVP model.
 
-Use `taskr tree` to inspect the work hierarchy in the terminal. By default it
-uses indentation and hides completed leaf items; use `taskr tree --all` to
-include done and cancelled work, or `taskr tree --ascii` for branch markers.
+Use `taskr list` or `taskr tree` to inspect unfinished work. Both commands hide
+items with status `done` or `cancelled` by default and accept `--all` to include
+them. Terminal list filters therefore use forms such as
+`taskr list --all --status done`. Use `taskr tree --ascii` for branch markers.
 
 ## Archive
 

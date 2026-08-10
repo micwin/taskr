@@ -1,9 +1,11 @@
 ---
 title: Rename items
-status: developing
+status: done
 created_at: 2026-08-10T10:41:47Z
-updated_at: 2026-08-10T16:07:46Z
+updated_at: 2026-08-10T16:34:05Z
 developing_at: 2026-08-10T16:07:46Z
+reviewing_at: 2026-08-10T16:32:22Z
+done_at: 2026-08-10T16:34:05Z
 ---
 
 # Description
@@ -64,3 +66,10 @@ The numeric item id and existing subtree remain unchanged.
   provides a title-only operation. Slug-only rename is intentionally omitted.
 
 # Outcome
+
+Taskr can rename milestones, tasks, and subtasks while preserving their numeric
+ID and complete subtree. Rename derives a slug from the new title by default,
+supports custom and retained slugs, updates `updated_at` only for real changes,
+rejects collisions and invalid input, and rolls back incomplete mutations.
+Help, completion, examples, user documentation, workflow documentation, and
+Smokey cover the complete command contract.

@@ -106,6 +106,39 @@ Expected output:
 - Marker filename.
 - Whether the editor was opened.
 
+# Rename Item Workflow
+
+User selects a milestone, task, or subtask and provides a new title. Taskr
+preserves the numeric ID and complete subtree while updating the marker title
+and, by default, the directory slug.
+
+Normal flow:
+
+1. Resolve exactly one item from the selector.
+2. Trim and validate the new title.
+3. Derive the new slug from the title, normalize a `--slug` override, or retain
+   the current slug with `--keep-slug`.
+4. Reject `--slug` together with `--keep-slug` and reject empty normalized
+   values.
+5. Check the destination slug against sibling item directories.
+6. Update the marker title and `updated_at`, rename the item directory when
+   needed, and validate the resulting worktree.
+7. Roll back marker and directory changes if the operation cannot complete.
+8. Leave the marker byte-identical when both title and slug are unchanged.
+
+Failure cases:
+
+- Selector is missing or ambiguous.
+- Title or normalized slug is empty.
+- Destination slug collides with a sibling.
+- Marker update, directory rename, or resulting worktree validation fails.
+
+Expected output:
+
+- Preserved item ID.
+- Previous and resulting paths.
+- Resulting title and whether anything changed.
+
 # Change Status Workflow
 
 User selects an item and requests a new status. Taskr validates the transition

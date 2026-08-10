@@ -118,7 +118,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "report", "show", "status", "tree", "version":
+	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "rename", "report", "show", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -147,6 +147,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 		treeCommand(rootPath),
 		statusCommand(rootPath),
 		moveCommand(rootPath),
+		renameCommand(rootPath),
 		openCommand(rootPath),
 		reportCommand(rootPath),
 		archiveCommand(rootPath),
@@ -186,6 +187,7 @@ Append comments:
 
 Inspect work:
   taskr list
+  taskr list --all
   taskr tree
   taskr tree 001 --all
   taskr tree 001 --ascii
@@ -199,13 +201,18 @@ Prioritize a ticket:
   taskr priority 002 high
   taskr priority 002 normal
 
+Rename an item:
+  taskr rename 003 "Plan delivery workflows"
+  taskr rename 003 "Plan delivery workflows" --slug delivery-plan
+  taskr rename 003 "Plan delivery workflows" --keep-slug
+
 List tickets by status:
   taskr list --type task --status open
   taskr list --type task --status developing --under 001
   taskr list --type task --status active --under 001
   taskr list --type task --status reviewing --under 001
-  taskr list --type task --status done --under 001
-  taskr list --type task --status cancelled --under 001
+  taskr list --all --type task --status done --under 001
+  taskr list --all --type task --status cancelled --under 001
   taskr list --type task --priority high
   taskr list --type task --show-priority
   taskr list --type task --group-by priority
@@ -426,12 +433,16 @@ func markerBody(path string) (string, error) {
 
 func listCommand(rootPath string) *cobra.Command {
 	var under, typeFilter, statusFilter, priorityFilter, groupBy string
-	var showPriority, hidePriority bool
+	var includeAll, showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List items",
-		Args:  cobra.NoArgs,
+		Long: `List items.
+
+By default, list excludes done and cancelled items. Use --all to include them.
+Explicit done or cancelled status filters therefore require --all.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPriority && hidePriority {
 				return exitError{code: 2, msg: "list flags --show-priority and --hide-priority are mutually exclusive"}
@@ -446,7 +457,7 @@ func listCommand(rootPath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter)
+			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter, includeAll)
 			if err != nil {
 				return err
 			}
@@ -467,6 +478,7 @@ func listCommand(rootPath string) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&includeAll, "all", false, "include done and cancelled items")
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
@@ -483,16 +495,14 @@ func listCommand(rootPath string) *cobra.Command {
 }
 
 func treeCommand(rootPath string) *cobra.Command {
-	var includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority bool
+	var includeAll, ascii, tabs, wide, showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
 		Use:   "tree [selector]",
 		Short: "Show the item hierarchy",
 		Long: `Show Taskr items as an indented tree.
 
-By default, completed leaf items are hidden while active parent context remains
-visible. Use --all to include done and cancelled items. Use --open to show only
-items whose own status is not done or cancelled.
+By default, done and cancelled items are hidden. Use --all to include them.
 
 The default format uses two spaces per hierarchy level. Use --ascii for branch
 markers, --tabs for tab indentation, or --wide for wider space indentation.
@@ -500,10 +510,7 @@ Non-normal task priority is shown by default; --show-priority includes normal
 and --hide-priority suppresses all priority labels.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if includeAll && onlyOpen {
-				includeAll = false
-			}
-			opts, err := newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority)
+			opts, err := newTreeOptions(includeAll, ascii, tabs, wide, showPriority, hidePriority)
 			if err != nil {
 				return err
 			}
@@ -532,7 +539,6 @@ and --hide-priority suppresses all priority labels.`,
 		ValidArgsFunction: treeArgCompletion(rootPath),
 	}
 	cmd.Flags().BoolVar(&includeAll, "all", false, "include done and cancelled items")
-	cmd.Flags().BoolVar(&onlyOpen, "open", false, "show only items whose own status is not done or cancelled")
 	cmd.Flags().BoolVar(&ascii, "ascii", false, "use ASCII branch markers")
 	cmd.Flags().BoolVar(&tabs, "tabs", false, "indent hierarchy levels with tabs")
 	cmd.Flags().BoolVar(&wide, "wide", false, "indent hierarchy levels with four spaces")
@@ -678,6 +684,32 @@ func moveCommand(rootPath string) *cobra.Command {
 	cmd.Flags().StringVar(&under, "under", "", "destination parent selector")
 	cmd.Flags().BoolVar(&toRoot, "root", false, "move item to the root level")
 	mustRegisterCompletion(cmd, "under", moveParentCompletion(rootPath))
+	return cmd
+}
+
+func renameCommand(rootPath string) *cobra.Command {
+	var slug string
+	var keepSlug bool
+
+	cmd := &cobra.Command{
+		Use:   "rename <selector> <new-title>",
+		Short: "Rename an item",
+		Long: `Rename a milestone, task, or subtask while preserving its numeric ID and subtree.
+
+By default, the directory slug is derived from the new title. Use --slug to
+provide a different slug or --keep-slug to change only the title.`,
+		Args: cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			slugSet := cmd.Flags().Changed("slug")
+			if slugSet && keepSlug {
+				return exitError{code: 2, msg: "rename flags --slug and --keep-slug are mutually exclusive"}
+			}
+			return runRename(cmd, rootPath, args[0], strings.Join(args[1:], " "), slug, slugSet, keepSlug)
+		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
+	}
+	cmd.Flags().StringVar(&slug, "slug", "", "directory slug override")
+	cmd.Flags().BoolVar(&keepSlug, "keep-slug", false, "change the title without changing the directory slug")
 	return cmd
 }
 
@@ -1184,6 +1216,97 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) 
 		return exitError{code: 2, msg: fmt.Sprintf("move would make worktree invalid: %v", err)}
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "moved id=%s from=%s to=%s\n", source.IDText, oldRel, newRel)
+	return nil
+}
+
+func runRename(cmd *cobra.Command, rootPath, selector, title, slug string, slugSet, keepSlug bool) error {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return exitError{code: 2, msg: "rename title is empty"}
+	}
+	t, err := loadTree(rootPath)
+	if err != nil {
+		return err
+	}
+	it, err := resolveItem(t, selector)
+	if err != nil {
+		return err
+	}
+
+	newSlug := it.Slug
+	if !keepSlug {
+		if slugSet {
+			newSlug = slugify(slug)
+		} else {
+			newSlug = slugify(title)
+		}
+	}
+	if newSlug == "" {
+		return exitError{code: 2, msg: "rename slug is empty"}
+	}
+	if title == it.Title && newSlug == it.Slug {
+		fmt.Fprintf(cmd.OutOrStdout(), "renamed id=%s from=%s to=%s title=%q changed=false\n", it.IDText, it.RelDir, it.RelDir, title)
+		return nil
+	}
+
+	oldDir := it.Dir
+	oldRel := it.RelDir
+	newDir := filepath.Join(filepath.Dir(oldDir), it.IDText+"-"+newSlug)
+	newRel := relPath(t.Root, newDir)
+	if newSlug != it.Slug {
+		if existing := existingSlugDir(filepath.Dir(oldDir), newSlug); existing != "" {
+			return exitError{code: 2, msg: fmt.Sprintf("rename destination slug exists: %s", existing)}
+		}
+		if _, err := os.Stat(newDir); err == nil {
+			return exitError{code: 2, msg: fmt.Sprintf("rename destination exists: %s", newRel)}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+
+	originalMarker, err := os.ReadFile(it.MarkerPath)
+	if err != nil {
+		return err
+	}
+	markerInfo, err := os.Stat(it.MarkerPath)
+	if err != nil {
+		return err
+	}
+	restoreMarker := func(path string) error {
+		return os.WriteFile(path, originalMarker, markerInfo.Mode().Perm())
+	}
+	updates := map[string]string{
+		"title":      title,
+		"updated_at": time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := updateMarkerFields(it.MarkerPath, updates); err != nil {
+		return err
+	}
+	moved := newSlug != it.Slug
+	if moved {
+		if err := os.Rename(oldDir, newDir); err != nil {
+			if restoreErr := restoreMarker(it.MarkerPath); restoreErr != nil {
+				return exitError{code: 1, msg: fmt.Sprintf("rename failed: %v; marker rollback failed: %v", err, restoreErr)}
+			}
+			return err
+		}
+	}
+	if _, err := loadTree(t.Root); err != nil {
+		markerPath := it.MarkerPath
+		if moved {
+			if rollbackErr := os.Rename(newDir, oldDir); rollbackErr != nil {
+				return exitError{code: 1, msg: fmt.Sprintf("rename made invalid worktree: %v; path rollback failed: %v", err, rollbackErr)}
+			}
+		} else {
+			markerPath = filepath.Join(oldDir, it.Marker)
+		}
+		if restoreErr := restoreMarker(markerPath); restoreErr != nil {
+			return exitError{code: 1, msg: fmt.Sprintf("rename made invalid worktree: %v; marker rollback failed: %v", err, restoreErr)}
+		}
+		return exitError{code: 2, msg: fmt.Sprintf("rename would make worktree invalid: %v", err)}
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "renamed id=%s from=%s to=%s title=%q changed=true\n", it.IDText, oldRel, newRel, title)
 	return nil
 }
 
@@ -1838,7 +1961,7 @@ func filterCompletions(values []string, prefix string) []string {
 	return out
 }
 
-func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter string) ([]*item, error) {
+func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter string, includeAll bool) ([]*item, error) {
 	if typeFilter != "" {
 		if _, ok := typeMarkers[typeFilter]; !ok {
 			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid type %q", typeFilter)}
@@ -1846,6 +1969,9 @@ func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter stri
 	}
 	if statusFilter != "" && !validStatuses[statusFilter] {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid status %q", statusFilter)}
+	}
+	if !includeAll && closedStatus(statusFilter) {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("status %q requires --all", statusFilter)}
 	}
 	if priorityFilter != "" && !isPriority(priorityFilter) {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid priority %q", priorityFilter)}
@@ -1856,6 +1982,9 @@ func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter stri
 	}
 	var out []*item
 	for _, it := range items {
+		if !includeAll && closedStatus(it.Status) {
+			continue
+		}
 		if typeFilter != "" && it.Type != typeFilter {
 			continue
 		}
@@ -1873,20 +2002,19 @@ func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter stri
 
 type treeOptions struct {
 	includeAll bool
-	onlyOpen   bool
 	format     string
 	indent     string
 	priority   priorityDisplay
 }
 
-func newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority bool) (treeOptions, error) {
+func newTreeOptions(includeAll, ascii, tabs, wide, showPriority, hidePriority bool) (treeOptions, error) {
 	if tabs && wide {
 		return treeOptions{}, exitError{code: 2, msg: "tree format flags --tabs and --wide cannot be used together"}
 	}
 	if showPriority && hidePriority {
 		return treeOptions{}, exitError{code: 2, msg: "tree flags --show-priority and --hide-priority are mutually exclusive"}
 	}
-	opts := treeOptions{includeAll: includeAll, onlyOpen: onlyOpen, indent: "  ", priority: priorityDisplayAuto}
+	opts := treeOptions{includeAll: includeAll, indent: "  ", priority: priorityDisplayAuto}
 	if showPriority {
 		opts.priority = priorityDisplayShow
 	} else if hidePriority {
@@ -1983,21 +2111,10 @@ func treeItemMeta(it *item, mode priorityDisplay) string {
 }
 
 func treeItemVisible(it *item, opts treeOptions) bool {
-	if opts.onlyOpen {
-		return !closedStatus(it.Status)
-	}
 	if opts.includeAll {
 		return true
 	}
-	if !closedStatus(it.Status) {
-		return true
-	}
-	for _, child := range it.Children {
-		if treeItemVisible(child, opts) {
-			return true
-		}
-	}
-	return false
+	return !closedStatus(it.Status)
 }
 
 func closedStatus(status string) bool {

@@ -1,10 +1,12 @@
 ---
 title: Filter non-closed items
-status: developing
+status: done
 created_at: 2026-08-10T16:11:24Z
-updated_at: 2026-08-10T16:24:50Z
+updated_at: 2026-08-10T16:34:05Z
 designing_at: 2026-08-10T16:11:31Z
 developing_at: 2026-08-10T16:24:50Z
+reviewing_at: 2026-08-10T16:27:14Z
+done_at: 2026-08-10T16:34:05Z
 ---
 
 # Description
@@ -57,3 +59,9 @@ and every supporting surface.
   redundant `tree --open` surface is removed completely.
 
 # Outcome
+
+`list` and `tree` now show unfinished items by default and include `done` and
+`cancelled` only with `--all`. Terminal list status filters require `--all`,
+the flag composes with existing list filters and priority controls, and the
+redundant `tree --open` surface has been removed from code, tests, help,
+completion, examples, and documentation.
