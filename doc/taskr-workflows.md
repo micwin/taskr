@@ -141,6 +141,29 @@ Expected output:
 - Effective completion status.
 - Blocking child paths when the requested status is rejected.
 
+# Change Priority Workflow
+
+User selects a task and changes its effective ordering priority.
+
+Normal flow:
+
+1. Resolve exactly one task selector.
+2. Validate `high`, `normal`, or `low`.
+3. Store `high` or `low`; remove priority metadata for effective `normal`.
+4. Update `updated_at` for a real change.
+5. Leave the marker byte-identical when the effective priority is unchanged.
+
+Failure cases:
+
+- Selector is missing, ambiguous, or resolves to a milestone or subtask.
+- Priority is missing, invalid, or uses non-canonical case.
+- Marker cannot be rewritten.
+
+Expected output:
+
+- Old and new effective priority.
+- Whether the marker changed and whether priority metadata remains stored.
+
 # Open Item Workflow
 
 User selects an item and chooses to open it with the configured editor or system

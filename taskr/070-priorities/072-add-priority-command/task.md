@@ -1,10 +1,11 @@
 ---
 title: Add priority command
-status: developing
+status: reviewing
 created_at: 2026-08-10T14:41:17Z
-updated_at: 2026-08-10T15:07:28Z
+updated_at: 2026-08-10T15:24:30Z
 designing_at: 2026-08-10T14:41:17Z
 developing_at: 2026-08-10T15:07:28Z
+reviewing_at: 2026-08-10T15:24:30Z
 ---
 
 # Description
@@ -36,3 +37,10 @@ Add a command for changing one task's effective priority through the CLI.
   priority metadata. A separate clear/delete form is intentionally omitted.
 
 # Outcome
+
+`taskr priority <selector> <high|normal|low>` now changes task priority through
+the CLI. High and low are stored, normal removes the field, real changes update
+`updated_at`, and effective no-ops leave markers byte-identical. The command
+rejects unsupported roles and invalid values, uses task-only selector
+completion, completes all three values, and is covered by help, examples,
+workflow documentation, and Smokey behavior.

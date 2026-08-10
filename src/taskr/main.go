@@ -35,6 +35,7 @@ var typeMarkers = map[string]string{
 }
 
 var itemTypes = []string{"milestone", "task", "subtask"}
+var priorities = []string{"high", "normal", "low"}
 
 var validStatuses = map[string]bool{
 	"open":       true,
@@ -117,7 +118,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "tree", "version":
+	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "report", "show", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -141,6 +142,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 		createCommand(rootPath),
 		commentCommand(rootPath),
 		showCommand(rootPath),
+		priorityCommand(rootPath),
 		listCommand(rootPath),
 		treeCommand(rootPath),
 		statusCommand(rootPath),
@@ -190,6 +192,10 @@ Inspect work:
   taskr show 002
   taskr show 002 --meta
   taskr report
+
+Prioritize a ticket:
+  taskr priority 002 high
+  taskr priority 002 normal
 
 List tickets by status:
   taskr list --type task --status open
@@ -555,6 +561,67 @@ current status succeeds without changing the marker.`,
 			}
 		},
 	}
+}
+
+func priorityCommand(rootPath string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "priority <selector> <high|normal|low>",
+		Short: "Change task priority",
+		Long: `Change one task's effective priority.
+
+High and low are stored in marker frontmatter. Normal removes stored priority
+metadata because omitted priority is effectively normal. A real change updates
+updated_at; repeating the effective priority leaves the marker unchanged.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			newPriority := args[1]
+			if !isPriority(newPriority) {
+				return exitError{code: 2, msg: fmt.Sprintf("invalid priority %q", newPriority)}
+			}
+			t, err := loadTree(rootPath)
+			if err != nil {
+				return err
+			}
+			it, err := resolveItem(t, args[0])
+			if err != nil {
+				return err
+			}
+			if it.Type != "task" {
+				return exitError{code: 2, msg: fmt.Sprintf("priority can only be changed for tasks, not %s %s", it.Type, it.IDText)}
+			}
+			stored := newPriority != "normal"
+			if newPriority == it.Priority {
+				fmt.Fprintf(cmd.OutOrStdout(), "priority id=%s old=%s new=%s changed=false stored=%t\n", it.IDText, it.Priority, newPriority, stored)
+				return nil
+			}
+			updates := map[string]string{"updated_at": time.Now().UTC().Format(time.RFC3339)}
+			remove := map[string]bool{}
+			if stored {
+				updates["priority"] = newPriority
+			} else {
+				remove["priority"] = true
+			}
+			if err := rewriteMarkerFields(it.MarkerPath, updates, remove); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "priority id=%s old=%s new=%s changed=true stored=%t\n", it.IDText, it.Priority, newPriority, stored)
+			return nil
+		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return filteredSelectorCompletion(rootPath, func(it *item) bool { return it.Type == "task" })(cmd, args, toComplete)
+			case 1:
+				return filterCompletions(priorities, toComplete), cobra.ShellCompDirectiveNoFileComp
+			default:
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+		},
+	}
+}
+
+func isPriority(value string) bool {
+	return value == "high" || value == "normal" || value == "low"
 }
 
 func moveCommand(rootPath string) *cobra.Command {
@@ -1948,48 +2015,61 @@ updated_at: %s
 }
 
 func updateMarkerFields(path string, updates map[string]string) error {
+	return rewriteMarkerFields(path, updates, nil)
+}
+
+func rewriteMarkerFields(path string, updates map[string]string, remove map[string]bool) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	lines := strings.Split(string(data), "\n")
+	out := make([]string, 0, len(lines)+len(updates))
 	inFrontmatter := false
 	updated := make(map[string]bool, len(updates))
-	frontmatterEnd := -1
+	frontmatterEnded := false
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if i == 0 && trimmed == "---" {
 			inFrontmatter = true
+			out = append(out, line)
 			continue
 		}
 		if inFrontmatter && trimmed == "---" {
-			frontmatterEnd = i
-			break
+			var additions []string
+			for key, value := range updates {
+				if !updated[key] {
+					additions = append(additions, key+": "+value)
+				}
+			}
+			sort.Strings(additions)
+			out = append(out, additions...)
+			out = append(out, line)
+			inFrontmatter = false
+			frontmatterEnded = true
+			continue
 		}
 		if !inFrontmatter {
+			out = append(out, line)
 			continue
 		}
 		key, _, ok := strings.Cut(trimmed, ":")
-		if !ok {
+		if ok && remove[key] {
 			continue
 		}
-		if value, exists := updates[key]; exists {
-			lines[i] = key + ": " + value
-			updated[key] = true
+		if ok {
+			if value, exists := updates[key]; exists {
+				out = append(out, key+": "+value)
+				updated[key] = true
+				continue
+			}
 		}
+		out = append(out, line)
 	}
-	if frontmatterEnd < 0 {
+	if !frontmatterEnded {
 		return exitError{code: 2, msg: fmt.Sprintf("%s: unterminated frontmatter", path)}
 	}
-	var additions []string
-	for key, value := range updates {
-		if !updated[key] {
-			additions = append(additions, key+": "+value)
-		}
-	}
-	sort.Strings(additions)
-	lines = append(lines[:frontmatterEnd], append(additions, lines[frontmatterEnd:]...)...)
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
 }
 
 func statusLabel(status string) string {
