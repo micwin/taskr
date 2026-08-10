@@ -219,6 +219,12 @@ Expected output:
 User asks to inspect the current root or a filtered set of items. Taskr prints
 stable summary rows for all matching items.
 
+Task-only lists sort effective priority as `high`, `normal`, `low` while
+preserving stable ID order inside a priority. `--priority` filters by effective
+priority, `--show-priority` and `--hide-priority` control row labels, and
+`--group-by priority` groups output when `--type task` is present. Priority is
+not an item selector or free-text search term.
+
 # Report Workflow
 
 User requests a repository report. Taskr summarizes the top-level root by

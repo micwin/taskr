@@ -1,10 +1,11 @@
 ---
 title: Add priority controls to list
-status: developing
+status: reviewing
 created_at: 2026-08-10T14:41:17Z
-updated_at: 2026-08-10T15:11:49Z
+updated_at: 2026-08-10T15:26:27Z
 designing_at: 2026-08-10T14:41:18Z
 developing_at: 2026-08-10T15:11:49Z
+reviewing_at: 2026-08-10T15:26:27Z
 ---
 
 # Description
@@ -39,3 +40,9 @@ optional priority display.
   and `--group-by priority` requires `--type task`.
 
 # Outcome
+
+Task-only list output now sorts `high`, `normal`, `low` with stable ties.
+Effective priority can be filtered, automatically shown for non-normal values,
+forced, hidden, or grouped with `--group-by priority --type task`. Invalid and
+conflicting flags fail clearly. Help, completion, examples, workflow
+documentation, and the shared Priority Smokey workflow cover the new surface.

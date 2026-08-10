@@ -204,6 +204,9 @@ List tickets by status:
   taskr list --type task --status reviewing --under 001
   taskr list --type task --status done --under 001
   taskr list --type task --status cancelled --under 001
+  taskr list --type task --priority high
+  taskr list --type task --show-priority
+  taskr list --type task --group-by priority
 
 Review and close work:
   taskr status 003 developing
@@ -420,31 +423,60 @@ func markerBody(path string) (string, error) {
 }
 
 func listCommand(rootPath string) *cobra.Command {
-	var under, typeFilter, statusFilter string
+	var under, typeFilter, statusFilter, priorityFilter, groupBy string
+	var showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List items",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if showPriority && hidePriority {
+				return exitError{code: 2, msg: "list flags --show-priority and --hide-priority are mutually exclusive"}
+			}
+			if groupBy != "" && groupBy != "priority" {
+				return exitError{code: 2, msg: fmt.Sprintf("invalid list group %q", groupBy)}
+			}
+			if groupBy == "priority" && typeFilter != "task" {
+				return exitError{code: 2, msg: "list --group-by priority requires --type task"}
+			}
 			t, err := loadTree(rootPath)
 			if err != nil {
 				return err
 			}
-			items, err := filteredItems(t, under, typeFilter, statusFilter)
+			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter)
 			if err != nil {
 				return err
 			}
-			writeItemLines(cmd.OutOrStdout(), items, true)
+			if typeFilter == "task" || priorityFilter != "" {
+				sortItemsByPriority(items)
+			}
+			mode := priorityDisplayAuto
+			if showPriority {
+				mode = priorityDisplayShow
+			} else if hidePriority {
+				mode = priorityDisplayHide
+			}
+			if groupBy == "priority" {
+				writePriorityGroups(cmd.OutOrStdout(), items, mode)
+			} else {
+				writeItemLinesWithPriority(cmd.OutOrStdout(), items, true, mode)
+			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
+	cmd.Flags().StringVar(&priorityFilter, "priority", "", "effective task priority filter")
+	cmd.Flags().BoolVar(&showPriority, "show-priority", false, "show effective priority for every task")
+	cmd.Flags().BoolVar(&hidePriority, "hide-priority", false, "hide all task priority values")
+	cmd.Flags().StringVar(&groupBy, "group-by", "", "group task output by priority")
 	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
+	mustRegisterCompletion(cmd, "priority", staticCompletion(priorities))
+	mustRegisterCompletion(cmd, "group-by", staticCompletion([]string{"priority"}))
 	return cmd
 }
 
@@ -1769,7 +1801,7 @@ func filterCompletions(values []string, prefix string) []string {
 	return out
 }
 
-func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, error) {
+func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter string) ([]*item, error) {
 	if typeFilter != "" {
 		if _, ok := typeMarkers[typeFilter]; !ok {
 			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid type %q", typeFilter)}
@@ -1777,6 +1809,9 @@ func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, er
 	}
 	if statusFilter != "" && !validStatuses[statusFilter] {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid status %q", statusFilter)}
+	}
+	if priorityFilter != "" && !isPriority(priorityFilter) {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid priority %q", priorityFilter)}
 	}
 	items, err := resolveUnder(t, under)
 	if err != nil {
@@ -1788,6 +1823,9 @@ func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, er
 			continue
 		}
 		if statusFilter != "" && it.Status != statusFilter {
+			continue
+		}
+		if priorityFilter != "" && (it.Type != "task" || it.Priority != priorityFilter) {
 			continue
 		}
 		out = append(out, it)
@@ -2193,13 +2231,65 @@ func openPath(path string, system bool) error {
 }
 
 func writeItemLines(w interface{ Write([]byte) (int, error) }, items []*item, withType bool) {
+	writeItemLinesWithPriority(w, items, withType, priorityDisplayHide)
+}
+
+type priorityDisplay int
+
+const (
+	priorityDisplayAuto priorityDisplay = iota
+	priorityDisplayShow
+	priorityDisplayHide
+)
+
+func writeItemLinesWithPriority(w interface{ Write([]byte) (int, error) }, items []*item, withType bool, mode priorityDisplay) {
 	for _, it := range items {
+		priority := ""
+		if it.Type == "task" && (mode == priorityDisplayShow || mode == priorityDisplayAuto && it.Priority != "normal") {
+			priority = " priority=" + it.Priority
+		}
 		if withType {
-			fmt.Fprintf(w, "%s %s %s %s\n", it.IDText, it.Type, it.Status, it.Title)
+			fmt.Fprintf(w, "%s %s %s%s %s\n", it.IDText, it.Type, it.Status, priority, it.Title)
 		} else {
-			fmt.Fprintf(w, "%s %s %s\n", it.IDText, it.Status, it.Title)
+			fmt.Fprintf(w, "%s %s%s %s\n", it.IDText, it.Status, priority, it.Title)
 		}
 	}
+}
+
+func writePriorityGroups(w interface{ Write([]byte) (int, error) }, items []*item, mode priorityDisplay) {
+	for _, priority := range priorities {
+		fmt.Fprintf(w, "Priority: %s\n", priority)
+		var group []*item
+		for _, it := range items {
+			if it.Priority == priority {
+				group = append(group, it)
+			}
+		}
+		rowMode := priorityDisplayHide
+		if mode == priorityDisplayShow {
+			rowMode = mode
+		}
+		for _, it := range group {
+			priorityText := ""
+			if rowMode == priorityDisplayShow {
+				priorityText = " priority=" + it.Priority
+			}
+			fmt.Fprintf(w, "  %s %s %s%s %s\n", it.IDText, it.Type, it.Status, priorityText, it.Title)
+		}
+	}
+}
+
+func sortItemsByPriority(items []*item) {
+	rank := map[string]int{"high": 0, "normal": 1, "low": 2}
+	sort.SliceStable(items, func(i, j int) bool {
+		if rank[items[i].Priority] == rank[items[j].Priority] {
+			if items[i].ID == items[j].ID {
+				return items[i].RelDir < items[j].RelDir
+			}
+			return items[i].ID < items[j].ID
+		}
+		return rank[items[i].Priority] < rank[items[j].Priority]
+	})
 }
 
 func sortItems(items []*item) {
