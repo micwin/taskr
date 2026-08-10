@@ -1,6 +1,6 @@
 ---
 title: Clarify show and report command semantics
-status: designing
+status: done
 created_at: 2026-08-10T09:45:12Z
 updated_at: 2026-08-10T09:45:12Z
 ---
@@ -34,3 +34,8 @@ and implemented independently.
   mode can be considered separately.
 
 # Outcome
+
+The command responsibilities are now explicit and implemented through the two
+completed subtasks. `show` displays exactly one complete item or its metadata,
+while `report` produces a top-level repository summary across items. The two
+commands no longer share an ambiguous inspection role.
