@@ -19,8 +19,9 @@ worktree without opening individual marker files.
 - Each work item line includes ID, role, short status, and title.
 - Done items are hidden by default unless they are needed to keep visible
   children understandable.
-- An option exists to include done items explicitly.
-- An option exists to show only open work.
+- `--all` includes done and cancelled items explicitly.
+- `--open` shows only open work, meaning items whose own status is neither
+  `done` nor `cancelled`.
 - File containers and archived work are not shown in the default tree.
 - Command help documents selectors, status display, and done/open filtering.
 - Shell completion covers the command, selectors, and tree flags where
@@ -32,5 +33,7 @@ worktree without opening individual marker files.
 
 - 2026-08-10: Added after dogfooding showed that `list` is too flat for
   milestone planning and refinement review.
+- 2026-08-10: Initial CLI contract uses ASCII tree branches (`+-` and `|`) for
+  console readability. The first filtering flags are `--all` and `--open`.
 
 # Outcome
