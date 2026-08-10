@@ -98,3 +98,8 @@ conflict.
 - After a ticket leaves `designing`, edits to the ticket `# Comments` section
   and comments inside Smokey test scripts are allowed without changing the
   agreed behavior.
+- When an agent considers an implementation ticket complete, set it to
+  `reviewing`. Use `done` or `cancelled` only after explicit user instruction.
+- After a ticket reaches `reviewing`, semantic changes to the ticket, Smokey
+  test logic, code behavior, documentation behavior, or process outcome require
+  explicit user instruction.

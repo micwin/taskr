@@ -115,7 +115,8 @@ Normal flow:
 
 1. Resolve the item selector.
 2. Load the selected item and child tree.
-3. Validate the requested status.
+3. Validate the requested status. `reviewing` is the normal state for work that
+   is implemented and ready for user review.
 4. If setting a parent item to `done`, verify all completion children are done.
 5. If setting an item to `cancelled`, keep children unchanged unless the user
    explicitly requests a recursive cancellation workflow later.
@@ -245,7 +246,7 @@ Normal flow:
 
 Failure cases:
 
-- Selected item or descendants are still active/open/designing/blocked.
+- Selected item or descendants are still active/open/designing/reviewing/blocked.
 - Destination already exists.
 - Filesystem move fails.
 

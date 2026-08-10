@@ -1,6 +1,6 @@
 ---
 title: Add reviewing status
-status: designing
+status: done
 created_at: 2026-08-10T00:00:00Z
 updated_at: 2026-08-10T00:00:00Z
 ---
@@ -39,3 +39,8 @@ can be implemented, tested, and reviewed before closure.
   status filtering, shell completion, and test configuration.
 
 # Outcome
+
+Implemented `reviewing` as a built-in status. The CLI accepts it for status
+changes and filters, shell completion suggests it, documentation describes its
+place in the lifecycle, AGENTS.md defines the agent review handoff rule, and
+Smokey covers status, filtering, and completion behavior.

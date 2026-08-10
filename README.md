@@ -124,6 +124,13 @@ taskr comment 002 "Reviewed with Michael"
 printf 'first detail\nsecond detail\n' | taskr comment 002 --stdin
 ```
 
+## Status Lifecycle
+
+Built-in statuses are `open`, `designing`, `active`, `reviewing`, `blocked`,
+`done`, and `cancelled`. `reviewing` is the normal state for implemented work
+that an agent considers complete; `done` and `cancelled` are final closure
+states.
+
 The outcome is written into the marker file of the item it belongs to. It does
 not move to a separate archive log. If an item is archived later, the whole item
 directory moves and keeps its marker, outcome, comments, children, and file

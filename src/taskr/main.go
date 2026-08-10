@@ -40,12 +40,13 @@ var validStatuses = map[string]bool{
 	"open":      true,
 	"designing": true,
 	"active":    true,
+	"reviewing": true,
 	"blocked":   true,
 	"done":      true,
 	"cancelled": true,
 }
 
-var statuses = []string{"open", "designing", "active", "blocked", "done", "cancelled"}
+var statuses = []string{"open", "designing", "active", "reviewing", "blocked", "done", "cancelled"}
 
 type exitError struct {
 	code int
@@ -186,10 +187,12 @@ Inspect work:
 List tickets by status:
   taskr list --type task --status open
   taskr list --type task --status active --under 001
+  taskr list --type task --status reviewing --under 001
   taskr list --type task --status done --under 001
   taskr list --type task --status cancelled --under 001
 
-Close work:
+Review and close work:
+  taskr status 003 reviewing
   taskr status 003 done
   taskr status 002 done
   taskr status 001 done
