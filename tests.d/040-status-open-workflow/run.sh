@@ -26,6 +26,18 @@ run_taskr status_parent_blocked "${root}" status 003 done
 [ "${exit_code}" -ne 0 ] || { echo "parent should not close before child" >&2; exit 1; }
 grep -q "004" "${stderr}"
 
+# Reviewing is an accepted intermediate status and still keeps the parent open.
+run_taskr status_child_reviewing "${root}" status 004 reviewing
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q "status id=004" "${stdout}"
+grep -q "new=reviewing" "${stdout}"
+run_taskr list_reviewing "${root}" list --status reviewing
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q "004 subtask reviewing Define selectors" "${stdout}"
+run_taskr status_parent_still_blocked "${root}" status 003 done
+[ "${exit_code}" -ne 0 ] || { echo "parent should not close while child is reviewing" >&2; exit 1; }
+grep -q "004" "${stderr}"
+
 # Closing child first should allow the parent to close.
 run_taskr status_child_done "${root}" status 004 done
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

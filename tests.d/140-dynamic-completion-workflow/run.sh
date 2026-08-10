@@ -37,12 +37,14 @@ run_complete list_status_flag "${root}" __complete list --status ""
 grep -qx "open" "${stdout}"
 grep -qx "designing" "${stdout}"
 grep -qx "active" "${stdout}"
+grep -qx "reviewing" "${stdout}"
 grep -qx "blocked" "${stdout}"
 grep -qx "done" "${stdout}"
 grep -qx "cancelled" "${stdout}"
 
 run_complete status_value_arg "${root}" __complete status 003 ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx "reviewing" "${stdout}"
 grep -qx "done" "${stdout}"
 grep -qx "cancelled" "${stdout}"
 

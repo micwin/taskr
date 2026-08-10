@@ -24,6 +24,7 @@ statuses:
   - open
   - designing
   - active
+  - reviewing
   - blocked
   - done
   - cancelled
