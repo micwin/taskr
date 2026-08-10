@@ -1,8 +1,9 @@
 ---
 title: Analyze priorities
-status: designing
+status: developing
 created_at: 2026-08-10T12:35:20Z
-updated_at: 2026-08-10T12:35:20Z
+updated_at: 2026-08-10T14:42:09Z
+developing_at: 2026-08-10T14:42:09Z
 ---
 
 # Description
@@ -10,8 +11,9 @@ updated_at: 2026-08-10T12:35:20Z
 Analyze how Taskr should represent and use item priorities without conflating
 priority with status, hierarchy, dependencies, or scheduling.
 
-The design should decide whether priority is a simple ordered value, a
-project-configurable scale, a label-like marker, or a report-only annotation.
+The accepted design uses the fixed task-only values `high`, `normal`, and
+`low`. Missing priority means `normal` and is not redundantly persisted.
+Implementation is delegated to milestone `070` (`Priorities`).
 
 # Acceptance
 
@@ -29,6 +31,8 @@ project-configurable scale, a label-like marker, or a report-only annotation.
   migration of existing dogfood data.
 - The analysis identifies Smokey coverage requirements before implementation.
 - No priority implementation is added until the design is accepted.
+- Milestone `070` tracks separate data-model, mutation, list, tree, and report
+  implementation tickets.
 
 # Comments
 
@@ -36,5 +40,9 @@ project-configurable scale, a label-like marker, or a report-only annotation.
   workflows and tags/labels. Priority needs separate design because it may
   influence sorting and reporting but should not silently change lifecycle
   semantics.
+- 2026-08-10: Agreed model: task-only `high`, `normal`, and `low`; omitted means
+  `normal`; no priority search; filtering, ordering, grouping, report counts,
+  and controllable display are required. Implementation moved to milestone
+  `070`.
 
 # Outcome
