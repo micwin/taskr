@@ -84,6 +84,7 @@ fi
 # Open mode should hide done and cancelled items by their own status.
 run_taskr status_cancelled "${root}" status 005 cancelled
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -Eq '^cancelled_at: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' "${root}/001-mvp/005-open-work/task.md"
 run_taskr tree_open "${root}" tree --open --all
 if [ "${exit_code}" -ne 0 ]; then
   echo "tree --open should pass" >&2
