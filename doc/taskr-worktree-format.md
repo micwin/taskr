@@ -126,10 +126,12 @@ No task dependency links exist in the MVP model.
 Closing an item is a content change, not a move:
 
 1. Write the result into the item's `# Outcome` section.
-2. Set `status: reviewing` when implemented work is ready for user review.
-3. Set `status: done` when the item shipped or was decided.
-4. Set `status: cancelled` when the item is intentionally abandoned.
-5. Keep the item in place while its parent is still active.
+2. Set `status: developing` when the item leaves design and implementation
+   work begins.
+3. Set `status: reviewing` when implemented work is ready for user review.
+4. Set `status: done` when the item shipped or was decided.
+5. Set `status: cancelled` when the item is intentionally abandoned.
+6. Keep the item in place while its parent is still active.
 
 `closed` is a view category, not an MVP status. Items with `done` or
 `cancelled` are closed.

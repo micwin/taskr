@@ -109,6 +109,8 @@ conflict.
   `designing`.
 - Write or change Smokey tests while the ticket is in `designing`, so the
   expected behavior is fixed before implementation starts.
+- When implementation work starts on a ticket, set it to `developing` unless
+  the user explicitly keeps it in `designing`.
 - After a ticket leaves `designing`, change its `# Description`,
   `# Acceptance`, or Smokey test program logic only with explicit user
   interaction for that specific change.

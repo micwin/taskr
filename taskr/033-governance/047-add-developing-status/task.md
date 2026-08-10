@@ -1,6 +1,6 @@
 ---
 title: Add developing status
-status: designing
+status: done
 created_at: 2026-08-10T10:33:05Z
 updated_at: 2026-08-10T10:33:05Z
 ---
@@ -33,5 +33,13 @@ documentation, test, or process changes.
   implementation from design/refinement.
 - 2026-08-10: Updated references from `in_review` to `reviewing`, matching the
   accepted status name from ticket `028`.
+- 2026-08-10: Implemented as a built-in default status only. Configurable
+  workflows remain separate in `059-analyze-configurable-workflows`.
 
 # Outcome
+
+Implemented `developing` as a built-in status. The CLI accepts it for status
+changes and filters, shell completion suggests it, documentation describes its
+place between design and review, AGENTS.md tells agents to move tickets to
+`developing` when implementation starts, and Smokey covers status, filtering,
+completion, and parent completion blocking behavior.
