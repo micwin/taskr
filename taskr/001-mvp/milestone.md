@@ -1,6 +1,6 @@
 ---
 title: MVP
-status: active
+status: done
 created_at: 2026-06-03T00:00:00Z
 updated_at: 2026-06-03T00:00:00Z
 ---
@@ -17,7 +17,9 @@ storage, command workflows, Smokey coverage, implementation, and release path.
 - Parent completion is derived from child completion.
 - `taskr doctor` rejects invalid directory structures and invalid markers.
 - The full MVP workflow is covered by directory-based Smokey tests.
-- Release versioning and GitHub release publishing are documented and wired.
+- Local release versioning and packaging are documented and wired. GitHub
+  release publishing is tracked separately under the `GitHub integration`
+  milestone.
 
 # Comments
 
@@ -25,3 +27,10 @@ storage, command workflows, Smokey coverage, implementation, and release path.
   of scope until milestone/task/subtask works well.
 
 # Outcome
+
+MVP delivered the first useful local Taskr loop: Markdown marker storage,
+directory-derived hierarchy, local root discovery, create/show/list/tree/status
+workflows, comments, reporting, moving, archiving, doctor checks, Smokey
+coverage, semantic version/build metadata, Debian packaging, init, examples,
+completion, and dogfood process rules. GitHub publishing work was intentionally
+rescoped into the `GitHub integration` milestone.

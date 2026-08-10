@@ -17,8 +17,13 @@ transition model instead of accepting any allowed status value at any time.
   clear errors.
 - Existing structural checks remain in place, such as rejecting `done` when
   children are unfinished.
-- The transition model accounts for `designing`, `developing`, `in_review`,
+- The transition model accounts for `designing`, `developing`, `reviewing`,
   `done`, `cancelled`, `blocked`, and existing `open` behavior.
+- The transition model explicitly defines milestone closure, including whether
+  `taskr status <milestone> done` is sufficient or whether a dedicated close
+  command is required.
+- The transition model defines whether `# Outcome` is required before an item,
+  especially a milestone, can move to `done`.
 - Status filtering remains independent of transition validation.
 - Shell completion continues to list valid status values, and may narrow
   suggestions to valid transitions if implemented.
@@ -33,5 +38,7 @@ transition model instead of accepting any allowed status value at any time.
 
 - 2026-08-10: Split from the `developing`/`in_review` status discussion because
   transition validation changes command semantics beyond adding status values.
+- 2026-08-10: Linked to `019-close-milestone-workflow`; milestone close behavior
+  should be implemented as part of the same status transition model.
 
 # Outcome
