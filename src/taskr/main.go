@@ -110,7 +110,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "archive", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "version":
+	case "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "version":
 		return true
 	default:
 		return false
@@ -132,6 +132,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 		initCommand(rootPath),
 		doctorCommand(rootPath),
 		createCommand(rootPath),
+		commentCommand(rootPath),
 		showCommand(rootPath),
 		listCommand(rootPath),
 		statusCommand(rootPath),
@@ -168,6 +169,10 @@ Create a subtask below a ticket:
 
 Edit an item:
   taskr open 002
+
+Append comments:
+  taskr comment 002 "Reviewed with Michael"
+  printf 'first detail\nsecond detail\n' | taskr comment 002 --stdin
 
 Inspect work:
   taskr list
@@ -275,6 +280,44 @@ subtask.md.`,
 	cmd.Flags().BoolVar(&edit, "edit", false, "open marker in editor after creation")
 	cmd.Flags().BoolVar(&noEdit, "no-edit", false, "do not open marker in editor after creation")
 	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	return cmd
+}
+
+func commentCommand(rootPath string) *cobra.Command {
+	var fromStdin bool
+
+	cmd := &cobra.Command{
+		Use:   "comment <selector> <text>",
+		Short: "Append a comment to an item",
+		Long: `Append one dated comment entry to an item's # Comments section.
+
+Pass text arguments for a single-line comment, or use --stdin to read a
+multi-line comment from a pipe or heredoc.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return exitError{code: 2, msg: "comment requires selector and text or --stdin"}
+			}
+			t, err := loadTree(rootPath)
+			if err != nil {
+				return err
+			}
+			it, err := resolveItem(t, args[0])
+			if err != nil {
+				return err
+			}
+			lines, err := commentLines(args[1:], fromStdin)
+			if err != nil {
+				return err
+			}
+			if err := appendComment(it.MarkerPath, lines); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "commented id=%s path=%s/%s\n", it.IDText, it.RelDir, it.Marker)
+			return nil
+		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
+	}
+	cmd.Flags().BoolVar(&fromStdin, "stdin", false, "read comment text from stdin")
 	return cmd
 }
 
@@ -1373,6 +1416,92 @@ func updateMarkerField(path, key, value string) error {
 		return exitError{code: 2, msg: fmt.Sprintf("%s: missing frontmatter field %s", path, key)}
 	}
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+}
+
+func commentLines(args []string, fromStdin bool) ([]string, error) {
+	if fromStdin {
+		if len(args) > 0 {
+			return nil, exitError{code: 2, msg: "comment text arguments cannot be used with --stdin"}
+		}
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return nil, err
+		}
+		return normalizeCommentLines(string(data))
+	}
+	if len(args) == 0 {
+		return nil, exitError{code: 2, msg: "comment requires text or --stdin"}
+	}
+	return normalizeCommentLines(strings.Join(args, " "))
+}
+
+func normalizeCommentLines(text string) ([]string, error) {
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		normalized := strings.Join(strings.Fields(line), " ")
+		if normalized == "" {
+			continue
+		}
+		lines = append(lines, normalized)
+	}
+	if len(lines) == 0 {
+		return nil, exitError{code: 2, msg: "comment text is empty"}
+	}
+	return lines, nil
+}
+
+func appendComment(path string, comment []string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(data), "\n")
+	commentsIdx := -1
+	outcomeIdx := -1
+	for i, line := range lines {
+		switch strings.TrimSpace(line) {
+		case "# Comments":
+			commentsIdx = i
+		case "# Outcome":
+			outcomeIdx = i
+		}
+	}
+	if commentsIdx < 0 {
+		return exitError{code: 2, msg: fmt.Sprintf("%s: missing # Comments section", path)}
+	}
+	if outcomeIdx < 0 {
+		return exitError{code: 2, msg: fmt.Sprintf("%s: missing # Outcome section", path)}
+	}
+	if commentsIdx > outcomeIdx {
+		return exitError{code: 2, msg: fmt.Sprintf("%s: # Comments must precede # Outcome", path)}
+	}
+	entry := formatCommentEntry(comment)
+	insert := append([]string{""}, entry...)
+	if outcomeIdx > 0 && strings.TrimSpace(lines[outcomeIdx-1]) == "" {
+		before := append([]string{}, lines[:outcomeIdx-1]...)
+		after := append([]string{}, lines[outcomeIdx-1:]...)
+		lines = append(append(before, insert...), after...)
+	} else {
+		insert = append(insert, "")
+		before := append([]string{}, lines[:outcomeIdx]...)
+		after := append([]string{}, lines[outcomeIdx:]...)
+		lines = append(append(before, insert...), after...)
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+}
+
+func formatCommentEntry(lines []string) []string {
+	stamp := time.Now().Format("2006-01-02 15:04")
+	if len(lines) == 1 {
+		return []string{fmt.Sprintf("- %s: %s", stamp, lines[0])}
+	}
+	entry := []string{fmt.Sprintf("- %s:", stamp)}
+	for _, line := range lines {
+		entry = append(entry, "  "+line)
+	}
+	return entry
 }
 
 func openPath(path string, system bool) error {

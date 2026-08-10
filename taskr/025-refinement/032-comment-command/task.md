@@ -1,6 +1,6 @@
 ---
 title: Add comment command
-status: designing
+status: done
 created_at: 2026-08-10T00:00:00Z
 updated_at: 2026-08-10T00:00:00Z
 ---
@@ -43,3 +43,13 @@ workflow without opening an editor for small updates.
   not part of Taskr's parser once the shell has passed argv/stdin.
 
 # Outcome
+
+Implemented `taskr comment <selector> <text>` and `taskr comment <selector>
+--stdin`. The command appends one timestamped entry to the selected marker's
+`# Comments` section, preserves quote characters, normalizes whitespace, keeps
+`# Outcome` as the final section, and reports the updated item path.
+
+Help, selector completion, workflow examples, README documentation, and Smokey
+coverage were updated. The Smokey suite covers single-line comments,
+stdin/heredoc comments, quote preservation, whitespace normalization, ambiguous
+selectors, invalid input combinations, and marker preservation on failures.

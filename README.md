@@ -117,6 +117,13 @@ was decided.
 `# Outcome` is always the last section. `# Comments` is the place for
 discussion notes, decisions, and later corrections.
 
+Comments can be appended from the CLI without opening an editor:
+
+```bash
+taskr comment 002 "Reviewed with Michael"
+printf 'first detail\nsecond detail\n' | taskr comment 002 --stdin
+```
+
 The outcome is written into the marker file of the item it belongs to. It does
 not move to a separate archive log. If an item is archived later, the whole item
 directory moves and keeps its marker, outcome, comments, children, and file
