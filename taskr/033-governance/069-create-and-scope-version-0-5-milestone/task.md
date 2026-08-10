@@ -1,11 +1,12 @@
 ---
 title: Create and scope Version 0.5 milestone
-status: reviewing
+status: done
 created_at: 2026-08-10T14:18:39Z
-updated_at: 2026-08-10T14:21:23Z
+updated_at: 2026-08-10T14:23:26Z
 designing_at: 2026-08-10T14:18:39Z
 developing_at: 2026-08-10T14:20:26Z
 reviewing_at: 2026-08-10T14:21:23Z
+done_at: 2026-08-10T14:23:26Z
 ---
 
 # Description
