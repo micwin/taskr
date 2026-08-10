@@ -1,10 +1,11 @@
 ---
 title: Release via GitHub Actions
-status: reviewing
+status: done
 created_at: 2026-06-03T00:00:00Z
-updated_at: 2026-08-10T17:37:27Z
+updated_at: 2026-08-10T18:26:26Z
 developing_at: 2026-08-10T16:53:08Z
 reviewing_at: 2026-08-10T17:37:27Z
+done_at: 2026-08-10T18:26:26Z
 ---
 
 # Description
