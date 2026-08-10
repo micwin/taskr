@@ -84,6 +84,10 @@ conflict.
   behavior correctly. If they do not, update them in the active ticket before
   closing it. Do not close the ticket with stale `doctor`, help, completion, or
   API behavior.
+- Every new or changed command argument or flag that accepts Taskr item IDs or
+  slugs must wire shell completion for those values. Smokey must test
+  completion at the exact argument or flag surface where IDs or slugs are
+  accepted, not only through another command that shares the same helper.
 
 ## Ticket Lifecycle
 

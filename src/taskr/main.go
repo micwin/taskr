@@ -111,7 +111,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "tree", "version":
+	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -286,7 +286,7 @@ subtask.md.`,
 	cmd.Flags().StringVar(&slug, "slug", "", "directory slug override")
 	cmd.Flags().BoolVar(&edit, "edit", false, "open marker in editor after creation")
 	cmd.Flags().BoolVar(&noEdit, "no-edit", false, "do not open marker in editor after creation")
-	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	mustRegisterCompletion(cmd, "under", writeParentCompletion(rootPath))
 	return cmd
 }
 
@@ -372,7 +372,7 @@ func listCommand(rootPath string) *cobra.Command {
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
-	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	return cmd
@@ -423,7 +423,7 @@ markers, --tabs for tab indentation, or --wide for wider space indentation.`,
 			writeTree(cmd.OutOrStdout(), roots, opts)
 			return nil
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: treeArgCompletion(rootPath),
 	}
 	cmd.Flags().BoolVar(&includeAll, "all", false, "include done and cancelled items")
 	cmd.Flags().BoolVar(&onlyOpen, "open", false, "show only items whose own status is not done or cancelled")
@@ -485,11 +485,11 @@ func moveCommand(rootPath string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMove(cmd, rootPath, args[0], under, toRoot)
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: moveArgCompletion(rootPath),
 	}
 	cmd.Flags().StringVar(&under, "under", "", "destination parent selector")
 	cmd.Flags().BoolVar(&toRoot, "root", false, "move item to the root level")
-	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	mustRegisterCompletion(cmd, "under", moveParentCompletion(rootPath))
 	return cmd
 }
 
@@ -569,7 +569,7 @@ func reportCommand(rootPath string) *cobra.Command {
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
 	cmd.Flags().StringVar(&output, "output", "", "write report to file")
-	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	return cmd
@@ -1264,19 +1264,90 @@ func selectorArgCompletion(rootPath string) func(*cobra.Command, []string, strin
 }
 
 func selectorCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return filteredSelectorCompletion(rootPath, func(*item) bool { return true })
+}
+
+func treeArgCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return treeRootCompletion(rootPath)(cmd, args, toComplete)
+	}
+}
+
+func moveArgCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) > 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return filteredSelectorCompletion(rootPath, func(it *item) bool {
+			return it.Type == "task" || it.Type == "subtask"
+		})(cmd, args, toComplete)
+	}
+}
+
+func treeRootCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return filteredSelectorCompletion(rootPath, func(it *item) bool {
+		return it.Type == "milestone" || (it.Type == "task" && len(it.Children) > 0)
+	})
+}
+
+func displayParentCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return treeRootCompletion(rootPath)
+}
+
+func writeParentCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return filteredSelectorCompletion(rootPath, func(it *item) bool {
+		return it.Type == "milestone" || it.Type == "task"
+	})
+}
+
+func moveParentCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		t, err := loadTree(rootPath)
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		return filterCompletions(selectorCompletions(t), toComplete), cobra.ShellCompDirectiveNoFileComp
+		sourceType := ""
+		if len(args) > 0 {
+			if source, err := resolveItem(t, args[0]); err == nil {
+				sourceType = source.Type
+			}
+		}
+		include := func(it *item) bool {
+			switch sourceType {
+			case "task":
+				return it.Type == "milestone"
+			case "subtask":
+				return it.Type == "task"
+			case "milestone":
+				return false
+			default:
+				return it.Type == "milestone" || it.Type == "task"
+			}
+		}
+		return filterCompletions(selectorCompletions(t, include), toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
 }
 
-func selectorCompletions(t *tree) []string {
+func filteredSelectorCompletion(rootPath string, include func(*item) bool) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		t, err := loadTree(rootPath)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return filterCompletions(selectorCompletions(t, include), toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func selectorCompletions(t *tree, include func(*item) bool) []string {
 	var values []string
 	seen := map[string]bool{}
 	for _, it := range t.Items {
+		if !include(it) {
+			continue
+		}
 		label := fmt.Sprintf("%s %s %s", it.Type, it.Status, it.Title)
 		for _, value := range []string{it.IDText, it.Slug} {
 			if value == "" || seen[value] {
