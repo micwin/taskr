@@ -20,6 +20,9 @@ reports, comments, outcomes, and related files.
   duplicated metadata outside the marker files and directory tree.
 - The scope distinguishes static generation from future live/server-backed
   views.
+- The initial command surface contains `taskr site generate <target-directory>`
+  for persistent static output and `taskr site open` for a temporary generated
+  preview opened in the system browser.
 - The milestone defines tasks for command design, templates/theme behavior,
   generated content structure, asset handling, documentation, and tests.
 - Generated output never changes the Taskr source database unless explicitly
@@ -36,5 +39,7 @@ reports, comments, outcomes, and related files.
 - 2026-08-10: Clarified that the feature generates a site for the project
   managed by a Taskr root, comparable to `mvn site`, not a website for Taskr
   itself.
+- 2026-08-10: Split the initial command workflow into persistent generation and
+  immediate temporary browser preview, tracked by tasks `081` and `082`.
 
 # Outcome
