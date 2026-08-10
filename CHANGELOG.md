@@ -5,7 +5,7 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
-## [0.1.0+38] - 2026-08-10
+## [0.1.0+39] - 2026-08-10
 
 - Added the Cobra-based Taskr CLI and local-first Markdown worktree model.
 - Added create, show, list, tree, status, priority, move, rename, comment,

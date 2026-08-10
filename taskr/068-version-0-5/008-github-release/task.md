@@ -75,5 +75,9 @@ incrementing `BUILD`.
   release-note extraction required an exact changelog heading and did not
   accept the documented date suffix. The parser and regression coverage were
   corrected for release candidate `0.1.0+38`.
+- 2026-08-10: Release run `31413818569` passed release-note extraction and
+  artifact verification, then failed before creating `v0.1.0+38` because the
+  runner had no Git identity for its annotated tag. The workflow now configures
+  the local `github-actions[bot]` identity before creating a missing tag.
 
 # Outcome
