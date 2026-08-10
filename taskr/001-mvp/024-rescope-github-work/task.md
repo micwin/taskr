@@ -7,15 +7,15 @@ updated_at: 2026-08-10T00:00:00Z
 
 # Description
 
-Move GitHub publishing work out of the MVP milestone into a new `going public`
+Move GitHub publishing work out of the MVP milestone into the `Refinement`
 milestone so the local Taskr MVP can close independently.
 
 # Acceptance
 
-- A new `going public` milestone exists.
-- GitHub release work moves from the MVP milestone into `going public`.
-- GitHub Pages work moves from the MVP milestone into `going public`.
-- Broader GitHub integration work is attached to `going public` or explicitly
+- The `Refinement` milestone exists.
+- GitHub release work moves from the MVP milestone into `Refinement`.
+- GitHub Pages work moves from the MVP milestone into `Refinement`.
+- Broader GitHub integration work is attached to `Refinement` or explicitly
   linked from it.
 - The MVP milestone acceptance is adjusted so it no longer requires GitHub
   publishing before local MVP closure.
@@ -26,5 +26,7 @@ milestone so the local Taskr MVP can close independently.
 
 - 2026-08-10: This ticket should wait for `023-move-items-between-parents` so
   the rescope can be done by dogfooding Taskr instead of manual `mv`.
+- 2026-08-10: Target milestone changed from the proposed `going public`
+  milestone to the existing `Refinement` milestone.
 
 # Outcome
