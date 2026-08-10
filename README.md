@@ -139,6 +139,10 @@ Completion is structural:
 
 No task dependency links exist in the MVP model.
 
+Use `taskr tree` to inspect the work hierarchy in the terminal. By default it
+uses indentation and hides completed leaf items; use `taskr tree --all` to
+include done and cancelled work, or `taskr tree --ascii` for branch markers.
+
 ## Archive
 
 Archived work remains ordinary Taskr data. Archiving moves completed item

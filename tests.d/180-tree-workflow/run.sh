@@ -26,8 +26,12 @@ if [ "${exit_code}" -ne 0 ]; then
   exit 1
 fi
 grep -q '^001 \[milestone active\] MVP$' "${stdout}"
-grep -q '^+- 003 \[task active\] Define workflows$' "${stdout}"
-grep -q '^|  +- 004 \[subtask active\] Define selectors$' "${stdout}"
+grep -q '^  003 \[task active\] Define workflows$' "${stdout}"
+grep -q '^    004 \[subtask designing\] Define selectors$' "${stdout}"
+if grep -q '+- \||  ' "${stdout}"; then
+  echo "default tree should not use branch markers" >&2
+  exit 1
+fi
 if grep -q 'Define directory structure' "${stdout}"; then
   echo "default tree should hide done leaf items" >&2
   exit 1
@@ -40,8 +44,28 @@ if [ "${exit_code}" -ne 0 ]; then
   cat "${stderr}" >&2
   exit 1
 fi
-grep -q '^+- 002 \[task done\] Define directory structure$' "${stdout}"
-grep -q '^+- 005 \[task open\] Open work$' "${stdout}"
+grep -q '^  002 \[task done\] Define directory structure$' "${stdout}"
+grep -q '^  005 \[task active\] Open work$' "${stdout}"
+
+# ASCII mode should preserve the previous branch-marker output.
+run_taskr tree_ascii "${root}" tree --ascii
+if [ "${exit_code}" -ne 0 ]; then
+  echo "tree --ascii should pass" >&2
+  cat "${stderr}" >&2
+  exit 1
+fi
+grep -q '^+- 003 \[task active\] Define workflows$' "${stdout}"
+grep -q '^|  +- 004 \[subtask designing\] Define selectors$' "${stdout}"
+
+# Tabs and wide mode should offer alternate indentation styles.
+run_taskr tree_tabs "${root}" tree --tabs
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q $'^\t003 \\[task active\\] Define workflows$' "${stdout}"
+grep -q $'^\t\t004 \\[subtask designing\\] Define selectors$' "${stdout}"
+run_taskr tree_wide "${root}" tree --wide
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^    003 \[task active\] Define workflows$' "${stdout}"
+grep -q '^        004 \[subtask designing\] Define selectors$' "${stdout}"
 
 # Selected subtree output should start at the selected item.
 run_taskr tree_subtree "${root}" tree 003
@@ -51,7 +75,7 @@ if [ "${exit_code}" -ne 0 ]; then
   exit 1
 fi
 grep -q '^003 \[task active\] Define workflows$' "${stdout}"
-grep -q '^+- 004 \[subtask active\] Define selectors$' "${stdout}"
+grep -q '^  004 \[subtask designing\] Define selectors$' "${stdout}"
 if grep -q '^001 ' "${stdout}"; then
   echo "selected tree should not include parent item" >&2
   exit 1
@@ -84,7 +108,7 @@ if [ "${exit_code}" -ne 0 ]; then
   exit 1
 fi
 grep -q '^006 \[milestone open\] Refinement$' "${stdout}"
-grep -q '^+- 007 \[task open\] Add tree command$' "${stdout}"
+grep -q '^  007 \[task open\] Add tree command$' "${stdout}"
 
 # Help and completion should expose tree selectors and filtering flags.
 run_taskr tree_help "${root}" tree --help
@@ -92,6 +116,17 @@ run_taskr tree_help "${root}" tree --help
 grep -q 'taskr tree \[selector\]' "${stdout}"
 grep -q -- '--all' "${stdout}"
 grep -q -- '--open' "${stdout}"
+grep -q -- '--ascii' "${stdout}"
+grep -q -- '--tabs' "${stdout}"
+grep -q -- '--wide' "${stdout}"
 run_taskr tree_completion "${root}" __complete tree ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -qx $'001\tmilestone active MVP' "${stdout}"
+
+# Ambiguous formatting modes should fail clearly.
+run_taskr tree_bad_format "${root}" tree --tabs --wide
+if [ "${exit_code}" -eq 0 ]; then
+  echo "conflicting indentation modes should fail" >&2
+  exit 1
+fi
+grep -qi "tabs\\|wide\\|format" "${stderr}"

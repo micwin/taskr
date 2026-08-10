@@ -110,7 +110,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "version":
+	case "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -135,6 +135,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 		commentCommand(rootPath),
 		showCommand(rootPath),
 		listCommand(rootPath),
+		treeCommand(rootPath),
 		statusCommand(rootPath),
 		moveCommand(rootPath),
 		openCommand(rootPath),
@@ -176,6 +177,9 @@ Append comments:
 
 Inspect work:
   taskr list
+  taskr tree
+  taskr tree 001 --all
+  taskr tree 001 --ascii
   taskr show 002
   taskr report --under 001
 
@@ -368,6 +372,61 @@ func listCommand(rootPath string) *cobra.Command {
 	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
 	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
+	return cmd
+}
+
+func treeCommand(rootPath string) *cobra.Command {
+	var includeAll, onlyOpen, ascii, tabs, wide bool
+
+	cmd := &cobra.Command{
+		Use:   "tree [selector]",
+		Short: "Show the item hierarchy",
+		Long: `Show Taskr items as an indented tree.
+
+By default, completed leaf items are hidden while active parent context remains
+visible. Use --all to include done and cancelled items. Use --open to show only
+items whose own status is not done or cancelled.
+
+The default format uses two spaces per hierarchy level. Use --ascii for branch
+markers, --tabs for tab indentation, or --wide for wider space indentation.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if includeAll && onlyOpen {
+				includeAll = false
+			}
+			opts, err := newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide)
+			if err != nil {
+				return err
+			}
+			t, err := loadTree(rootPath)
+			if err != nil {
+				return err
+			}
+			var roots []*item
+			if len(args) == 1 {
+				it, err := resolveItem(t, args[0])
+				if err != nil {
+					return err
+				}
+				roots = []*item{it}
+			} else {
+				for _, it := range t.Items {
+					if it.Parent == nil {
+						roots = append(roots, it)
+					}
+				}
+				sortItems(roots)
+			}
+			writeTree(cmd.OutOrStdout(), roots, opts)
+			return nil
+		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
+	}
+	cmd.Flags().BoolVar(&includeAll, "all", false, "include done and cancelled items")
+	cmd.Flags().BoolVar(&onlyOpen, "open", false, "show only items whose own status is not done or cancelled")
+	cmd.Flags().BoolVar(&ascii, "ascii", false, "use ASCII branch markers")
+	cmd.Flags().BoolVar(&tabs, "tabs", false, "indent hierarchy levels with tabs")
+	cmd.Flags().BoolVar(&wide, "wide", false, "indent hierarchy levels with four spaces")
 	return cmd
 }
 
@@ -1270,6 +1329,106 @@ func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, er
 	}
 	sortItems(out)
 	return out, nil
+}
+
+type treeOptions struct {
+	includeAll bool
+	onlyOpen   bool
+	format     string
+	indent     string
+}
+
+func newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide bool) (treeOptions, error) {
+	if tabs && wide {
+		return treeOptions{}, exitError{code: 2, msg: "tree format flags --tabs and --wide cannot be used together"}
+	}
+	opts := treeOptions{includeAll: includeAll, onlyOpen: onlyOpen, indent: "  "}
+	switch {
+	case ascii:
+		opts.format = "ascii"
+	case tabs:
+		opts.format = "indent"
+		opts.indent = "\t"
+	case wide:
+		opts.format = "indent"
+		opts.indent = "    "
+	default:
+		opts.format = "indent"
+	}
+	return opts, nil
+}
+
+func writeTree(w interface{ Write([]byte) (int, error) }, roots []*item, opts treeOptions) {
+	visible := visibleItems(roots, opts)
+	for i, it := range visible {
+		writeTreeItem(w, it, "", 0, i == len(visible)-1, true, opts)
+	}
+}
+
+func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix string, depth int, last bool, root bool, opts treeOptions) {
+	if opts.format == "ascii" {
+		writeASCIITreeItem(w, it, prefix, last, root, opts)
+		return
+	}
+	fmt.Fprintf(w, "%s%s [%s %s] %s\n", strings.Repeat(opts.indent, depth), it.IDText, it.Type, it.Status, it.Title)
+	children := visibleItems(it.Children, opts)
+	for i, child := range children {
+		writeTreeItem(w, child, "", depth+1, i == len(children)-1, false, opts)
+	}
+}
+
+func writeASCIITreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix string, last bool, root bool, opts treeOptions) {
+	if root {
+		fmt.Fprintf(w, "%s [%s %s] %s\n", it.IDText, it.Type, it.Status, it.Title)
+	} else {
+		fmt.Fprintf(w, "%s+- %s [%s %s] %s\n", prefix, it.IDText, it.Type, it.Status, it.Title)
+	}
+	childPrefix := prefix
+	if !root {
+		if last {
+			childPrefix += "   "
+		} else {
+			childPrefix += "|  "
+		}
+	}
+	children := visibleItems(it.Children, opts)
+	for i, child := range children {
+		writeASCIITreeItem(w, child, childPrefix, i == len(children)-1, false, opts)
+	}
+}
+
+func visibleItems(items []*item, opts treeOptions) []*item {
+	var out []*item
+	sorted := append([]*item(nil), items...)
+	sortItems(sorted)
+	for _, it := range sorted {
+		if treeItemVisible(it, opts) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+func treeItemVisible(it *item, opts treeOptions) bool {
+	if opts.onlyOpen {
+		return !closedStatus(it.Status)
+	}
+	if opts.includeAll {
+		return true
+	}
+	if !closedStatus(it.Status) {
+		return true
+	}
+	for _, child := range it.Children {
+		if treeItemVisible(child, opts) {
+			return true
+		}
+	}
+	return false
+}
+
+func closedStatus(status string) bool {
+	return status == "done" || status == "cancelled"
 }
 
 func descendants(parent *item) []*item {
