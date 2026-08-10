@@ -1,10 +1,11 @@
 ---
 title: Add priority controls to tree
-status: developing
+status: reviewing
 created_at: 2026-08-10T14:41:18Z
-updated_at: 2026-08-10T15:17:36Z
+updated_at: 2026-08-10T15:27:53Z
 designing_at: 2026-08-10T14:41:18Z
 developing_at: 2026-08-10T15:17:36Z
+reviewing_at: 2026-08-10T15:27:53Z
 ---
 
 # Description
@@ -35,3 +36,10 @@ in tree output without changing hierarchy.
   Priority ordering applies to task siblings under their parent milestone.
 
 # Outcome
+
+Tree output now sorts task siblings by effective `high`, `normal`, `low`
+priority with stable ties while preserving hierarchy and visibility behavior.
+Non-normal priority is shown inside task status brackets by default;
+`--show-priority` and `--hide-priority` control labels without changing order.
+All existing indentation modes and open/all filtering remain intact, with help,
+completion, examples, workflow documentation, and Smokey coverage updated.

@@ -189,6 +189,8 @@ Inspect work:
   taskr tree
   taskr tree 001 --all
   taskr tree 001 --ascii
+  taskr tree 001 --all --show-priority
+  taskr tree 001 --hide-priority
   taskr show 002
   taskr show 002 --meta
   taskr report
@@ -481,7 +483,7 @@ func listCommand(rootPath string) *cobra.Command {
 }
 
 func treeCommand(rootPath string) *cobra.Command {
-	var includeAll, onlyOpen, ascii, tabs, wide bool
+	var includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
 		Use:   "tree [selector]",
@@ -493,13 +495,15 @@ visible. Use --all to include done and cancelled items. Use --open to show only
 items whose own status is not done or cancelled.
 
 The default format uses two spaces per hierarchy level. Use --ascii for branch
-markers, --tabs for tab indentation, or --wide for wider space indentation.`,
+markers, --tabs for tab indentation, or --wide for wider space indentation.
+Non-normal task priority is shown by default; --show-priority includes normal
+and --hide-priority suppresses all priority labels.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if includeAll && onlyOpen {
 				includeAll = false
 			}
-			opts, err := newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide)
+			opts, err := newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority)
 			if err != nil {
 				return err
 			}
@@ -532,6 +536,8 @@ markers, --tabs for tab indentation, or --wide for wider space indentation.`,
 	cmd.Flags().BoolVar(&ascii, "ascii", false, "use ASCII branch markers")
 	cmd.Flags().BoolVar(&tabs, "tabs", false, "indent hierarchy levels with tabs")
 	cmd.Flags().BoolVar(&wide, "wide", false, "indent hierarchy levels with four spaces")
+	cmd.Flags().BoolVar(&showPriority, "show-priority", false, "show effective priority for every task")
+	cmd.Flags().BoolVar(&hidePriority, "hide-priority", false, "hide all task priority values")
 	return cmd
 }
 
@@ -1839,13 +1845,22 @@ type treeOptions struct {
 	onlyOpen   bool
 	format     string
 	indent     string
+	priority   priorityDisplay
 }
 
-func newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide bool) (treeOptions, error) {
+func newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority bool) (treeOptions, error) {
 	if tabs && wide {
 		return treeOptions{}, exitError{code: 2, msg: "tree format flags --tabs and --wide cannot be used together"}
 	}
-	opts := treeOptions{includeAll: includeAll, onlyOpen: onlyOpen, indent: "  "}
+	if showPriority && hidePriority {
+		return treeOptions{}, exitError{code: 2, msg: "tree flags --show-priority and --hide-priority are mutually exclusive"}
+	}
+	opts := treeOptions{includeAll: includeAll, onlyOpen: onlyOpen, indent: "  ", priority: priorityDisplayAuto}
+	if showPriority {
+		opts.priority = priorityDisplayShow
+	} else if hidePriority {
+		opts.priority = priorityDisplayHide
+	}
 	switch {
 	case ascii:
 		opts.format = "ascii"
@@ -1873,7 +1888,7 @@ func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix s
 		writeASCIITreeItem(w, it, prefix, last, root, opts)
 		return
 	}
-	fmt.Fprintf(w, "%s%s [%s %s] %s\n", strings.Repeat(opts.indent, depth), it.IDText, it.Type, it.Status, it.Title)
+	fmt.Fprintf(w, "%s%s [%s] %s\n", strings.Repeat(opts.indent, depth), it.IDText, treeItemMeta(it, opts.priority), it.Title)
 	children := visibleItems(it.Children, opts)
 	for i, child := range children {
 		writeTreeItem(w, child, "", depth+1, i == len(children)-1, false, opts)
@@ -1882,9 +1897,9 @@ func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix s
 
 func writeASCIITreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix string, last bool, root bool, opts treeOptions) {
 	if root {
-		fmt.Fprintf(w, "%s [%s %s] %s\n", it.IDText, it.Type, it.Status, it.Title)
+		fmt.Fprintf(w, "%s [%s] %s\n", it.IDText, treeItemMeta(it, opts.priority), it.Title)
 	} else {
-		fmt.Fprintf(w, "%s+- %s [%s %s] %s\n", prefix, it.IDText, it.Type, it.Status, it.Title)
+		fmt.Fprintf(w, "%s+- %s [%s] %s\n", prefix, it.IDText, treeItemMeta(it, opts.priority), it.Title)
 	}
 	childPrefix := prefix
 	if !root {
@@ -1903,13 +1918,37 @@ func writeASCIITreeItem(w interface{ Write([]byte) (int, error) }, it *item, pre
 func visibleItems(items []*item, opts treeOptions) []*item {
 	var out []*item
 	sorted := append([]*item(nil), items...)
-	sortItems(sorted)
+	if allTasks(sorted) {
+		sortItemsByPriority(sorted)
+	} else {
+		sortItems(sorted)
+	}
 	for _, it := range sorted {
 		if treeItemVisible(it, opts) {
 			out = append(out, it)
 		}
 	}
 	return out
+}
+
+func allTasks(items []*item) bool {
+	if len(items) == 0 {
+		return false
+	}
+	for _, it := range items {
+		if it.Type != "task" {
+			return false
+		}
+	}
+	return true
+}
+
+func treeItemMeta(it *item, mode priorityDisplay) string {
+	meta := it.Type + " " + it.Status
+	if it.Type == "task" && (mode == priorityDisplayShow || mode == priorityDisplayAuto && it.Priority != "normal") {
+		meta += " priority=" + it.Priority
+	}
+	return meta
 }
 
 func treeItemVisible(it *item, opts treeOptions) bool {

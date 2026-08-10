@@ -225,6 +225,14 @@ priority, `--show-priority` and `--hide-priority` control row labels, and
 `--group-by priority` groups output when `--type task` is present. Priority is
 not an item selector or free-text search term.
 
+# Tree Workflow
+
+Tree output preserves hierarchy while sorting sibling tasks by effective
+priority as `high`, `normal`, `low`, with stable ID order inside each level.
+Non-normal task priority is visible inside the existing status brackets by
+default. `--show-priority` includes normal and `--hide-priority` suppresses all
+priority text without changing ordering, visibility, or indentation behavior.
+
 # Report Workflow
 
 User requests a repository report. Taskr summarizes the top-level root by
