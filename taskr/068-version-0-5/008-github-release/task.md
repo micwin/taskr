@@ -1,9 +1,10 @@
 ---
 title: Release via GitHub Actions
-status: developing
+status: reviewing
 created_at: 2026-06-03T00:00:00Z
-updated_at: 2026-08-10T16:53:08Z
+updated_at: 2026-08-10T17:37:27Z
 developing_at: 2026-08-10T16:53:08Z
+reviewing_at: 2026-08-10T17:37:27Z
 ---
 
 # Description
@@ -83,5 +84,14 @@ incrementing `BUILD`.
   Download verification found that its checksum entries retained the build-time
   `dist/` prefix and therefore were not directly verifiable beside the flat
   GitHub assets. Candidate `0.1.0+40` generates basename-only checksum entries.
+- 2026-08-10: Release run `31414481859` successfully published `v0.1.0+40`.
+  The annotated tag and `release` branch resolve to commit `c7290c2`; the
+  downloaded Linux binary reports `0.1.0+40`, the Debian package reports
+  `0.1.0+40-1`, and the published checksum file verifies both flat assets.
 
 # Outcome
+
+Taskr now verifies pushes and pull requests through CI and publishes frozen,
+version-consistent releases from the dedicated `release` branch. GitHub Release
+`v0.1.0+40` contains the Linux AMD64 binary, Debian package, release notes, and
+directly usable SHA-256 checksums for the released commit.
