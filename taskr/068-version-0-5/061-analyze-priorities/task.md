@@ -1,9 +1,10 @@
 ---
 title: Analyze priorities
-status: developing
+status: done
 created_at: 2026-08-10T12:35:20Z
-updated_at: 2026-08-10T14:42:09Z
+updated_at: 2026-08-10T15:53:34Z
 developing_at: 2026-08-10T14:42:09Z
+done_at: 2026-08-10T15:53:34Z
 ---
 
 # Description
@@ -46,3 +47,9 @@ Implementation is delegated to milestone `070` (`Priorities`).
   `070`.
 
 # Outcome
+
+Taskr uses a fixed task-only priority model with effective values `high`,
+`normal`, and `low`. Missing metadata means normal, priority is not searchable,
+and it does not affect lifecycle or hierarchy. Milestone `070` implemented the
+agreed mutation, list, tree, report, validation, display, completion, help,
+documentation, and Smokey behavior.

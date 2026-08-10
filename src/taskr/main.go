@@ -35,6 +35,7 @@ var typeMarkers = map[string]string{
 }
 
 var itemTypes = []string{"milestone", "task", "subtask"}
+var priorities = []string{"high", "normal", "low"}
 
 var validStatuses = map[string]bool{
 	"open":       true,
@@ -117,7 +118,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "tree", "version":
+	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "report", "show", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -141,6 +142,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 		createCommand(rootPath),
 		commentCommand(rootPath),
 		showCommand(rootPath),
+		priorityCommand(rootPath),
 		listCommand(rootPath),
 		treeCommand(rootPath),
 		statusCommand(rootPath),
@@ -187,9 +189,15 @@ Inspect work:
   taskr tree
   taskr tree 001 --all
   taskr tree 001 --ascii
+  taskr tree 001 --all --show-priority
+  taskr tree 001 --hide-priority
   taskr show 002
   taskr show 002 --meta
   taskr report
+
+Prioritize a ticket:
+  taskr priority 002 high
+  taskr priority 002 normal
 
 List tickets by status:
   taskr list --type task --status open
@@ -198,6 +206,9 @@ List tickets by status:
   taskr list --type task --status reviewing --under 001
   taskr list --type task --status done --under 001
   taskr list --type task --status cancelled --under 001
+  taskr list --type task --priority high
+  taskr list --type task --show-priority
+  taskr list --type task --group-by priority
 
 Review and close work:
   taskr status 003 developing
@@ -414,36 +425,65 @@ func markerBody(path string) (string, error) {
 }
 
 func listCommand(rootPath string) *cobra.Command {
-	var under, typeFilter, statusFilter string
+	var under, typeFilter, statusFilter, priorityFilter, groupBy string
+	var showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List items",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if showPriority && hidePriority {
+				return exitError{code: 2, msg: "list flags --show-priority and --hide-priority are mutually exclusive"}
+			}
+			if groupBy != "" && groupBy != "priority" {
+				return exitError{code: 2, msg: fmt.Sprintf("invalid list group %q", groupBy)}
+			}
+			if groupBy == "priority" && typeFilter != "task" {
+				return exitError{code: 2, msg: "list --group-by priority requires --type task"}
+			}
 			t, err := loadTree(rootPath)
 			if err != nil {
 				return err
 			}
-			items, err := filteredItems(t, under, typeFilter, statusFilter)
+			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter)
 			if err != nil {
 				return err
 			}
-			writeItemLines(cmd.OutOrStdout(), items, true)
+			if typeFilter == "task" || priorityFilter != "" {
+				sortItemsByPriority(items)
+			}
+			mode := priorityDisplayAuto
+			if showPriority {
+				mode = priorityDisplayShow
+			} else if hidePriority {
+				mode = priorityDisplayHide
+			}
+			if groupBy == "priority" {
+				writePriorityGroups(cmd.OutOrStdout(), items, mode)
+			} else {
+				writeItemLinesWithPriority(cmd.OutOrStdout(), items, true, mode)
+			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
+	cmd.Flags().StringVar(&priorityFilter, "priority", "", "effective task priority filter")
+	cmd.Flags().BoolVar(&showPriority, "show-priority", false, "show effective priority for every task")
+	cmd.Flags().BoolVar(&hidePriority, "hide-priority", false, "hide all task priority values")
+	cmd.Flags().StringVar(&groupBy, "group-by", "", "group task output by priority")
 	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
+	mustRegisterCompletion(cmd, "priority", staticCompletion(priorities))
+	mustRegisterCompletion(cmd, "group-by", staticCompletion([]string{"priority"}))
 	return cmd
 }
 
 func treeCommand(rootPath string) *cobra.Command {
-	var includeAll, onlyOpen, ascii, tabs, wide bool
+	var includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
 		Use:   "tree [selector]",
@@ -455,13 +495,15 @@ visible. Use --all to include done and cancelled items. Use --open to show only
 items whose own status is not done or cancelled.
 
 The default format uses two spaces per hierarchy level. Use --ascii for branch
-markers, --tabs for tab indentation, or --wide for wider space indentation.`,
+markers, --tabs for tab indentation, or --wide for wider space indentation.
+Non-normal task priority is shown by default; --show-priority includes normal
+and --hide-priority suppresses all priority labels.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if includeAll && onlyOpen {
 				includeAll = false
 			}
-			opts, err := newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide)
+			opts, err := newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority)
 			if err != nil {
 				return err
 			}
@@ -494,6 +536,8 @@ markers, --tabs for tab indentation, or --wide for wider space indentation.`,
 	cmd.Flags().BoolVar(&ascii, "ascii", false, "use ASCII branch markers")
 	cmd.Flags().BoolVar(&tabs, "tabs", false, "indent hierarchy levels with tabs")
 	cmd.Flags().BoolVar(&wide, "wide", false, "indent hierarchy levels with four spaces")
+	cmd.Flags().BoolVar(&showPriority, "show-priority", false, "show effective priority for every task")
+	cmd.Flags().BoolVar(&hidePriority, "hide-priority", false, "hide all task priority values")
 	return cmd
 }
 
@@ -557,6 +601,67 @@ current status succeeds without changing the marker.`,
 	}
 }
 
+func priorityCommand(rootPath string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "priority <selector> <high|normal|low>",
+		Short: "Change task priority",
+		Long: `Change one task's effective priority.
+
+High and low are stored in marker frontmatter. Normal removes stored priority
+metadata because omitted priority is effectively normal. A real change updates
+updated_at; repeating the effective priority leaves the marker unchanged.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			newPriority := args[1]
+			if !isPriority(newPriority) {
+				return exitError{code: 2, msg: fmt.Sprintf("invalid priority %q", newPriority)}
+			}
+			t, err := loadTree(rootPath)
+			if err != nil {
+				return err
+			}
+			it, err := resolveItem(t, args[0])
+			if err != nil {
+				return err
+			}
+			if it.Type != "task" {
+				return exitError{code: 2, msg: fmt.Sprintf("priority can only be changed for tasks, not %s %s", it.Type, it.IDText)}
+			}
+			stored := newPriority != "normal"
+			if newPriority == it.Priority {
+				fmt.Fprintf(cmd.OutOrStdout(), "priority id=%s old=%s new=%s changed=false stored=%t\n", it.IDText, it.Priority, newPriority, stored)
+				return nil
+			}
+			updates := map[string]string{"updated_at": time.Now().UTC().Format(time.RFC3339)}
+			remove := map[string]bool{}
+			if stored {
+				updates["priority"] = newPriority
+			} else {
+				remove["priority"] = true
+			}
+			if err := rewriteMarkerFields(it.MarkerPath, updates, remove); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "priority id=%s old=%s new=%s changed=true stored=%t\n", it.IDText, it.Priority, newPriority, stored)
+			return nil
+		},
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return filteredSelectorCompletion(rootPath, func(it *item) bool { return it.Type == "task" })(cmd, args, toComplete)
+			case 1:
+				return filterCompletions(priorities, toComplete), cobra.ShellCompDirectiveNoFileComp
+			default:
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+		},
+	}
+}
+
+func isPriority(value string) bool {
+	return value == "high" || value == "normal" || value == "low"
+}
+
 func moveCommand(rootPath string) *cobra.Command {
 	var under string
 	var toRoot bool
@@ -614,7 +719,11 @@ func reportCommand(rootPath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "Render a repository report",
-		Args:  cobra.NoArgs,
+		Long: `Render a top-level repository report.
+
+The default report includes status summaries, effective task-priority counts,
+status extremes, milestone sections, and open milestones without tickets.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
 			if err != nil {
@@ -651,6 +760,9 @@ func renderReport(t *tree, now time.Time) string {
 	fmt.Fprintln(&b, "# Status Summary")
 	writeStatusSummary(&b, items)
 	b.WriteByte('\n')
+	fmt.Fprintln(&b, "# Task Priority Summary")
+	writeTaskPriorityCounts(&b, items)
+	b.WriteByte('\n')
 
 	fmt.Fprintln(&b, "# Status Extremes")
 	writeStatusExtremes(&b, items)
@@ -661,6 +773,18 @@ func renderReport(t *tree, now time.Time) string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+func writeTaskPriorityCounts(w interface{ Write([]byte) (int, error) }, items []*item) {
+	counts := map[string]int{}
+	for _, it := range items {
+		if it.Type == "task" {
+			counts[it.Priority]++
+		}
+	}
+	for _, priority := range priorities {
+		fmt.Fprintf(w, "tasks with effective priority %q: %d\n", priority, counts[priority])
+	}
 }
 
 func writeStatusSummary(w interface{ Write([]byte) (int, error) }, items []*item) {
@@ -748,6 +872,8 @@ func writeMilestoneSections(w interface{ Write([]byte) (int, error) }, items []*
 				fmt.Fprintf(w, "tasks with status %q: %d\n", status, count)
 			}
 		}
+		fmt.Fprintln(w, "### Task Priority Counts")
+		writeTaskPriorityCounts(w, directChildren(milestone, "task"))
 		if len(activeTickets) > 0 {
 			sortItems(activeTickets)
 			visible := activeTickets
@@ -764,6 +890,16 @@ func writeMilestoneSections(w interface{ Write([]byte) (int, error) }, items []*
 		fmt.Fprintln(w)
 	}
 	return wrote
+}
+
+func directChildren(it *item, itemType string) []*item {
+	var children []*item
+	for _, child := range it.Children {
+		if child.Type == itemType {
+			children = append(children, child)
+		}
+	}
+	return children
 }
 
 func writeOpenMilestonesWithoutTickets(w interface{ Write([]byte) (int, error) }, items []*item) bool {
@@ -1702,7 +1838,7 @@ func filterCompletions(values []string, prefix string) []string {
 	return out
 }
 
-func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, error) {
+func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter string) ([]*item, error) {
 	if typeFilter != "" {
 		if _, ok := typeMarkers[typeFilter]; !ok {
 			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid type %q", typeFilter)}
@@ -1710,6 +1846,9 @@ func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, er
 	}
 	if statusFilter != "" && !validStatuses[statusFilter] {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid status %q", statusFilter)}
+	}
+	if priorityFilter != "" && !isPriority(priorityFilter) {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid priority %q", priorityFilter)}
 	}
 	items, err := resolveUnder(t, under)
 	if err != nil {
@@ -1723,6 +1862,9 @@ func filteredItems(t *tree, under, typeFilter, statusFilter string) ([]*item, er
 		if statusFilter != "" && it.Status != statusFilter {
 			continue
 		}
+		if priorityFilter != "" && (it.Type != "task" || it.Priority != priorityFilter) {
+			continue
+		}
 		out = append(out, it)
 	}
 	sortItems(out)
@@ -1734,13 +1876,22 @@ type treeOptions struct {
 	onlyOpen   bool
 	format     string
 	indent     string
+	priority   priorityDisplay
 }
 
-func newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide bool) (treeOptions, error) {
+func newTreeOptions(includeAll, onlyOpen, ascii, tabs, wide, showPriority, hidePriority bool) (treeOptions, error) {
 	if tabs && wide {
 		return treeOptions{}, exitError{code: 2, msg: "tree format flags --tabs and --wide cannot be used together"}
 	}
-	opts := treeOptions{includeAll: includeAll, onlyOpen: onlyOpen, indent: "  "}
+	if showPriority && hidePriority {
+		return treeOptions{}, exitError{code: 2, msg: "tree flags --show-priority and --hide-priority are mutually exclusive"}
+	}
+	opts := treeOptions{includeAll: includeAll, onlyOpen: onlyOpen, indent: "  ", priority: priorityDisplayAuto}
+	if showPriority {
+		opts.priority = priorityDisplayShow
+	} else if hidePriority {
+		opts.priority = priorityDisplayHide
+	}
 	switch {
 	case ascii:
 		opts.format = "ascii"
@@ -1768,7 +1919,7 @@ func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix s
 		writeASCIITreeItem(w, it, prefix, last, root, opts)
 		return
 	}
-	fmt.Fprintf(w, "%s%s [%s %s] %s\n", strings.Repeat(opts.indent, depth), it.IDText, it.Type, it.Status, it.Title)
+	fmt.Fprintf(w, "%s%s [%s] %s\n", strings.Repeat(opts.indent, depth), it.IDText, treeItemMeta(it, opts.priority), it.Title)
 	children := visibleItems(it.Children, opts)
 	for i, child := range children {
 		writeTreeItem(w, child, "", depth+1, i == len(children)-1, false, opts)
@@ -1777,9 +1928,9 @@ func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix s
 
 func writeASCIITreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix string, last bool, root bool, opts treeOptions) {
 	if root {
-		fmt.Fprintf(w, "%s [%s %s] %s\n", it.IDText, it.Type, it.Status, it.Title)
+		fmt.Fprintf(w, "%s [%s] %s\n", it.IDText, treeItemMeta(it, opts.priority), it.Title)
 	} else {
-		fmt.Fprintf(w, "%s+- %s [%s %s] %s\n", prefix, it.IDText, it.Type, it.Status, it.Title)
+		fmt.Fprintf(w, "%s+- %s [%s] %s\n", prefix, it.IDText, treeItemMeta(it, opts.priority), it.Title)
 	}
 	childPrefix := prefix
 	if !root {
@@ -1798,13 +1949,37 @@ func writeASCIITreeItem(w interface{ Write([]byte) (int, error) }, it *item, pre
 func visibleItems(items []*item, opts treeOptions) []*item {
 	var out []*item
 	sorted := append([]*item(nil), items...)
-	sortItems(sorted)
+	if allTasks(sorted) {
+		sortItemsByPriority(sorted)
+	} else {
+		sortItems(sorted)
+	}
 	for _, it := range sorted {
 		if treeItemVisible(it, opts) {
 			out = append(out, it)
 		}
 	}
 	return out
+}
+
+func allTasks(items []*item) bool {
+	if len(items) == 0 {
+		return false
+	}
+	for _, it := range items {
+		if it.Type != "task" {
+			return false
+		}
+	}
+	return true
+}
+
+func treeItemMeta(it *item, mode priorityDisplay) string {
+	meta := it.Type + " " + it.Status
+	if it.Type == "task" && (mode == priorityDisplayShow || mode == priorityDisplayAuto && it.Priority != "normal") {
+		meta += " priority=" + it.Priority
+	}
+	return meta
 }
 
 func treeItemVisible(it *item, opts treeOptions) bool {
@@ -1948,48 +2123,61 @@ updated_at: %s
 }
 
 func updateMarkerFields(path string, updates map[string]string) error {
+	return rewriteMarkerFields(path, updates, nil)
+}
+
+func rewriteMarkerFields(path string, updates map[string]string, remove map[string]bool) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	lines := strings.Split(string(data), "\n")
+	out := make([]string, 0, len(lines)+len(updates))
 	inFrontmatter := false
 	updated := make(map[string]bool, len(updates))
-	frontmatterEnd := -1
+	frontmatterEnded := false
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if i == 0 && trimmed == "---" {
 			inFrontmatter = true
+			out = append(out, line)
 			continue
 		}
 		if inFrontmatter && trimmed == "---" {
-			frontmatterEnd = i
-			break
+			var additions []string
+			for key, value := range updates {
+				if !updated[key] {
+					additions = append(additions, key+": "+value)
+				}
+			}
+			sort.Strings(additions)
+			out = append(out, additions...)
+			out = append(out, line)
+			inFrontmatter = false
+			frontmatterEnded = true
+			continue
 		}
 		if !inFrontmatter {
+			out = append(out, line)
 			continue
 		}
 		key, _, ok := strings.Cut(trimmed, ":")
-		if !ok {
+		if ok && remove[key] {
 			continue
 		}
-		if value, exists := updates[key]; exists {
-			lines[i] = key + ": " + value
-			updated[key] = true
+		if ok {
+			if value, exists := updates[key]; exists {
+				out = append(out, key+": "+value)
+				updated[key] = true
+				continue
+			}
 		}
+		out = append(out, line)
 	}
-	if frontmatterEnd < 0 {
+	if !frontmatterEnded {
 		return exitError{code: 2, msg: fmt.Sprintf("%s: unterminated frontmatter", path)}
 	}
-	var additions []string
-	for key, value := range updates {
-		if !updated[key] {
-			additions = append(additions, key+": "+value)
-		}
-	}
-	sort.Strings(additions)
-	lines = append(lines[:frontmatterEnd], append(additions, lines[frontmatterEnd:]...)...)
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+	return os.WriteFile(path, []byte(strings.Join(out, "\n")), 0o644)
 }
 
 func statusLabel(status string) string {
@@ -2113,13 +2301,65 @@ func openPath(path string, system bool) error {
 }
 
 func writeItemLines(w interface{ Write([]byte) (int, error) }, items []*item, withType bool) {
+	writeItemLinesWithPriority(w, items, withType, priorityDisplayHide)
+}
+
+type priorityDisplay int
+
+const (
+	priorityDisplayAuto priorityDisplay = iota
+	priorityDisplayShow
+	priorityDisplayHide
+)
+
+func writeItemLinesWithPriority(w interface{ Write([]byte) (int, error) }, items []*item, withType bool, mode priorityDisplay) {
 	for _, it := range items {
+		priority := ""
+		if it.Type == "task" && (mode == priorityDisplayShow || mode == priorityDisplayAuto && it.Priority != "normal") {
+			priority = " priority=" + it.Priority
+		}
 		if withType {
-			fmt.Fprintf(w, "%s %s %s %s\n", it.IDText, it.Type, it.Status, it.Title)
+			fmt.Fprintf(w, "%s %s %s%s %s\n", it.IDText, it.Type, it.Status, priority, it.Title)
 		} else {
-			fmt.Fprintf(w, "%s %s %s\n", it.IDText, it.Status, it.Title)
+			fmt.Fprintf(w, "%s %s%s %s\n", it.IDText, it.Status, priority, it.Title)
 		}
 	}
+}
+
+func writePriorityGroups(w interface{ Write([]byte) (int, error) }, items []*item, mode priorityDisplay) {
+	for _, priority := range priorities {
+		fmt.Fprintf(w, "Priority: %s\n", priority)
+		var group []*item
+		for _, it := range items {
+			if it.Priority == priority {
+				group = append(group, it)
+			}
+		}
+		rowMode := priorityDisplayHide
+		if mode == priorityDisplayShow {
+			rowMode = mode
+		}
+		for _, it := range group {
+			priorityText := ""
+			if rowMode == priorityDisplayShow {
+				priorityText = " priority=" + it.Priority
+			}
+			fmt.Fprintf(w, "  %s %s %s%s %s\n", it.IDText, it.Type, it.Status, priorityText, it.Title)
+		}
+	}
+}
+
+func sortItemsByPriority(items []*item) {
+	rank := map[string]int{"high": 0, "normal": 1, "low": 2}
+	sort.SliceStable(items, func(i, j int) bool {
+		if rank[items[i].Priority] == rank[items[j].Priority] {
+			if items[i].ID == items[j].ID {
+				return items[i].RelDir < items[j].RelDir
+			}
+			return items[i].ID < items[j].ID
+		}
+		return rank[items[i].Priority] < rank[items[j].Priority]
+	})
 }
 
 func sortItems(items []*item) {

@@ -141,6 +141,29 @@ Expected output:
 - Effective completion status.
 - Blocking child paths when the requested status is rejected.
 
+# Change Priority Workflow
+
+User selects a task and changes its effective ordering priority.
+
+Normal flow:
+
+1. Resolve exactly one task selector.
+2. Validate `high`, `normal`, or `low`.
+3. Store `high` or `low`; remove priority metadata for effective `normal`.
+4. Update `updated_at` for a real change.
+5. Leave the marker byte-identical when the effective priority is unchanged.
+
+Failure cases:
+
+- Selector is missing, ambiguous, or resolves to a milestone or subtask.
+- Priority is missing, invalid, or uses non-canonical case.
+- Marker cannot be rewritten.
+
+Expected output:
+
+- Old and new effective priority.
+- Whether the marker changed and whether priority metadata remains stored.
+
 # Open Item Workflow
 
 User selects an item and chooses to open it with the configured editor or system
@@ -196,6 +219,20 @@ Expected output:
 User asks to inspect the current root or a filtered set of items. Taskr prints
 stable summary rows for all matching items.
 
+Task-only lists sort effective priority as `high`, `normal`, `low` while
+preserving stable ID order inside a priority. `--priority` filters by effective
+priority, `--show-priority` and `--hide-priority` control row labels, and
+`--group-by priority` groups output when `--type task` is present. Priority is
+not an item selector or free-text search term.
+
+# Tree Workflow
+
+Tree output preserves hierarchy while sorting sibling tasks by effective
+priority as `high`, `normal`, `low`, with stable ID order inside each level.
+Non-normal task priority is visible inside the existing status brackets by
+default. `--show-priority` includes normal and `--hide-priority` suppresses all
+priority text without changing ordering, visibility, or indentation behavior.
+
 # Report Workflow
 
 User requests a repository report. Taskr summarizes the top-level root by
@@ -205,10 +242,13 @@ Normal flow:
 
 1. Render a deterministic report with root summary, status statistics, and
    milestone sections.
-2. List open milestones without tickets in their own section.
-3. Use explicit headings when a list is truncated, for example a current-work
+2. Count effective task priority as `high`, `normal`, and `low` globally and
+   for direct task children in every populated milestone section.
+3. List open milestones without tickets in their own section without adding
+   empty task-priority sections.
+4. Use explicit headings when a list is truncated, for example a current-work
    section that shows five of a larger set.
-4. Write to stdout unless a target file is provided.
+5. Write to stdout unless a target file is provided.
 
 Failure cases:
 

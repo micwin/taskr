@@ -1,9 +1,10 @@
 ---
 title: Priorities
-status: designing
+status: done
 created_at: 2026-08-10T14:41:10Z
-updated_at: 2026-08-10T14:41:10Z
+updated_at: 2026-08-10T15:53:34Z
 designing_at: 2026-08-10T14:41:10Z
+done_at: 2026-08-10T15:53:34Z
 ---
 
 # Description
@@ -30,3 +31,10 @@ completion.
   0.5 milestone and coordinates this implementation milestone.
 
 # Outcome
+
+Task priority is implemented end to end. Tasks support effective `high`,
+`normal`, and `low`; normal is represented by omission. The CLI can mutate,
+filter, sort, group, display, validate, complete, and report priority while
+leaving status, hierarchy, dependencies, and completion unchanged. The shared
+Priority Smokey workflow verifies interoperability on one cumulative valid
+root and isolates only deliberately invalid Doctor inputs.
