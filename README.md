@@ -93,6 +93,11 @@ updated_at: 2026-06-03T00:00:00Z
 ---
 ```
 
+Taskr may also store optional RFC3339 transition metadata such as
+`designing_at`, `developing_at`, `done_at`, and `reopened_at`. Each status field
+records the most recent entry into that status. Missing transition fields are
+valid for compatibility with existing markers.
+
 Required body structure:
 
 ```markdown

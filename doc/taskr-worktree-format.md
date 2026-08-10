@@ -73,6 +73,25 @@ updated_at: 2026-06-03T00:00:00Z
 ---
 ```
 
+Status history is recorded with optional RFC3339 UTC timestamps. Existing
+markers remain valid when any or all history fields are absent:
+
+```yaml
+open_at: 2026-06-01T09:00:00Z
+designing_at: 2026-06-01T10:00:00Z
+developing_at: 2026-06-02T08:30:00Z
+active_at: 2026-06-02T10:00:00Z
+reviewing_at: 2026-06-03T12:00:00Z
+blocked_at: 2026-06-03T13:00:00Z
+done_at: 2026-06-03T15:00:00Z
+cancelled_at: 2026-06-03T16:00:00Z
+reopened_at: 2026-06-04T09:00:00Z
+```
+
+Each status field records the most recent entry into that status.
+`reopened_at` records the most recent transition from `done` or `cancelled` to
+a non-closed status. A real status transition also updates `updated_at`.
+
 Required body sections:
 
 ```markdown

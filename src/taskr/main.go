@@ -67,6 +67,8 @@ type item struct {
 	Status     string
 	CreatedAt  string
 	UpdatedAt  string
+	StatusAt   map[string]string
+	ReopenedAt string
 	Dir        string
 	RelDir     string
 	Marker     string
@@ -244,7 +246,7 @@ func doctorCommand(rootPath string) *cobra.Command {
 
 Current validation checks that the root can be loaded as a Taskr worktree:
 marker structure, item directory IDs, marker frontmatter used by Taskr, status
-values, and root-wide duplicate IDs.
+values, optional status-transition timestamps, and root-wide duplicate IDs.
 
 Fix mode currently repairs only duplicate IDs. The worktree must be loadable
 apart from duplicate IDs; unsupported errors are reported and leave the
@@ -367,6 +369,14 @@ func writeShownItem(w io.Writer, it *item, metaOnly bool) error {
 	fmt.Fprintf(w, "ID: %s\nType: %s\nTitle: %s\nStatus: %s\nMarker: %s\n", it.IDText, it.Type, it.Title, it.Status, filepath.ToSlash(filepath.Join(it.RelDir, it.Marker)))
 	if metaOnly {
 		fmt.Fprintf(w, "Created at: %s\nUpdated at: %s\n", it.CreatedAt, it.UpdatedAt)
+		for _, status := range statuses {
+			if timestamp := it.StatusAt[status]; timestamp != "" {
+				fmt.Fprintf(w, "%s at: %s\n", statusLabel(status), timestamp)
+			}
+		}
+		if it.ReopenedAt != "" {
+			fmt.Fprintf(w, "Reopened at: %s\n", it.ReopenedAt)
+		}
 		return nil
 	}
 
@@ -484,10 +494,16 @@ func statusCommand(rootPath string) *cobra.Command {
 	return &cobra.Command{
 		Use:   "status <selector> <status>",
 		Short: "Change item status",
-		Args:  cobra.ExactArgs(2),
+		Long: `Change one item's status.
+
+A real transition updates updated_at and the target status's *_at timestamp.
+Reopening a done or cancelled item also updates reopened_at. Repeating the
+current status succeeds without changing the marker.`,
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !validStatuses[args[1]] {
-				return exitError{code: 2, msg: fmt.Sprintf("invalid status %q", args[1])}
+			newStatus := args[1]
+			if !validStatuses[newStatus] {
+				return exitError{code: 2, msg: fmt.Sprintf("invalid status %q", newStatus)}
 			}
 			t, err := loadTree(rootPath)
 			if err != nil {
@@ -497,15 +513,28 @@ func statusCommand(rootPath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if args[1] == "done" {
+			if newStatus == it.Status {
+				fmt.Fprintf(cmd.OutOrStdout(), "status id=%s old=%s new=%s changed=false\n", it.IDText, it.Status, newStatus)
+				return nil
+			}
+			if newStatus == "done" {
 				if blockers := unfinishedChildren(it); len(blockers) > 0 {
 					return exitError{code: 2, msg: fmt.Sprintf("unfinished children block done for %s: %s", it.IDText, strings.Join(blockers, ", "))}
 				}
 			}
-			if err := updateMarkerField(it.MarkerPath, "status", args[1]); err != nil {
+			now := time.Now().UTC().Format(time.RFC3339)
+			fields := map[string]string{
+				"status":          newStatus,
+				"updated_at":      now,
+				newStatus + "_at": now,
+			}
+			if isClosedStatus(it.Status) && !isClosedStatus(newStatus) {
+				fields["reopened_at"] = now
+			}
+			if err := updateMarkerFields(it.MarkerPath, fields); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "status id=%s old=%s new=%s\n", it.IDText, it.Status, args[1])
+			fmt.Fprintf(cmd.OutOrStdout(), "status id=%s old=%s new=%s changed=true\n", it.IDText, it.Status, newStatus)
 			return nil
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1364,6 +1393,17 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 	if !validStatuses[status] {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("%s: invalid status %q", relPath(root, dir), status)}
 	}
+	statusAt := make(map[string]string, len(statuses))
+	for _, candidate := range statuses {
+		field := candidate + "_at"
+		if err := validateOptionalTimestamp(filepath.Join(dir, marker), field, fields[field]); err != nil {
+			return nil, err
+		}
+		statusAt[candidate] = fields[field]
+	}
+	if err := validateOptionalTimestamp(filepath.Join(dir, marker), "reopened_at", fields["reopened_at"]); err != nil {
+		return nil, err
+	}
 	return &item{
 		ID:         id,
 		IDText:     idText,
@@ -1373,12 +1413,24 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 		Status:     status,
 		CreatedAt:  fields["created_at"],
 		UpdatedAt:  fields["updated_at"],
+		StatusAt:   statusAt,
+		ReopenedAt: fields["reopened_at"],
 		Dir:        dir,
 		RelDir:     relPath(root, dir),
 		Marker:     marker,
 		MarkerPath: filepath.Join(dir, marker),
 		Parent:     parent,
 	}, nil
+}
+
+func validateOptionalTimestamp(path, field, value string) error {
+	if value == "" {
+		return nil
+	}
+	if _, err := time.Parse(time.RFC3339, value); err != nil {
+		return exitError{code: 2, msg: fmt.Sprintf("%s: invalid %s timestamp %q", path, field, value)}
+	}
+	return nil
 }
 
 func parseFrontmatter(path string) (map[string]string, error) {
@@ -1863,14 +1915,15 @@ updated_at: %s
 `, title, now, now)
 }
 
-func updateMarkerField(path, key, value string) error {
+func updateMarkerFields(path string, updates map[string]string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	lines := strings.Split(string(data), "\n")
 	inFrontmatter := false
-	updated := false
+	updated := make(map[string]bool, len(updates))
+	frontmatterEnd := -1
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if i == 0 && trimmed == "---" {
@@ -1878,17 +1931,44 @@ func updateMarkerField(path, key, value string) error {
 			continue
 		}
 		if inFrontmatter && trimmed == "---" {
+			frontmatterEnd = i
 			break
 		}
-		if inFrontmatter && strings.HasPrefix(trimmed, key+":") {
+		if !inFrontmatter {
+			continue
+		}
+		key, _, ok := strings.Cut(trimmed, ":")
+		if !ok {
+			continue
+		}
+		if value, exists := updates[key]; exists {
 			lines[i] = key + ": " + value
-			updated = true
+			updated[key] = true
 		}
 	}
-	if !updated {
-		return exitError{code: 2, msg: fmt.Sprintf("%s: missing frontmatter field %s", path, key)}
+	if frontmatterEnd < 0 {
+		return exitError{code: 2, msg: fmt.Sprintf("%s: unterminated frontmatter", path)}
 	}
+	var additions []string
+	for key, value := range updates {
+		if !updated[key] {
+			additions = append(additions, key+": "+value)
+		}
+	}
+	sort.Strings(additions)
+	lines = append(lines[:frontmatterEnd], append(additions, lines[frontmatterEnd:]...)...)
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+}
+
+func statusLabel(status string) string {
+	if status == "" {
+		return status
+	}
+	return strings.ToUpper(status[:1]) + status[1:]
+}
+
+func isClosedStatus(status string) bool {
+	return status == "done" || status == "cancelled"
 }
 
 func commentLines(args []string, fromStdin bool) ([]string, error) {

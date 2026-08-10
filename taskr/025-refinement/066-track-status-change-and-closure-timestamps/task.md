@@ -1,8 +1,10 @@
 ---
 title: Track status transition timestamps
-status: developing
+status: done
 created_at: 2026-08-10T13:49:39Z
-updated_at: 2026-08-10T13:49:39Z
+updated_at: 2026-08-10T14:14:45Z
+reviewing_at: 2026-08-10T14:06:29Z
+done_at: 2026-08-10T14:14:45Z
 ---
 
 # Description
@@ -52,5 +54,17 @@ history or filesystem modification times.
 - 2026-08-10: Timestamp assertions were added beside existing status-transition
   workflow checks. The central status workflow now also exercises the missing
   target statuses so every supported `*_at` field and `reopened_at` is covered.
+- 2026-08-10: Review of the red tests found that marker assertions alone did
+  not prove the required `show --meta` behavior. Explicit metadata-output
+  assertions now cover every transition timestamp produced by the workflow.
+- 2026-08-10: Repeating the current status is a successful no-op. It reports
+  `changed=false` and does not rewrite the marker or alter any timestamp.
 
 # Outcome
+
+Real status transitions now atomically update `status`, `updated_at`, and the
+target status's optional `*_at` field. Reopening a `done` or `cancelled` item
+also updates `reopened_at`; repeated entries retain only the latest timestamp.
+Missing transition history remains valid, while Doctor rejects malformed
+timestamps. `show --meta`, command help, worktree documentation, workflow
+documentation, and Smokey coverage expose and verify the behavior.

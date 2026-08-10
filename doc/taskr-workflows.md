@@ -121,7 +121,12 @@ Normal flow:
 4. If setting a parent item to `done`, verify all completion children are done.
 5. If setting an item to `cancelled`, keep children unchanged unless the user
    explicitly requests a recursive cancellation workflow later.
-6. Write the new status and update `updated_at`.
+6. Write the new status, update `updated_at`, and set the target status's
+   optional `*_at` field to the same current UTC timestamp.
+7. When moving from `done` or `cancelled` to a non-closed status, also set
+   `reopened_at`.
+8. If the requested status is already current, report a successful no-op and
+   leave the marker unchanged.
 
 Failure cases:
 
@@ -132,6 +137,7 @@ Failure cases:
 Expected output:
 
 - Old status and new status.
+- Whether the status changed.
 - Effective completion status.
 - Blocking child paths when the requested status is rejected.
 
