@@ -47,14 +47,33 @@ EOF
 # Selectors should resolve by ID, slug, and exact title.
 run_taskr show_id "${root}" show 001
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q 'id=001' "${stdout}"
-grep -q 'type=milestone' "${stdout}"
+grep -q '^ID: 001$' "${stdout}"
+grep -q '^Type: milestone$' "${stdout}"
+grep -q '^# Description$' "${stdout}"
+grep -q '^# Acceptance$' "${stdout}"
+grep -q '^# Comments$' "${stdout}"
+grep -q '^# Outcome$' "${stdout}"
 run_taskr show_slug "${root}" show mvp
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q 'title="MVP"' "${stdout}"
+grep -q '^Title: MVP$' "${stdout}"
 run_taskr show_title "${root}" show "Define workflows"
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q 'id=003' "${stdout}"
+grep -q '^ID: 003$' "${stdout}"
+grep -q 'Active task with an unfinished child' "${stdout}"
+grep -q 'Fixture data for Smokey' "${stdout}"
+
+# Metadata mode should include frontmatter facts and omit the Markdown body.
+run_taskr show_meta "${root}" show 003 --meta
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^ID: 003$' "${stdout}"
+grep -q '^Title: Define workflows$' "${stdout}"
+grep -q '^Status: active$' "${stdout}"
+grep -q '^Created at:' "${stdout}"
+grep -q '^Updated at:' "${stdout}"
+if grep -q '^# Description$' "${stdout}"; then
+  echo "show --meta should omit the Markdown body" >&2
+  exit 1
+fi
 
 # List and show output should be stable enough for Smokey assertions.
 run_taskr list_root "${root}" list

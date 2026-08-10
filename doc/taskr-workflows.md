@@ -158,27 +158,37 @@ Expected output:
 - Path opened.
 - Opener used.
 
-# Show/List Workflow
+# Show Workflow
 
-User asks to inspect one item, the current root, or a subtree. Taskr prints a
-human-readable view to stdout.
+User asks to inspect exactly one item. Taskr prints a human-readable view to
+stdout and does not summarize sets of items.
 
 Normal flow:
 
-1. Resolve selector when provided.
-2. Load the relevant subtree.
-3. Print item type, ID, title, status, effective completion state, and
-   child summary.
+1. Resolve the required selector to exactly one item.
+2. Print item identity, title, status, marker path, and the complete Markdown
+   body.
+3. With `--meta`, print marker metadata without the Markdown body.
 
 Failure cases:
 
-- Selector is ambiguous or not found.
+- Selector is not found.
+- Selector is ambiguous; fail with a non-zero exit status and list every
+  candidate by ID and title.
 - Worktree is invalid.
 
 Expected output:
 
 - Stable text output suitable for Smokey assertions.
+- Complete `# Description`, `# Acceptance`, `# Comments`, and `# Outcome`
+  sections by default.
+- Metadata fields without body sections when `--meta` is used.
 - No editor or pager required for MVP.
+
+# List Workflow
+
+User asks to inspect the current root or a filtered set of items. Taskr prints
+stable summary rows for all matching items.
 
 # Report Workflow
 

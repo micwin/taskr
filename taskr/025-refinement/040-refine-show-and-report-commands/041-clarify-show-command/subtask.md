@@ -1,6 +1,6 @@
 ---
 title: Clarify show command
-status: developing
+status: done
 created_at: 2026-08-10T09:48:33Z
 updated_at: 2026-08-10T09:48:33Z
 ---
@@ -43,3 +43,9 @@ sets of items.
   reporting ambiguity.
 
 # Outcome
+
+`taskr show <selector>` now prints one item's identity, marker path, and complete
+Markdown body. `--meta` prints metadata without body sections. Ambiguous
+selectors retain a non-zero exit status and list every matching item by ID and
+title. Help, workflow documentation, examples, completion, and Smokey coverage
+reflect the implemented behavior.

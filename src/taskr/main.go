@@ -185,6 +185,7 @@ Inspect work:
   taskr tree 001 --all
   taskr tree 001 --ascii
   taskr show 002
+  taskr show 002 --meta
   taskr report
 
 List tickets by status:
@@ -334,10 +335,17 @@ multi-line comment from a pipe or heredoc.`,
 }
 
 func showCommand(rootPath string) *cobra.Command {
-	return &cobra.Command{
+	var metaOnly bool
+
+	cmd := &cobra.Command{
 		Use:   "show <selector>",
-		Short: "Show one item",
-		Args:  cobra.ExactArgs(1),
+		Short: "Show one complete item",
+		Long: `Show exactly one Taskr item on the console.
+
+By default, show prints readable item identity and the complete Markdown body.
+Use --meta to print marker metadata without the body. Ambiguous selectors fail
+and list every matching item's ID and title.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
 			if err != nil {
@@ -347,11 +355,45 @@ func showCommand(rootPath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "id=%s type=%s status=%s title=%q path=%s\n", it.IDText, it.Type, it.Status, it.Title, it.RelDir)
-			return nil
+			return writeShownItem(cmd.OutOrStdout(), it, metaOnly)
 		},
 		ValidArgsFunction: selectorArgCompletion(rootPath),
 	}
+	cmd.Flags().BoolVar(&metaOnly, "meta", false, "show marker metadata without the Markdown body")
+	return cmd
+}
+
+func writeShownItem(w io.Writer, it *item, metaOnly bool) error {
+	fmt.Fprintf(w, "ID: %s\nType: %s\nTitle: %s\nStatus: %s\nMarker: %s\n", it.IDText, it.Type, it.Title, it.Status, filepath.ToSlash(filepath.Join(it.RelDir, it.Marker)))
+	if metaOnly {
+		fmt.Fprintf(w, "Created at: %s\nUpdated at: %s\n", it.CreatedAt, it.UpdatedAt)
+		return nil
+	}
+
+	body, err := markerBody(it.MarkerPath)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(w)
+	_, err = fmt.Fprint(w, body)
+	return err
+}
+
+func markerBody(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	content := string(data)
+	if !strings.HasPrefix(content, "---\n") {
+		return "", exitError{code: 2, msg: fmt.Sprintf("%s: invalid frontmatter", path)}
+	}
+	frontmatterEnd := strings.Index(content[len("---\n"):], "\n---\n")
+	if frontmatterEnd < 0 {
+		return "", exitError{code: 2, msg: fmt.Sprintf("%s: unterminated frontmatter", path)}
+	}
+	bodyStart := len("---\n") + frontmatterEnd + len("\n---\n")
+	return strings.TrimLeft(content[bodyStart:], "\n"), nil
 }
 
 func listCommand(rootPath string) *cobra.Command {
@@ -1410,7 +1452,7 @@ func resolveItem(t *tree, selector string) (*item, error) {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("no match for selector %q", selector)}
 	}
 	if len(matches) > 1 {
-		return nil, exitError{code: 2, msg: fmt.Sprintf("ambiguous selector %q; candidates: %s", selector, candidateList(matches))}
+		return nil, exitError{code: 2, msg: fmt.Sprintf("ambiguous selector %q; candidates:%s", selector, candidateList(matches))}
 	}
 	return matches[0], nil
 }
@@ -1994,9 +2036,9 @@ func candidateList(items []*item) string {
 	sortItems(items)
 	parts := make([]string, 0, len(items))
 	for _, it := range items {
-		parts = append(parts, it.IDText)
+		parts = append(parts, fmt.Sprintf("\n%s %s", it.IDText, it.Title))
 	}
-	return strings.Join(parts, ", ")
+	return strings.Join(parts, "")
 }
 
 var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)

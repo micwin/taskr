@@ -35,7 +35,7 @@ test ! -e "${root}/001-mvp/002-verzeichnisstruktur"
 # The moved item should remain visible and doctor-clean.
 run_taskr show_moved "${root}" show 002
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "path=006-release/002-verzeichnisstruktur" "${stdout}"
+grep -q "^Marker: 006-release/002-verzeichnisstruktur/task.md$" "${stdout}"
 
 run_taskr doctor_after_move "${root}" doctor
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
