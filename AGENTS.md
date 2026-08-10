@@ -1,9 +1,5 @@
 # Repository Guidelines
 
-First read and follow the active memory-castle agent instructions at
-`~/.local/share/jeff/memcastle/codex/index.md`; this file only adds Taskr
-repository-specific rules.
-
 ## Read These First
 
 If present, review `README.md`, `DEVELOPER.md`, `RUNBOOK.md`, and docs under
