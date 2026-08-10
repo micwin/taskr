@@ -14,7 +14,7 @@ documentation, test, or process changes.
 # Acceptance
 
 - The status model includes `developing`.
-- Documentation explains when to use `designing`, `developing`, `in_review`,
+- Documentation explains when to use `designing`, `developing`, `reviewing`,
   and `done`.
 - The CLI accepts `developing` wherever statuses are accepted.
 - Status filtering and shell completion include `developing`.
@@ -24,12 +24,14 @@ documentation, test, or process changes.
 - Smokey tests cover the new status value independently from dogfood data.
 - Agent policy describes that implementation work normally moves from
   `designing` to `developing` before implementation changes begin.
-- The relationship to ticket `028-in-review-status` is documented.
+- The relationship to ticket `028-reviewing-status` is documented.
 
 # Comments
 
 - 2026-08-10: Added while refining the status lifecycle around
-  `028-in-review-status`; `developing` should distinguish active
+  `028-reviewing-status`; `developing` should distinguish active
   implementation from design/refinement.
+- 2026-08-10: Updated references from `in_review` to `reviewing`, matching the
+  accepted status name from ticket `028`.
 
 # Outcome

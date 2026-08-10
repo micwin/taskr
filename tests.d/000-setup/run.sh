@@ -23,6 +23,7 @@ cat >"${TASKR_CONFIG_FILE}" <<EOF
 statuses:
   - open
   - designing
+  - developing
   - active
   - reviewing
   - blocked
