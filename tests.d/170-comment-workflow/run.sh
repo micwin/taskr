@@ -39,15 +39,29 @@ fi
 grep -q "commented id=003" "${stdout}"
 grep -Eq '^- [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}: Reviewed with Michael$' "${marker}"
 
+# Quotes should be preserved and repeated spaces or tabs should normalize.
+run_taskr comment_quotes "${root}" comment 003 $'  Michael'\''s   "quoted"\t note  '
+if [ "${exit_code}" -ne 0 ]; then
+  echo "quoted comment should pass" >&2
+  cat "${stderr}" >&2
+  exit 1
+fi
+grep -Eq '^- [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}: Michael'\''s "quoted" note$' "${marker}"
+
 # A heredoc through stdin should append one multi-line comment entry.
 "${TASKR_BIN}" "${root}" comment 003 --stdin >"${SMOKEY_STATE_DIR}/comment_stdin.stdout" 2>"${SMOKEY_STATE_DIR}/comment_stdin.stderr" <<'EOF'
-first detail
-second detail
+  first   detail
+
+second	detail
 EOF
 grep -q "commented id=003" "${SMOKEY_STATE_DIR}/comment_stdin.stdout"
 grep -Eq '^- [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:$' "${marker}"
 grep -q '^  first detail$' "${marker}"
 grep -q '^  second detail$' "${marker}"
+if grep -q '^  $' "${marker}"; then
+  echo "empty stdin lines should not be stored" >&2
+  exit 1
+fi
 
 # Comments must be inserted before Outcome while preserving required sections.
 comments_line="$(grep -n '^# Comments$' "${marker}" | cut -d: -f1)"
