@@ -1,6 +1,6 @@
 ---
 title: Clarify report command
-status: designing
+status: developing
 created_at: 2026-08-10T09:48:33Z
 updated_at: 2026-08-10T09:48:33Z
 ---
@@ -17,8 +17,8 @@ by default, with switches controlling which content and sections are included.
 - Default report output includes the project/root name.
 - Default report output includes the report date.
 - Default report output includes statistics for milestones, tasks, and subtasks
-  by status: `open`, `designing`, `developing`, `reviewing`, `done`, and
-  `cancelled`.
+  by status: `open`, `designing`, `developing`, `active`, `reviewing`, `done`,
+  and `cancelled`.
 - Default report output includes the oldest item per non-closed status and the
   newest item for `done` and `cancelled`, where such items exist.
 - Default report output includes one section per milestone, headed by milestone
