@@ -1,8 +1,9 @@
 ---
 title: GitHub integration
-status: designing
+status: cancelled
 created_at: 2026-08-07T00:00:00Z
-updated_at: 2026-08-07T00:00:00Z
+updated_at: 2026-08-10T14:26:22Z
+cancelled_at: 2026-08-10T14:26:22Z
 ---
 
 # Description
@@ -28,3 +29,5 @@ stable.
   synchronization or publishing Taskr state.
 
 # Outcome
+
+Tickets moved to the `Version 0.5` milestone.
