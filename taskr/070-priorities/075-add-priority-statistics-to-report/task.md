@@ -1,10 +1,11 @@
 ---
 title: Add priority statistics to report
-status: developing
+status: reviewing
 created_at: 2026-08-10T14:41:19Z
-updated_at: 2026-08-10T15:22:35Z
+updated_at: 2026-08-10T15:30:41Z
 designing_at: 2026-08-10T14:41:19Z
 developing_at: 2026-08-10T15:22:35Z
+reviewing_at: 2026-08-10T15:30:41Z
 ---
 
 # Description
@@ -38,3 +39,10 @@ Add effective task-priority statistics to the repository report.
   milestone section.
 
 # Outcome
+
+The default repository report now includes deterministic effective task
+priority counts in global and populated milestone sections. Omitted priority is
+counted as normal; milestones and subtasks are excluded. Empty milestones keep
+their existing dedicated section, while status summaries and current-work
+selection remain unchanged. Help, workflow documentation, and isolated Smokey
+fixtures cover the final report behavior.

@@ -242,10 +242,13 @@ Normal flow:
 
 1. Render a deterministic report with root summary, status statistics, and
    milestone sections.
-2. List open milestones without tickets in their own section.
-3. Use explicit headings when a list is truncated, for example a current-work
+2. Count effective task priority as `high`, `normal`, and `low` globally and
+   for direct task children in every populated milestone section.
+3. List open milestones without tickets in their own section without adding
+   empty task-priority sections.
+4. Use explicit headings when a list is truncated, for example a current-work
    section that shows five of a larger set.
-4. Write to stdout unless a target file is provided.
+5. Write to stdout unless a target file is provided.
 
 Failure cases:
 

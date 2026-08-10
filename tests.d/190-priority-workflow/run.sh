@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+trap 'echo "priority workflow failed at line ${LINENO}" >&2' ERR
+
 TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
 TASKR_BASE_ROOT="${TASKR_BASE_ROOT:-${SMOKEY_STATE_DIR}/fixtures/base-root}"
 
@@ -246,12 +248,14 @@ grep -q '^--show-priority' "${stdout}"
 grep -q '^--hide-priority' "${stdout}"
 
 # Report should count effective task priority globally and per milestone.
-run_taskr priority_report_mark_developing "${root}" status 003 developing
+report_root="${SMOKEY_STATE_DIR}/priority-report-root"
+cp -R "${root}" "${report_root}"
+run_taskr priority_report_mark_developing "${report_root}" status 003 developing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-run_taskr priority_report_create_empty "${root}" create milestone "Priority future" --no-edit
+run_taskr priority_report_create_empty "${report_root}" create milestone "Priority future" --no-edit
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 
-run_taskr priority_report "${root}" report
+run_taskr priority_report "${report_root}" report
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q '^# Task Priority Summary$' "${stdout}"
 [ "$(grep -c '^tasks with effective priority "high": 2$' "${stdout}")" -eq 2 ]
@@ -280,7 +284,7 @@ grep -q '^tasks with status "done": 1$' "${stdout}"
 grep -q '^tasks with status "open": 1$' "${stdout}"
 grep -q '^003 \[developing\] Define workflows$' "${stdout}"
 
-run_taskr priority_report_help "${root}" report --help
+run_taskr priority_report_help "${report_root}" report --help
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -qi 'repository.*report\|report.*repository' "${stdout}"
 grep -qi 'priority' "${stdout}"
@@ -327,7 +331,7 @@ run_taskr priority_help "${root}" priority --help
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q 'taskr priority <selector> <high|normal|low>' "${stdout}"
 grep -q 'updated_at' "${stdout}"
-grep -q 'normal.*remov\|remov.*normal' "${stdout}"
+grep -qi 'normal.*remov\|remov.*normal' "${stdout}"
 
 run_taskr priority_source_completion "${root}" __complete priority ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

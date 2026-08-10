@@ -719,7 +719,11 @@ func reportCommand(rootPath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "Render a repository report",
-		Args:  cobra.NoArgs,
+		Long: `Render a top-level repository report.
+
+The default report includes status summaries, effective task-priority counts,
+status extremes, milestone sections, and open milestones without tickets.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
 			if err != nil {
@@ -756,6 +760,9 @@ func renderReport(t *tree, now time.Time) string {
 	fmt.Fprintln(&b, "# Status Summary")
 	writeStatusSummary(&b, items)
 	b.WriteByte('\n')
+	fmt.Fprintln(&b, "# Task Priority Summary")
+	writeTaskPriorityCounts(&b, items)
+	b.WriteByte('\n')
 
 	fmt.Fprintln(&b, "# Status Extremes")
 	writeStatusExtremes(&b, items)
@@ -766,6 +773,18 @@ func renderReport(t *tree, now time.Time) string {
 		b.WriteByte('\n')
 	}
 	return b.String()
+}
+
+func writeTaskPriorityCounts(w interface{ Write([]byte) (int, error) }, items []*item) {
+	counts := map[string]int{}
+	for _, it := range items {
+		if it.Type == "task" {
+			counts[it.Priority]++
+		}
+	}
+	for _, priority := range priorities {
+		fmt.Fprintf(w, "tasks with effective priority %q: %d\n", priority, counts[priority])
+	}
 }
 
 func writeStatusSummary(w interface{ Write([]byte) (int, error) }, items []*item) {
@@ -853,6 +872,8 @@ func writeMilestoneSections(w interface{ Write([]byte) (int, error) }, items []*
 				fmt.Fprintf(w, "tasks with status %q: %d\n", status, count)
 			}
 		}
+		fmt.Fprintln(w, "### Task Priority Counts")
+		writeTaskPriorityCounts(w, directChildren(milestone, "task"))
 		if len(activeTickets) > 0 {
 			sortItems(activeTickets)
 			visible := activeTickets
@@ -869,6 +890,16 @@ func writeMilestoneSections(w interface{ Write([]byte) (int, error) }, items []*
 		fmt.Fprintln(w)
 	}
 	return wrote
+}
+
+func directChildren(it *item, itemType string) []*item {
+	var children []*item
+	for _, child := range it.Children {
+		if child.Type == itemType {
+			children = append(children, child)
+		}
+	}
+	return children
 }
 
 func writeOpenMilestonesWithoutTickets(w interface{ Write([]byte) (int, error) }, items []*item) bool {
