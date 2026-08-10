@@ -1,9 +1,10 @@
 ---
 title: Define priority data model and validation
-status: designing
+status: developing
 created_at: 2026-08-10T14:41:16Z
-updated_at: 2026-08-10T14:41:17Z
+updated_at: 2026-08-10T14:50:40Z
 designing_at: 2026-08-10T14:41:17Z
+developing_at: 2026-08-10T14:50:40Z
 ---
 
 # Description
