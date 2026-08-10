@@ -109,7 +109,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "archive", "completion", "create", "doctor", "examples", "help", "init", "list", "open", "report", "show", "status", "version":
+	case "archive", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "report", "show", "status", "version":
 		return true
 	default:
 		return false
@@ -134,6 +134,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 		showCommand(rootPath),
 		listCommand(rootPath),
 		statusCommand(rootPath),
+		moveCommand(rootPath),
 		openCommand(rootPath),
 		reportCommand(rootPath),
 		archiveCommand(rootPath),
@@ -349,6 +350,25 @@ func statusCommand(rootPath string) *cobra.Command {
 			}
 		},
 	}
+}
+
+func moveCommand(rootPath string) *cobra.Command {
+	var under string
+	var toRoot bool
+
+	cmd := &cobra.Command{
+		Use:   "move <selector>",
+		Short: "Move an item to another parent",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runMove(cmd, rootPath, args[0], under, toRoot)
+		},
+		ValidArgsFunction: selectorArgCompletion(rootPath),
+	}
+	cmd.Flags().StringVar(&under, "under", "", "destination parent selector")
+	cmd.Flags().BoolVar(&toRoot, "root", false, "move item to the root level")
+	mustRegisterCompletion(cmd, "under", selectorCompletion(rootPath))
+	return cmd
 }
 
 func openCommand(rootPath string) *cobra.Command {
@@ -578,6 +598,60 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug string
 	}
 	rel, _ := filepath.Rel(t.Root, dir)
 	fmt.Fprintf(cmd.OutOrStdout(), "created item id=%s path=%s marker=%s opened=%t\n", idText, filepath.ToSlash(rel), marker, opened)
+	return nil
+}
+
+func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) error {
+	if (under == "") == !toRoot {
+		return exitError{code: 2, msg: "move destination requires exactly one of --under or --root"}
+	}
+	t, err := loadTree(rootPath)
+	if err != nil {
+		return err
+	}
+	source, err := resolveItem(t, selector)
+	if err != nil {
+		return err
+	}
+	destParent := t.Root
+	if under != "" {
+		parent, err := resolveItem(t, under)
+		if err != nil {
+			return err
+		}
+		if parent == source {
+			return exitError{code: 2, msg: "cannot move item under itself"}
+		}
+		if isDescendantOf(parent, source) {
+			return exitError{code: 2, msg: "cannot move item under its own descendant"}
+		}
+		if err := validateChildType(parent, source.Type); err != nil {
+			return err
+		}
+		destParent = parent.Dir
+	}
+	dest := filepath.Join(destParent, filepath.Base(source.Dir))
+	if filepath.Clean(dest) == filepath.Clean(source.Dir) {
+		return exitError{code: 2, msg: "move destination is the current location"}
+	}
+	if _, err := os.Stat(dest); err == nil {
+		return exitError{code: 2, msg: fmt.Sprintf("move destination exists: %s", relPath(t.Root, dest))}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	oldRel := source.RelDir
+	newRel := relPath(t.Root, dest)
+	if err := os.Rename(source.Dir, dest); err != nil {
+		return err
+	}
+	if _, err := loadTree(t.Root); err != nil {
+		rollbackErr := os.Rename(dest, source.Dir)
+		if rollbackErr != nil {
+			return exitError{code: 1, msg: fmt.Sprintf("move made invalid worktree and rollback failed: %v; rollback: %v", err, rollbackErr)}
+		}
+		return exitError{code: 2, msg: fmt.Sprintf("move would make worktree invalid: %v", err)}
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "moved id=%s from=%s to=%s\n", source.IDText, oldRel, newRel)
 	return nil
 }
 
@@ -973,6 +1047,15 @@ func unfinishedChildren(parent *item) []string {
 	}
 	walk(parent)
 	return blockers
+}
+
+func isDescendantOf(candidate, parent *item) bool {
+	for current := candidate.Parent; current != nil; current = current.Parent {
+		if current == parent {
+			return true
+		}
+	}
+	return false
 }
 
 func validateChildType(parent *item, childType string) error {
