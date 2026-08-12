@@ -1,10 +1,10 @@
 ---
 title: Generate project site
-status: designing
+status: developing
 created_at: 2026-08-10T18:03:26Z
-updated_at: 2026-08-12T08:44:19Z
+updated_at: 2026-08-12T13:03:43Z
 designing_at: 2026-08-12T08:44:19Z
-developing_at: 2026-08-12T08:27:17Z
+developing_at: 2026-08-12T13:03:43Z
 ---
 
 # Description

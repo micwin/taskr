@@ -2,3 +2,4 @@ tests.d/.smokey-state/
 dist/
 work/
 /site/
+/taskr/taskr.toml
