@@ -1,3 +1,4 @@
 tests.d/.smokey-state/
 dist/
 work/
+/site/

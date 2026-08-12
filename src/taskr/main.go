@@ -119,7 +119,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "rename", "report", "show", "status", "tree", "version":
+	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "rename", "report", "show", "site", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -139,6 +139,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 
 	cmd.AddCommand(
 		initCommand(rootPath),
+		siteCommand(rootPath),
 		doctorCommand(rootPath),
 		createCommand(rootPath),
 		commentCommand(rootPath),
@@ -169,6 +170,9 @@ func examplesCommand() *cobra.Command {
 
 Initialize a project worktree:
   taskr init
+
+Initialize the project site output:
+  taskr site init ../site --create-if-missing
 
 Create a milestone:
   taskr create milestone "MVP" --no-edit
@@ -256,6 +260,45 @@ func initCommand(rootPath string) *cobra.Command {
 	}
 }
 
+func siteCommand(rootPath string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "site",
+		Short: "Manage the project site",
+		Args:  cobra.NoArgs,
+	}
+	cmd.AddCommand(siteInitCommand(rootPath))
+	return cmd
+}
+
+func siteInitCommand(rootPath string) *cobra.Command {
+	var createIfMissing bool
+	cmd := &cobra.Command{
+		Use:   "init <site-directory>",
+		Short: "Initialize the project site output directory",
+		Long: `Initialize the project site output directory.
+
+The directory is stored in the selected Taskr root's taskr.toml. Relative
+paths resolve from the Taskr root. Existing nonempty directories must contain
+a valid .taskr-site ownership marker. The site directory must not overlap the
+Taskr root.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			t, err := loadTree(rootPath)
+			if err != nil {
+				return err
+			}
+			directory, created, changed, err := initializeSite(t.Root, args[0], createIfMissing)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "initialized site root=%s directory=%s created=%t changed=%t\n", t.Root, directory, created, changed)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&createIfMissing, "create-if-missing", false, "create the site directory and required parents when missing")
+	return cmd
+}
+
 func doctorCommand(rootPath string) *cobra.Command {
 	var fix bool
 
@@ -268,7 +311,8 @@ Current validation checks that the root can be loaded as a Taskr worktree:
 marker structure, item directory IDs, marker frontmatter used by Taskr, status
 values, optional status-transition timestamps, task priority metadata, and
 root-wide duplicate IDs. Optional root-local taskr.toml project configuration
-is parsed strictly and validated with the worktree.
+is parsed strictly; configured site paths and ownership markers are validated
+with the worktree.
 
 Fix mode currently repairs only duplicate IDs. The worktree must be loadable
 apart from duplicate IDs; unsupported errors are reported and leave the
@@ -1526,6 +1570,9 @@ func loadTreeWithOptions(rootPath string, allowDuplicateIDs bool) (*tree, error)
 	}
 	config, err := loadProjectConfig(abs)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateConfiguredSite(abs, config); err != nil {
 		return nil, err
 	}
 	t := &tree{Root: abs, ByID: map[string][]*item{}, ArchiveDir: "archive", Config: config}

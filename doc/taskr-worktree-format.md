@@ -22,8 +22,15 @@ Unknown tables and keys are errors. `taskr.toml` does not identify a Taskr root
 and must not contain item roles, IDs, parents, status, priority, or other marker
 metadata.
 
+`taskr site init <site-directory>` creates this association. The target must be
+an empty directory or an existing Taskr-owned site directory containing the
+versioned `.taskr-site` marker. `--create-if-missing` creates a missing target
+and its parents. Files, symlinks, foreign nonempty directories, and paths that
+overlap the Taskr root are rejected.
+
 Invalid project configuration stops normal root-loading commands. Doctor
-reports the configuration error but does not repair the TOML file.
+reports configuration and unsafe site-association errors but does not repair
+the TOML file.
 
 # Items
 

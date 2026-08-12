@@ -7,6 +7,8 @@ committed `VERSION+BUILD` value.
 
 - Added strict project-local `taskr.toml` configuration with initial site
   settings and Doctor validation.
+- Added `taskr site init` with safe output-directory ownership, explicit
+  creation, idempotent configuration, and Doctor validation.
 
 ## [0.1.0+40] - 2026-08-10
 

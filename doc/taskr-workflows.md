@@ -322,6 +322,32 @@ Expected output:
 - Pass summary with checked item count.
 - Failure list with paths and concise reasons.
 
+# Site Initialization Workflow
+
+User associates one persistent output directory with the selected Taskr root.
+
+Normal flow:
+
+1. Select the root and run `taskr site init <site-directory>`.
+2. Validate that source and output trees do not overlap and that an existing
+   target is empty or already contains a valid `.taskr-site` marker.
+3. Write the ownership marker and persist `[site].directory` in `taskr.toml`.
+4. Report the resolved paths plus `created` and `changed` booleans.
+
+Use `--create-if-missing` when the target or its parents do not yet exist.
+Repeating the same initialization is idempotent. A different configured target
+must be changed directly in `taskr.toml` until the general config command is
+available.
+
+Failure cases:
+
+- The target is missing without `--create-if-missing`.
+- The target is a file, symlink, foreign nonempty directory, or overlaps the
+  Taskr root.
+- The root configuration already names a different site directory.
+- Ownership or configuration cannot be written; partial changes are rolled
+  back.
+
 # Archive Workflow
 
 User archives a completed subtree. Archive is a move, not a status change.

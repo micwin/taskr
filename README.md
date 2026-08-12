@@ -238,6 +238,19 @@ invalid TOML, a non-string directory, and an empty site directory are errors.
 They stop commands that load the root and are reported by `taskr doctor`.
 `doctor --fix` does not rewrite project configuration.
 
+Initialize the shared site output with an existing empty directory:
+
+```bash
+mkdir ../site
+taskr site init ../site
+```
+
+Use `taskr site init ../site --create-if-missing` to create a missing directory
+and its parents. Initialization writes a `.taskr-site` ownership marker and
+rejects files, symlinks, foreign nonempty directories, and paths that overlap
+the Taskr root. Repeating the same initialization is safe and reports
+`changed=false`.
+
 This project-local TOML file is independent from the personal YAML
 configuration and explicit `--config-file` surface described above.
 
@@ -256,7 +269,8 @@ root:
 - Every marker has the frontmatter fields used by the loader: `title` and a
   valid `status` when `status` is present.
 - Status values are allowed by personal config or built-in defaults.
-- Optional root-local `taskr.toml` parses against the strict project schema.
+- Optional root-local `taskr.toml` parses against the strict project schema;
+  configured site paths and ownership markers are safe and valid when present.
 
 `taskr doctor --fix` currently repairs only duplicate item IDs. It renames
 later colliding item directories to the next free root-wide IDs and reports
