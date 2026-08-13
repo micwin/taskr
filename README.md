@@ -251,6 +251,19 @@ rejects files, symlinks, foreign nonempty directories, and paths that overlap
 the Taskr root. Repeating the same initialization is safe and reports
 `changed=false`.
 
+Generate the static project site into that owned directory:
+
+```bash
+taskr site generate
+```
+
+Generation atomically replaces the previous generated output. The resulting
+`index.html` works directly from a local `file:` URL and includes project and
+milestone status summaries, item navigation, case-insensitive ID/slug/title
+search, paginated result lists, and complete collapsible ticket views. Search
+and filter context is carried in each URL, so separate browser tabs retain
+independent result lists and previous/next item navigation.
+
 This project-local TOML file is independent from the personal YAML
 configuration and explicit `--config-file` surface described above.
 

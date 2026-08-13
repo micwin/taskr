@@ -348,6 +348,31 @@ Failure cases:
 - Ownership or configuration cannot be written; partial changes are rolled
   back.
 
+# Site Generation Workflow
+
+User generates a self-contained static view of the selected Taskr root.
+
+Normal flow:
+
+1. Load the site directory previously configured by `taskr site init`.
+2. Validate its `.taskr-site` ownership marker.
+3. Render the complete site into a staging directory, including the report-like
+   index, shared result page, search data, item pages, styles, and browser logic.
+4. Atomically replace the previous generated output and report the index path
+   and one UTC RFC3339 generation timestamp.
+
+Status links use the shared result view globally or scoped to one milestone.
+Search matches IDs without leading zeroes and case-insensitive slug or title
+substrings. Result context remains in the URL, including filters and paging,
+so multiple tabs and item previous/next navigation remain independent.
+
+Failure cases:
+
+- The root has not been initialized with `taskr site init`.
+- The configured output is missing or lacks the valid ownership marker.
+- Source loading or rendering fails. The last successful generated site remains
+  unchanged.
+
 # Archive Workflow
 
 User archives a completed subtree. Archive is a move, not a status change.

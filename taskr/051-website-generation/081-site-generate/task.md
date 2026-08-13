@@ -1,10 +1,11 @@
 ---
 title: Generate project site
-status: developing
+status: reviewing
 created_at: 2026-08-10T18:03:26Z
-updated_at: 2026-08-12T13:03:43Z
+updated_at: 2026-08-12T15:22:38Z
 designing_at: 2026-08-12T08:44:19Z
 developing_at: 2026-08-12T13:03:43Z
+reviewing_at: 2026-08-12T15:22:38Z
 ---
 
 # Description
@@ -114,5 +115,17 @@ wherever they are displayed.
   implementation. Complete list context travels in the URL and through item
   links, keeping result lists and previous/next navigation independent across
   multiple browser tabs without shared mutable state.
+- 2026-08-12: Implemented atomic full-site generation with report-like index,
+  shared URL-driven results, search, pagination, and complete item pages. The
+  final Smokey run passes all 26 suites; Go tests and `go vet` pass. Chromium
+  verified local-file rendering at desktop and mobile sizes, filtered result
+  rendering, and direct navigation for a single search match.
 
 # Outcome
+
+`taskr site generate` now renders the configured Taskr root into one
+self-contained static site and atomically replaces only an output directory
+with a valid Taskr ownership marker. The site provides project and milestone
+status navigation, case-insensitive item search, shared paginated result views,
+complete collapsible item pages, safe external links, and URL-carried result
+context for independent tabs and previous/next navigation.

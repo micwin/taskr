@@ -174,6 +174,9 @@ Initialize a project worktree:
 Initialize the project site output:
   taskr site init ../site --create-if-missing
 
+Generate the project site:
+  taskr site generate
+
 Create a milestone:
   taskr create milestone "MVP" --no-edit
 
@@ -266,7 +269,36 @@ func siteCommand(rootPath string) *cobra.Command {
 		Short: "Manage the project site",
 		Args:  cobra.NoArgs,
 	}
-	cmd.AddCommand(siteInitCommand(rootPath))
+	cmd.AddCommand(siteInitCommand(rootPath), siteGenerateCommand(rootPath))
+	return cmd
+}
+
+func siteGenerateCommand(rootPath string) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "generate",
+		Short: "Generate the project site",
+		Long: `Generate the project site in the initialized output directory.
+
+The complete static site is rendered before the existing Taskr-owned output is
+atomically replaced. Run taskr site init first to associate an output directory
+with the selected Taskr root.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			t, err := loadTree(rootPath)
+			if err != nil {
+				return err
+			}
+			index, generatedAt, err := generateSite(t, time.Now().UTC())
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "generated site index=%s generated_at=%s\n", index, generatedAt)
+			return nil
+		},
+		ValidArgsFunction: func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+	}
 	return cmd
 }
 

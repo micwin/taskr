@@ -9,6 +9,8 @@ committed `VERSION+BUILD` value.
   settings and Doctor validation.
 - Added `taskr site init` with safe output-directory ownership, explicit
   creation, idempotent configuration, and Doctor validation.
+- Added `taskr site generate` for atomic, self-contained project sites with
+  status views, search, paginated results, and complete ticket pages.
 
 ## [0.1.0+40] - 2026-08-10
 
