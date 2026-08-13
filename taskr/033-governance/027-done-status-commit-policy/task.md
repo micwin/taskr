@@ -1,9 +1,10 @@
 ---
 title: Require done status in a separate commit
-status: developing
+status: reviewing
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-13T20:35:40Z
+updated_at: 2026-08-13T20:47:59Z
 developing_at: 2026-08-13T20:35:40Z
+reviewing_at: 2026-08-13T20:47:59Z
 ---
 
 # Description
@@ -45,3 +46,9 @@ implementation commit has landed and the user explicitly asks for closure.
   closure commit. `cancelled` is outside this specific rule.
 
 # Outcome
+
+`AGENTS.md` now separates implementation and acceptance commits. Complete
+implementation work is committed in `reviewing` with its code, tests,
+documentation, Outcome, and release note. Only an explicit user instruction
+may then produce a dedicated `done` commit containing the ticket metadata and
+the required `BUILD` update.

@@ -82,12 +82,20 @@ conflict.
 - Until this policy changes, create commits only after the user explicitly asks
   for a commit. Prepare coherent commit scopes when status changes or ticket
   closures require them, but leave the changes uncommitted until requested.
-- If a file change or decision changes a Taskr ticket's status, commit the
-  status change together with the corresponding intended file changes.
-- When closing a ticket as `done`, commit the ticket status, its `# Outcome`,
-  and the changes that make the ticket done in the same commit. This does not
-  apply to `cancelled` or other non-delivery closures where no implementation
-  changes are intended.
+- If a file change or decision changes a Taskr ticket's status before
+  acceptance, commit the status change together with the corresponding
+  intended file changes.
+- Implementation commits end with the ticket in `reviewing` and include the
+  delivered code, tests, documentation, help, examples, completed `# Outcome`,
+  applicable release note, and the ticket status change.
+- Commit review corrections while the ticket remains in `reviewing`. Do not
+  combine implementation or review corrections with ticket acceptance.
+- Move a ticket from `reviewing` to `done` only after explicit user instruction
+  and in a dedicated closure commit. That commit contains only the ticket
+  status and timestamp update plus the required `BUILD` update.
+- The dedicated closure-commit rule applies to `done`; it does not
+  automatically prescribe the commit shape for `cancelled` or other
+  non-delivery closures.
 - Before closing a ticket after relevant code changes, check whether `doctor`,
   command help, shell completion, and any public API already cover the changed
   behavior correctly. If they do not, update them in the active ticket before
