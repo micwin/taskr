@@ -1,8 +1,9 @@
 ---
 title: Propagate ticket refinements into accepted sections
-status: designing
+status: developing
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-10T00:00:00Z
+updated_at: 2026-08-13T20:36:05Z
+developing_at: 2026-08-13T20:36:05Z
 ---
 
 # Description
@@ -17,17 +18,26 @@ the accepted behavior.
 - `AGENTS.md` explains that `# Comments` can record discussion history, but
   agreed refinements must be propagated into `# Description`, `# Acceptance`,
   and applicable Smokey tests.
+- Once the user and agent reach consensus, propagation happens during the same
+  refinement work rather than being deferred until implementation or closure.
 - The policy preserves the lifecycle rule that after `designing`, changes to
   `# Description`, `# Acceptance`, or Smokey test program logic require
   explicit user interaction.
 - The policy defines comments as supporting context, not the canonical source
   for agreed requirements.
-- Existing tickets that rely on comments for accepted behavior are identified
-  or corrected when this policy is implemented.
+- Existing tickets are not migrated in one repository-wide rewrite. A ticket
+  whose accepted behavior exists only in Comments is corrected when that
+  ticket is next actively refined, implemented, reviewed, or explicitly
+  audited.
+- Opportunistic migration must not change an inactive ticket's semantics
+  without user interaction.
 
 # Comments
 
 - 2026-08-10: Added for later. During refinement, decisions should not remain
   hidden only in comment history when they are part of agreed behavior.
+- 2026-08-13: Agreed that accepted refinements are propagated immediately.
+  Existing tickets are corrected when next actively handled or audited rather
+  than through a broad migration that could silently alter old semantics.
 
 # Outcome
