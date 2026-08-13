@@ -49,6 +49,7 @@ var validStatuses = map[string]bool{
 }
 
 var statuses = []string{"open", "designing", "developing", "active", "reviewing", "blocked", "done", "cancelled"}
+var initialStatuses = []string{"open", "designing", "developing", "active", "reviewing", "blocked"}
 
 type exitError struct {
 	code int
@@ -183,8 +184,12 @@ Create a milestone:
 Create a ticket below a milestone:
   taskr create task "Define workflows" --under 001 --no-edit
 
+Create work with an explicit initial status:
+  taskr create task "Implement parser" --under 001 --status designing
+
 Create a subtask below a ticket:
   taskr create subtask "Define selectors" --under 002 --no-edit
+  taskr create subtask "Verify malformed input" --under 002 --status developing --no-edit
 
 Edit an item:
   taskr open 002
@@ -367,7 +372,7 @@ worktree unchanged.`,
 }
 
 func createCommand(rootPath string) *cobra.Command {
-	var under, slug string
+	var under, slug, status string
 	var edit, noEdit bool
 
 	cmd := &cobra.Command{
@@ -376,10 +381,11 @@ func createCommand(rootPath string) *cobra.Command {
 		Long: `Create a new item.
 
 The item type determines the marker filename: milestone.md, task.md, or
-subtask.md.`,
+subtask.md. The initial status defaults to open. Valid initial statuses are
+open, designing, developing, active, reviewing, and blocked.`,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, edit, noEdit)
+			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, edit, noEdit)
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
@@ -390,9 +396,11 @@ subtask.md.`,
 	}
 	cmd.Flags().StringVar(&under, "under", "", "parent item selector")
 	cmd.Flags().StringVar(&slug, "slug", "", "directory slug override")
+	cmd.Flags().StringVar(&status, "status", "", "initial status (default open)")
 	cmd.Flags().BoolVar(&edit, "edit", false, "open marker in editor after creation")
 	cmd.Flags().BoolVar(&noEdit, "no-edit", false, "do not open marker in editor after creation")
 	mustRegisterCompletion(cmd, "under", writeParentCompletion(rootPath))
+	mustRegisterCompletion(cmd, "status", staticCompletion(initialStatuses))
 	return cmd
 }
 
@@ -1182,10 +1190,16 @@ func initializeRoot(root string) (bool, error) {
 	return created, nil
 }
 
-func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug string, edit, noEdit bool) error {
+func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, status string, edit, noEdit bool) error {
 	marker, ok := typeMarkers[itemType]
 	if !ok {
 		return exitError{code: 2, msg: fmt.Sprintf("invalid item type %q", itemType)}
+	}
+	if status == "" {
+		status = "open"
+	}
+	if !isInitialStatus(status) {
+		return exitError{code: 2, msg: fmt.Sprintf("invalid initial status %q; valid values: %s", status, strings.Join(initialStatuses, ", "))}
 	}
 	t, err := loadTreeAllowEmpty(rootPath)
 	if err != nil {
@@ -1228,7 +1242,7 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug string
 		return err
 	}
 	markerPath := filepath.Join(dir, marker)
-	if err := os.WriteFile(markerPath, []byte(newMarker(title)), 0o644); err != nil {
+	if err := os.WriteFile(markerPath, []byte(newMarker(title, status)), 0o644); err != nil {
 		return err
 	}
 	opened := false
@@ -2287,13 +2301,23 @@ func existingSlugDir(baseDir, slug string) string {
 	return ""
 }
 
-func newMarker(title string) string {
+func isInitialStatus(status string) bool {
+	for _, candidate := range initialStatuses {
+		if status == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func newMarker(title, status string) string {
 	now := time.Now().UTC().Format(time.RFC3339)
 	return fmt.Sprintf(`---
 title: %s
-status: open
+status: %s
 created_at: %s
 updated_at: %s
+%s_at: %s
 ---
 
 # Description
@@ -2303,7 +2327,7 @@ updated_at: %s
 # Comments
 
 # Outcome
-`, title, now, now)
+`, title, status, now, now, status, now)
 }
 
 func newFilesMarker(title string) string {

@@ -70,10 +70,10 @@ Expected output:
 
 # Create Item Workflow
 
-User provides a work-item type and title, plus an optional parent selector.
-Taskr creates the next root-unique ID, derives a slug from the title, creates
-the item directory under the selected parent, writes the correct marker
-template, and optionally opens the marker in the configured editor.
+User provides a work-item type and title, plus an optional parent selector and
+initial status. Taskr creates the next root-unique ID, derives a slug from the
+title, creates the item directory under the selected parent, writes the correct
+marker template, and optionally opens the marker in the configured editor.
 
 Normal flow:
 
@@ -85,7 +85,8 @@ Normal flow:
 5. Create `<next-id>-<slug>/`.
 6. Create `milestone.md`, `task.md`, or `subtask.md` from the template.
 7. Set initial status to `open` unless the user explicitly asks for another
-   allowed initial status.
+   allowed initial status with `--status`. Initial statuses are `open`,
+   `designing`, `developing`, `active`, `reviewing`, and `blocked`.
 8. Open the marker in the editor when requested by config or option.
 
 Failure cases:
@@ -95,6 +96,8 @@ Failure cases:
 - Requested type is not valid for the selected parent.
 - Target directory already exists.
 - Requested slug already exists for the same role in the root.
+- Requested initial status is invalid, `done`, or `cancelled`; reject it before
+  creating the item directory.
 - Duplicate IDs already exist in the root; refuse every command except doctor
   and future repair.
 - Editor launch fails after creation; report the created marker path.

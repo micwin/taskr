@@ -5,6 +5,8 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+- Added `taskr create --status` for selecting a validated non-closed initial
+  status with consistent creation and status timestamps.
 - Added strict project-local `taskr.toml` configuration with initial site
   settings and Doctor validation.
 - Added `taskr site init` with safe output-directory ownership, explicit

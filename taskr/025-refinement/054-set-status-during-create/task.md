@@ -1,9 +1,10 @@
 ---
 title: Set status during create
-status: developing
+status: reviewing
 created_at: 2026-08-10T10:52:28Z
-updated_at: 2026-08-13T20:37:29Z
+updated_at: 2026-08-13T20:50:33Z
 developing_at: 2026-08-13T20:37:29Z
+reviewing_at: 2026-08-13T20:50:33Z
 ---
 
 # Description
@@ -46,3 +47,10 @@ instead of always writing the built-in default status.
   status-specific timestamp.
 
 # Outcome
+
+`taskr create --status` now accepts every built-in non-closed status and
+defaults to `open`. Invalid, `done`, and `cancelled` values fail before any item
+directory is created. New markers record one identical UTC RFC3339 value in
+`created_at`, `updated_at`, and the selected status timestamp. Help, completion,
+workflow documentation, examples, and Smokey coverage describe and verify the
+behavior.

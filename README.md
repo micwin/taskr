@@ -146,6 +146,18 @@ taskr rename 003 "Plan delivery workflows" --keep-slug
 `--slug` selects a custom normalized slug. `--keep-slug` changes only the
 marker title; the two flags are mutually exclusive.
 
+Items default to `open` when created. Use `--status` to begin work in another
+non-closed state:
+
+```bash
+taskr create task "Implement parser" --under 001 --status designing
+taskr create subtask "Verify malformed input" --under 002 --status developing --no-edit
+```
+
+Valid initial statuses are `open`, `designing`, `developing`, `active`,
+`reviewing`, and `blocked`. Taskr rejects `done`, `cancelled`, and unknown
+values before creating an item directory.
+
 ## Status Lifecycle
 
 Built-in statuses are `open`, `designing`, `developing`, `active`,
