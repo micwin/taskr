@@ -113,6 +113,12 @@ conflict.
   `designing`.
 - Write or change Smokey tests while the ticket is in `designing`, so the
   expected behavior is fixed before implementation starts.
+- During refinement, propagate every agreed requirement into the canonical
+  `# Description`, `# Acceptance`, and applicable Smokey test logic as soon as
+  consensus is reached. Do not leave accepted behavior recorded only in
+  `# Comments` or defer propagation until implementation or closure.
+- Treat `# Comments` as discussion history and supporting context, not as the
+  canonical source for accepted requirements.
 - When implementation work starts on a ticket, set it to `developing` unless
   the user explicitly keeps it in `designing`.
 - After a ticket leaves `designing`, change its `# Description`,
@@ -121,6 +127,10 @@ conflict.
 - After a ticket leaves `designing`, edits to the ticket `# Comments` section
   and comments inside Smokey test scripts are allowed without changing the
   agreed behavior.
+- Do not rewrite all existing tickets merely to migrate refinements out of
+  Comments. Correct an affected ticket when it is next actively refined,
+  implemented, reviewed, or explicitly audited, and never change an inactive
+  ticket's semantics without user interaction.
 - When an agent considers an implementation ticket complete, set it to
   `reviewing`. Use `done` or `cancelled` only after explicit user instruction.
 - After a ticket reaches `reviewing`, semantic changes to the ticket, Smokey

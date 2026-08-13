@@ -1,9 +1,10 @@
 ---
 title: Propagate ticket refinements into accepted sections
-status: developing
+status: reviewing
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-13T20:36:05Z
+updated_at: 2026-08-13T20:48:22Z
 developing_at: 2026-08-13T20:36:05Z
+reviewing_at: 2026-08-13T20:48:22Z
 ---
 
 # Description
@@ -41,3 +42,8 @@ the accepted behavior.
   than through a broad migration that could silently alter old semantics.
 
 # Outcome
+
+`AGENTS.md` now makes Description, Acceptance, and applicable Smokey logic the
+canonical home of agreed requirements. Comments remain supporting history,
+accepted refinements are propagated immediately, and existing tickets are
+corrected when actively handled rather than through an unsafe bulk rewrite.
