@@ -18,9 +18,24 @@ directory = "../site"
 
 The `[site]` table is optional. When present, `directory` is required, must be a
 nonempty string, and resolves relative to the Taskr root unless absolute.
+
+Shared creation policy may be configured independently:
+
+```toml
+[defaults]
+create_status = "designing"
+milestone_status = "blocked"
+task_status = "developing"
+subtask_status = "reviewing"
+```
+
+Each type-specific value overrides `create_status` for that item type. An
+explicit `taskr create --status` overrides both. Missing values fall back to
+`open`. Every configured value must be a valid non-closed initial status.
+
 Unknown tables and keys are errors. `taskr.toml` does not identify a Taskr root
-and must not contain item roles, IDs, parents, status, priority, or other marker
-metadata.
+and must not duplicate item roles, IDs, parents, current status, priority, or
+other marker metadata.
 
 `taskr site init <site-directory>` creates this association. The target must be
 an empty directory or an existing Taskr-owned site directory containing the

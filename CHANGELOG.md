@@ -5,6 +5,8 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+- Added root-local `[defaults]` creation statuses with explicit, type-specific,
+  common, and built-in precedence.
 - Added `taskr create --status` for selecting a validated non-closed initial
   status with consistent creation and status timestamps.
 - Added strict project-local `taskr.toml` configuration with initial site

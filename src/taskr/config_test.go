@@ -37,3 +37,41 @@ func TestProjectConfigWithoutFileHasNoSiteDirectory(t *testing.T) {
 		t.Fatal("missing taskr.toml unexpectedly configured a site directory")
 	}
 }
+
+func TestProjectConfigCreateStatusPrecedence(t *testing.T) {
+	config := projectConfig{Defaults: &defaultsProjectConfig{
+		CreateStatus:    "designing",
+		MilestoneStatus: "blocked",
+		TaskStatus:      "developing",
+	}}
+
+	tests := []struct {
+		name     string
+		itemType string
+		explicit string
+		want     string
+	}{
+		{name: "explicit", itemType: "task", explicit: "reviewing", want: "reviewing"},
+		{name: "type", itemType: "task", want: "developing"},
+		{name: "other type", itemType: "milestone", want: "blocked"},
+		{name: "common", itemType: "subtask", want: "designing"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := config.initialCreateStatus(test.itemType, test.explicit); got != test.want {
+				t.Fatalf("initialCreateStatus() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestProjectConfigRejectsInvalidCreateDefault(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "taskr.toml"), []byte("[defaults]\ncreate_status = \"done\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := loadProjectConfig(root); err == nil {
+		t.Fatal("expected closed create default to fail")
+	}
+}

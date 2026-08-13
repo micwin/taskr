@@ -87,6 +87,8 @@ Normal flow:
 7. Set initial status to `open` unless the user explicitly asks for another
    allowed initial status with `--status`. Initial statuses are `open`,
    `designing`, `developing`, `active`, `reviewing`, and `blocked`.
+   When no flag is present, a type-specific `[defaults]` value in `taskr.toml`
+   overrides the common `create_status`, which in turn overrides `open`.
 8. Open the marker in the editor when requested by config or option.
 
 Failure cases:

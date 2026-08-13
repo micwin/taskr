@@ -1,10 +1,11 @@
 ---
 title: Add project create defaults
-status: developing
+status: reviewing
 created_at: 2026-08-13T20:40:36Z
-updated_at: 2026-08-13T20:45:54Z
+updated_at: 2026-08-13T20:53:36Z
 designing_at: 2026-08-13T20:40:36Z
 developing_at: 2026-08-13T20:45:54Z
+reviewing_at: 2026-08-13T20:53:36Z
 ---
 
 # Description
@@ -62,3 +63,10 @@ configuration rather than the versionable Taskr-root configuration.
   built-in `open` fallback.
 
 # Outcome
+
+Root-local `taskr.toml` now accepts a strict `[defaults]` table with one common
+creation status and optional milestone, task, and subtask overrides. Create
+resolves explicit CLI status, type default, common default, and built-in
+`open` in that order. Invalid or closed configured values block Doctor and
+normal root-loading commands. Help, documentation, unit tests, and Smokey cover
+the schema and precedence.

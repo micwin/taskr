@@ -381,8 +381,10 @@ func createCommand(rootPath string) *cobra.Command {
 		Long: `Create a new item.
 
 The item type determines the marker filename: milestone.md, task.md, or
-subtask.md. The initial status defaults to open. Valid initial statuses are
-open, designing, developing, active, reviewing, and blocked.`,
+subtask.md. An explicit --status overrides type-specific project defaults in
+taskr.toml, then the common project default. Without either, the initial status
+defaults to open. Valid initial statuses are open, designing, developing,
+active, reviewing, and blocked.`,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, edit, noEdit)
@@ -1195,16 +1197,14 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 	if !ok {
 		return exitError{code: 2, msg: fmt.Sprintf("invalid item type %q", itemType)}
 	}
-	if status == "" {
-		status = "open"
-	}
-	if !isInitialStatus(status) {
+	if status != "" && !isInitialStatus(status) {
 		return exitError{code: 2, msg: fmt.Sprintf("invalid initial status %q; valid values: %s", status, strings.Join(initialStatuses, ", "))}
 	}
 	t, err := loadTreeAllowEmpty(rootPath)
 	if err != nil {
 		return err
 	}
+	status = t.Config.initialCreateStatus(itemType, status)
 	var parent *item
 	if under != "" {
 		parent, err = resolveItem(t, under)

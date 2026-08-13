@@ -236,14 +236,23 @@ Zero or multiple marker files are invalid and stop the tool.
 ### Project configuration
 
 A Taskr root may contain optional project-local configuration in
-`taskr.toml`. Project configuration supplements the worktree but never defines
-item roles, IDs, hierarchy, status, or priority. The initial schema reserves a
-strict `[site]` table:
+`taskr.toml`. Project configuration supplements the worktree but never
+duplicates item roles, IDs, hierarchy, current status, or priority. The strict
+schema supports site output and shared creation defaults:
 
 ```toml
 [site]
 directory = "../site"
+
+[defaults]
+create_status = "designing"
+task_status = "developing"
 ```
+
+`milestone_status`, `task_status`, and `subtask_status` override the common
+`create_status` for their item type. An explicit `taskr create --status` takes
+precedence over project defaults; absent values retain the built-in `open`
+fallback. Only valid non-closed initial statuses are accepted.
 
 Relative project paths resolve from the Taskr root. Unknown tables and keys,
 invalid TOML, a non-string directory, and an empty site directory are errors.
@@ -295,7 +304,8 @@ root:
   valid `status` when `status` is present.
 - Status values are allowed by personal config or built-in defaults.
 - Optional root-local `taskr.toml` parses against the strict project schema;
-  configured site paths and ownership markers are safe and valid when present.
+  configured creation defaults are valid initial statuses, and configured site
+  paths and ownership markers are safe and valid when present.
 
 `taskr doctor --fix` currently repairs only duplicate item IDs. It renames
 later colliding item directories to the next free root-wide IDs and reports

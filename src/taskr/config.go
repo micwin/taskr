@@ -21,11 +21,19 @@ const (
 )
 
 type projectConfig struct {
-	Site *siteProjectConfig `toml:"site"`
+	Site     *siteProjectConfig     `toml:"site"`
+	Defaults *defaultsProjectConfig `toml:"defaults"`
 }
 
 type siteProjectConfig struct {
 	Directory string `toml:"directory"`
+}
+
+type defaultsProjectConfig struct {
+	CreateStatus    string `toml:"create_status"`
+	MilestoneStatus string `toml:"milestone_status"`
+	TaskStatus      string `toml:"task_status"`
+	SubtaskStatus   string `toml:"subtask_status"`
 }
 
 func loadProjectConfig(root string) (projectConfig, error) {
@@ -53,6 +61,19 @@ func loadProjectConfig(root string) (projectConfig, error) {
 			return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: site.directory contains a NUL byte", path)}
 		}
 	}
+	if config.Defaults != nil {
+		configured := map[string]string{
+			"create_status":    config.Defaults.CreateStatus,
+			"milestone_status": config.Defaults.MilestoneStatus,
+			"task_status":      config.Defaults.TaskStatus,
+			"subtask_status":   config.Defaults.SubtaskStatus,
+		}
+		for key, value := range configured {
+			if value != "" && !isInitialStatus(value) {
+				return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: defaults.%s has invalid initial status %q", path, key, value)}
+			}
+		}
+	}
 	return config, nil
 }
 
@@ -78,6 +99,31 @@ func (config projectConfig) siteDirectory(root string) (string, bool) {
 		directory = filepath.Join(root, directory)
 	}
 	return filepath.Clean(directory), true
+}
+
+func (config projectConfig) initialCreateStatus(itemType, explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	if config.Defaults == nil {
+		return "open"
+	}
+	typeStatus := ""
+	switch itemType {
+	case "milestone":
+		typeStatus = config.Defaults.MilestoneStatus
+	case "task":
+		typeStatus = config.Defaults.TaskStatus
+	case "subtask":
+		typeStatus = config.Defaults.SubtaskStatus
+	}
+	if typeStatus != "" {
+		return typeStatus
+	}
+	if config.Defaults.CreateStatus != "" {
+		return config.Defaults.CreateStatus
+	}
+	return "open"
 }
 
 func validateConfiguredSite(root string, config projectConfig) error {
