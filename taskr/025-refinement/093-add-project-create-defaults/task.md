@@ -1,9 +1,10 @@
 ---
 title: Add project create defaults
-status: designing
+status: developing
 created_at: 2026-08-13T20:40:36Z
-updated_at: 2026-08-13T20:40:36Z
+updated_at: 2026-08-13T20:45:54Z
 designing_at: 2026-08-13T20:40:36Z
+developing_at: 2026-08-13T20:45:54Z
 ---
 
 # Description
