@@ -96,11 +96,21 @@ conflict.
 - The dedicated closure-commit rule applies to `done`; it does not
   automatically prescribe the commit shape for `cancelled` or other
   non-delivery closures.
-- Before closing a ticket after relevant code changes, check whether `doctor`,
-  command help, shell completion, and any public API already cover the changed
-  behavior correctly. If they do not, update them in the active ticket before
-  closing it. Do not close the ticket with stale `doctor`, help, completion, or
-  API behavior.
+- Before moving a ticket with relevant code changes to `reviewing`, check
+  whether `doctor`, command help, shell completion, and any public API already
+  cover the changed behavior correctly. If they do not, update them in the
+  active ticket first. Do not mark the ticket review-ready with stale
+  `doctor`, help, completion, or API behavior.
+- Before moving a ticket that adds or changes commands, subcommands, flags,
+  inputs, or user-visible command behavior to `reviewing`, update the relevant
+  user documentation, command help, and workflow examples.
+- Examples must cover every new or changed command, subcommand, flag, and
+  important command variant. Provide a normal example and, for non-trivial
+  input modes or commands with flags or subcommands, an advanced or edge-case
+  example. Do not label those forms as normal, advanced, expert, or edge-case
+  in user-facing documentation.
+- The user-controlled transition from `reviewing` to `done` must not defer
+  documentation, help, or example work that belongs to implementation.
 - Every new or changed command argument or flag that accepts Taskr item IDs or
   slugs must wire shell completion for those values. Smokey must test
   completion at the exact argument or flag surface where IDs or slugs are

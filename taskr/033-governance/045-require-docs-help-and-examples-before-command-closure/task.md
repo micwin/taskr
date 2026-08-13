@@ -1,9 +1,10 @@
 ---
 title: Require docs help and examples before command closure
-status: developing
+status: reviewing
 created_at: 2026-08-10T10:03:30Z
-updated_at: 2026-08-13T20:24:32Z
+updated_at: 2026-08-13T20:48:53Z
 developing_at: 2026-08-13T20:24:32Z
+reviewing_at: 2026-08-13T20:48:53Z
 ---
 
 # Description
@@ -46,3 +47,9 @@ from shipping with stale or missing docs/help/examples.
   approval of `done`.
 
 # Outcome
+
+`AGENTS.md` now blocks the transition to `reviewing` until changed command
+behavior is covered by current documentation, command help, and examples. The
+examples policy covers each affected surface and requires both straightforward
+and non-trivial usage where applicable without exposing internal category
+labels to users.
