@@ -186,6 +186,17 @@ items with status `done` or `cancelled` by default and accept `--all` to include
 them. Terminal list filters therefore use forms such as
 `taskr list --all --status done`. Use `taskr tree --ascii` for branch markers.
 
+Filter complete marker text with a case-insensitive, line-oriented glob. Plain
+text behaves as a substring, and repeated patterns form an AND expression:
+
+```bash
+taskr list --glob workflow
+taskr list --all --type task --under 001 --glob 'release*' --glob artifact
+```
+
+Glob matching supports `*`, `?`, character classes, ranges, and escaping. It
+searches marker frontmatter and Markdown sections, but not attachments.
+
 ## Archive
 
 Archived work remains ordinary Taskr data. Archiving moves completed item

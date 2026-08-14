@@ -257,6 +257,17 @@ Expected output:
 User asks to inspect the current root or a filtered set of items. Taskr prints
 stable summary rows for all matching items.
 
+`--glob` filters full marker text without changing output rows. Matching is
+case-insensitive, applies independently to each marker line, and implies
+surrounding wildcards. It supports `*`, `?`, character classes, ranges, and
+escaping. Repeat the flag to require multiple patterns; each pattern may match
+a different line. Marker attachments are not searched.
+
+```bash
+taskr list --glob workflow
+taskr list --all --type task --under 001 --glob 'release*' --glob artifact
+```
+
 Task-only lists sort effective priority as `high`, `normal`, `low` while
 preserving stable ID order inside a priority. `--priority` filters by effective
 priority, `--show-priority` and `--hide-priority` control row labels, and

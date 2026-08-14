@@ -1,10 +1,11 @@
 ---
 title: Add full-text glob filter to list
-status: developing
+status: reviewing
 created_at: 2026-08-13T20:11:30Z
-updated_at: 2026-08-13T20:21:27Z
+updated_at: 2026-08-14T10:08:54Z
 designing_at: 2026-08-13T20:11:30Z
 developing_at: 2026-08-13T20:21:27Z
+reviewing_at: 2026-08-14T10:08:54Z
 ---
 
 # Description
@@ -60,5 +61,17 @@ data.
 - 2026-08-13: Matching is case-insensitive and implicitly substring-based.
   Globs operate on individual lines and repeated flags form an AND expression;
   separate flags are used when required text occurs on different lines.
+- 2026-08-14: Smokey exposed that its first glob assertion expected bracketed
+  type and status fields even though existing `taskr list` output is
+  `003 task active Define workflows` and Acceptance requires the output format
+  to remain unchanged. With explicit user approval, the assertion was corrected
+  to the established format before the ticket entered review.
 
 # Outcome
+
+`taskr list --glob` now performs case-insensitive, line-oriented matching over
+complete item marker files. Plain values match substrings; stars, question
+marks, character classes, ranges, and escaping provide glob semantics.
+Repeated flags form an AND expression and compose with all existing list
+filters without changing output rows. Help, examples, documentation, and
+Smokey cover the complete behavior.

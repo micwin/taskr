@@ -201,6 +201,8 @@ Append comments:
 Inspect work:
   taskr list
   taskr list --all
+  taskr list --glob workflow
+  taskr list --all --type task --under 001 --glob 'release*' --glob artifact
   taskr tree
   taskr tree 001 --all
   taskr tree 001 --ascii
@@ -521,6 +523,7 @@ func markerBody(path string) (string, error) {
 
 func listCommand(rootPath string) *cobra.Command {
 	var under, typeFilter, statusFilter, priorityFilter, groupBy string
+	var globs []string
 	var includeAll, showPriority, hidePriority bool
 
 	cmd := &cobra.Command{
@@ -529,7 +532,9 @@ func listCommand(rootPath string) *cobra.Command {
 		Long: `List items.
 
 By default, list excludes done and cancelled items. Use --all to include them.
-Explicit done or cancelled status filters therefore require --all.`,
+Explicit done or cancelled status filters therefore require --all. Repeated
+--glob values filter complete marker text case-insensitively and must each match
+at least one marker line.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPriority && hidePriority {
@@ -541,11 +546,19 @@ Explicit done or cancelled status filters therefore require --all.`,
 			if groupBy == "priority" && typeFilter != "task" {
 				return exitError{code: 2, msg: "list --group-by priority requires --type task"}
 			}
+			compiledGlobs, err := compileLineGlobs(globs)
+			if err != nil {
+				return err
+			}
 			t, err := loadTree(rootPath)
 			if err != nil {
 				return err
 			}
 			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter, includeAll)
+			if err != nil {
+				return err
+			}
+			items, err = filterItemsByMarkerGlobs(items, compiledGlobs)
 			if err != nil {
 				return err
 			}
@@ -574,6 +587,7 @@ Explicit done or cancelled status filters therefore require --all.`,
 	cmd.Flags().BoolVar(&showPriority, "show-priority", false, "show effective priority for every task")
 	cmd.Flags().BoolVar(&hidePriority, "hide-priority", false, "hide all task priority values")
 	cmd.Flags().StringVar(&groupBy, "group-by", "", "group task output by priority")
+	cmd.Flags().StringArrayVar(&globs, "glob", nil, "filter by case-insensitive glob over full marker text (repeatable)")
 	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
@@ -2097,6 +2111,101 @@ func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter stri
 	}
 	sortItems(out)
 	return out, nil
+}
+
+func compileLineGlobs(patterns []string) ([]*regexp.Regexp, error) {
+	compiled := make([]*regexp.Regexp, 0, len(patterns))
+	for _, pattern := range patterns {
+		expression, err := lineGlobExpression(pattern)
+		if err != nil {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid glob %q: %v", pattern, err)}
+		}
+		matcher, err := regexp.Compile("(?i)^.*(?:" + expression + ").*$")
+		if err != nil {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid glob %q: %v", pattern, err)}
+		}
+		compiled = append(compiled, matcher)
+	}
+	return compiled, nil
+}
+
+func lineGlobExpression(pattern string) (string, error) {
+	var expression strings.Builder
+	for index := 0; index < len(pattern); index++ {
+		switch pattern[index] {
+		case '*':
+			expression.WriteString(".*")
+		case '?':
+			expression.WriteByte('.')
+		case '\\':
+			index++
+			if index >= len(pattern) {
+				return "", errors.New("trailing escape")
+			}
+			expression.WriteString(regexp.QuoteMeta(pattern[index : index+1]))
+		case '[':
+			end := index + 1
+			for end < len(pattern) && pattern[end] != ']' {
+				if pattern[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(pattern) {
+				return "", errors.New("unterminated character class")
+			}
+			class := pattern[index+1 : end]
+			if class == "" {
+				return "", errors.New("empty character class")
+			}
+			expression.WriteByte('[')
+			if class[0] == '!' {
+				expression.WriteByte('^')
+				class = class[1:]
+			}
+			if class == "" {
+				return "", errors.New("empty character class")
+			}
+			expression.WriteString(class)
+			expression.WriteByte(']')
+			index = end
+		default:
+			expression.WriteString(regexp.QuoteMeta(pattern[index : index+1]))
+		}
+	}
+	return expression.String(), nil
+}
+
+func filterItemsByMarkerGlobs(items []*item, globs []*regexp.Regexp) ([]*item, error) {
+	if len(globs) == 0 {
+		return items, nil
+	}
+	filtered := make([]*item, 0, len(items))
+	for _, it := range items {
+		content, err := os.ReadFile(it.MarkerPath)
+		if err != nil {
+			return nil, err
+		}
+		lines := strings.Split(string(content), "\n")
+		matchesAll := true
+		for _, glob := range globs {
+			matched := false
+			for _, line := range lines {
+				if glob.MatchString(line) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				matchesAll = false
+				break
+			}
+		}
+		if matchesAll {
+			filtered = append(filtered, it)
+		}
+	}
+	return filtered, nil
 }
 
 type treeOptions struct {

@@ -27,7 +27,7 @@ printf '\nOutcomeOnly DeltaNeedle was delivered.\n' >>"${marker}"
 # Unadorned patterns match marker-line substrings without explicit stars.
 run_taskr glob_substring "${root}" list --glob phaneed
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^003 \[task active\] Define workflows$' "${stdout}"
+grep -q '^003 task active Define workflows$' "${stdout}"
 [ "$(wc -l <"${stdout}")" -eq 1 ]
 
 # Matching is case-insensitive and includes frontmatter fields.
