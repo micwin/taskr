@@ -140,7 +140,7 @@ func newRootCommand(rootPath string) *cobra.Command {
 
 	cmd.AddCommand(
 		initCommand(rootPath),
-		siteCommand(rootPath),
+		siteCommand(rootPath, &configFile),
 		doctorCommand(rootPath),
 		createCommand(rootPath),
 		commentCommand(rootPath),
@@ -177,6 +177,10 @@ Initialize the project site output:
 
 Generate the project site:
   taskr site generate
+
+Open the generated project site:
+  taskr site open
+  taskr site open Define workflows --watch --regenerate
 
 Create a milestone:
   taskr create milestone "MVP" --no-edit
@@ -270,13 +274,45 @@ func initCommand(rootPath string) *cobra.Command {
 	}
 }
 
-func siteCommand(rootPath string) *cobra.Command {
+func siteCommand(rootPath string, configFile *string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "site",
 		Short: "Manage the project site",
 		Args:  cobra.NoArgs,
 	}
-	cmd.AddCommand(siteInitCommand(rootPath), siteGenerateCommand(rootPath))
+	cmd.AddCommand(siteInitCommand(rootPath), siteGenerateCommand(rootPath), siteOpenCommand(rootPath, configFile))
+	return cmd
+}
+
+func siteOpenCommand(rootPath string, configFile *string) *cobra.Command {
+	var regenerate, watch, noBrowser bool
+	var port int
+	cmd := &cobra.Command{
+		Use:   "open [search terms...]",
+		Short: "Serve and open the generated project site",
+		Long: `Serve and open the generated project site on a loopback HTTP server.
+
+The existing generated site is served without modification. Use --regenerate
+to generate once before serving and --watch to regenerate after relevant Taskr
+source changes. Browser selection uses personal configuration, then BROWSER,
+then the platform system opener.`,
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runSiteOpen(cmd, rootPath, *configFile, args, siteOpenOptions{
+				regenerate: regenerate,
+				watch:      watch,
+				noBrowser:  noBrowser,
+				port:       port,
+			})
+		},
+		ValidArgsFunction: func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+	}
+	cmd.Flags().BoolVar(&regenerate, "regenerate", false, "generate the site once before serving")
+	cmd.Flags().BoolVar(&watch, "watch", false, "regenerate and reload after Taskr source changes")
+	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "serve without starting a browser")
+	cmd.Flags().IntVar(&port, "port", 0, "exact loopback port (default attempts 80, then a dynamic port)")
 	return cmd
 }
 

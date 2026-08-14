@@ -389,6 +389,43 @@ Failure cases:
 - Source loading or rendering fails. The last successful generated site remains
   unchanged.
 
+# Site Open Workflow
+
+User serves the initialized generated site on a loopback HTTP server and opens
+its index or a search result in a browser.
+
+Normal flow:
+
+1. Load the initialized site directory and require an existing generated
+   `index.html`, or generate once when `--regenerate` is present.
+2. Bind `127.0.0.1`, first attempting port 80 and then a dynamic port unless
+   `--port` requests one exact port.
+3. Print the complete effective URL. Positional search terms select
+   `/results.html?q=<query>`; no terms select `/index.html`.
+4. Unless `--no-browser` is present, launch the flat personal YAML `browser`
+   command, `$BROWSER`, or the platform opener in that order.
+5. Remain in the foreground until interrupted. Ctrl-C shuts down cleanly.
+
+Browser command strings support shell-like quoting and one optional `{url}`
+placeholder but are executed directly without a shell. Missing or invalid
+explicit commands fail without falling through to another opener.
+
+With `--watch`, Taskr polls milestone, task, and subtask markers plus root-local
+`taskr.toml` every 500 milliseconds and debounces changes for 250 milliseconds.
+Successful full regeneration advances a served reload token. Failed
+regeneration reports the error, keeps serving the last successful output, and
+continues watching. Changing the configured site directory stops the preview
+instead of silently switching its ownership boundary.
+
+Failure cases:
+
+- The site is uninitialized or no generated index exists without
+  `--regenerate`.
+- An exact requested port cannot be bound.
+- The selected browser command cannot be parsed, found through `PATH`, or
+  started.
+- Watch detects that `taskr.toml` points at another site directory.
+
 # Archive Workflow
 
 User archives a completed subtree. Archive is a move, not a status change.

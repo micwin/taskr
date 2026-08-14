@@ -296,6 +296,28 @@ search, paginated result lists, and complete collapsible ticket views. Search
 and filter context is carried in each URL, so separate browser tabs retain
 independent result lists and previous/next item navigation.
 
+Serve the generated site locally and open it in a browser:
+
+```bash
+taskr site open
+taskr site open Define workflows
+taskr site open --watch --regenerate
+taskr site open --no-browser --port 8080
+```
+
+`site open` serves the existing output from a loopback HTTP server and remains
+in the foreground until interrupted. `--regenerate` generates once before
+serving; `--watch` observes Taskr markers and `taskr.toml`, regenerates after
+changes, and reloads served browser pages only after successful regeneration.
+The command attempts port 80 and then a dynamic port unless `--port` requests
+one exact port.
+
+Browser selection uses the flat `browser` value from personal YAML, then
+`$BROWSER`, then the platform system opener. Commands support shell-like
+quoting and an optional `{url}` placeholder but execute directly without a
+shell. Use `--no-browser` for headless or manual use; Taskr always prints the
+complete effective URL.
+
 This project-local TOML file is independent from the personal YAML
 configuration and explicit `--config-file` surface described above.
 

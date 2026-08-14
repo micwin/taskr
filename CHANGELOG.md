@@ -5,6 +5,8 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+- Added `taskr site open` with loopback serving, browser selection, positional
+  site search, optional regeneration, and live watch reload.
 - Added repeatable, case-insensitive `taskr list --glob` filtering over complete
   marker text.
 - Added root-local `[defaults]` creation statuses with explicit, type-specific,

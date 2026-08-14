@@ -1,10 +1,11 @@
 ---
 title: Open generated project site
-status: developing
+status: reviewing
 created_at: 2026-08-10T18:03:26Z
-updated_at: 2026-08-13T20:13:57Z
+updated_at: 2026-08-14T10:25:43Z
 designing_at: 2026-08-10T18:03:31Z
 developing_at: 2026-08-13T20:13:57Z
+reviewing_at: 2026-08-14T10:25:43Z
 ---
 
 # Description
@@ -137,5 +138,20 @@ changes.
 - 2026-08-13: Optional positional search terms select the shared generated
   result page. Multiple words may be passed separately, are joined with spaces,
   and use exactly the same matching and unique-result behavior as site search.
+- 2026-08-14: During implementation, Smokey exposed an escaped `\|` in an
+  extended-reg-expression assertion for regeneration failures. The escape made
+  the alternation literal even though Taskr already emitted the agreed
+  `site regeneration failed` message. With explicit user approval, the test
+  expression was corrected before review.
 
 # Outcome
+
+`taskr site open` now serves the persistent generated site on a foreground
+loopback HTTP server, prints its complete URL, and opens either the index or a
+positional site-search result. It supports exact or automatic ports,
+`--regenerate`, `--no-browser`, personal YAML/$BROWSER/system opener
+precedence, shell-like browser arguments, and clean interruption. `--watch`
+polls only relevant Taskr source, performs debounced atomic regeneration,
+injects reload behavior only while serving, preserves stale output after
+generation errors, and stops if the configured site directory changes. Help,
+examples, documentation, completion, and Smokey cover the workflow.
