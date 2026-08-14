@@ -1,10 +1,11 @@
 ---
 title: Require done status in a separate commit
-status: reviewing
+status: done
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-13T20:47:59Z
+updated_at: 2026-08-14T10:29:20Z
 developing_at: 2026-08-13T20:35:40Z
 reviewing_at: 2026-08-13T20:47:59Z
+done_at: 2026-08-14T10:29:20Z
 ---
 
 # Description
