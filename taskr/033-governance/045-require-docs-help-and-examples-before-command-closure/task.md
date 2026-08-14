@@ -1,10 +1,11 @@
 ---
 title: Require docs help and examples before command closure
-status: reviewing
+status: done
 created_at: 2026-08-10T10:03:30Z
-updated_at: 2026-08-13T20:48:53Z
+updated_at: 2026-08-14T10:29:23Z
 developing_at: 2026-08-13T20:24:32Z
 reviewing_at: 2026-08-13T20:48:53Z
+done_at: 2026-08-14T10:29:23Z
 ---
 
 # Description
