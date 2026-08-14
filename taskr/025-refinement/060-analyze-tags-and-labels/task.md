@@ -7,41 +7,82 @@ updated_at: 2026-08-10T12:33:35Z
 
 # Description
 
-Analyze how Taskr should support tags or labels on items, including search,
-filtering, completion, and whether labels may participate in selector-like
-targeting.
+Define Taskr's tag model for every item type. Tags are case-insensitive marker
+metadata used for display and read-only filtering. The user-facing feature is
+called `tags`; Taskr does not introduce a second synonymous `labels` concept.
 
-The design must decide whether tags are only metadata for filtering and reports
-or whether they can be used like slugs/IDs in commands such as `show`, `list`,
-`report`, `move`, `create --under`, or other selector surfaces.
+Tags participate in `show` and search only when prefixed with `#`. They are not
+general item selectors for mutating commands. CLI list filtering uses
+`--tags tag1,tag2,tag3`, while the generated site renders tags as clickable
+filters on item and result pages.
 
 # Acceptance
 
-- The analysis defines the difference, if any, between tags and labels.
-- The analysis proposes where tags/labels are stored without duplicating
-  hierarchy or role information.
-- The analysis covers search and filter behavior, including possible flags such
-  as `--tag`, `--label`, or selector syntax.
-- The analysis covers whether tags/labels can be used as command targets, and
-  if so how ambiguity is handled.
-- The analysis covers how tags/labels interact with slugs, IDs, title matching,
-  and selector precedence.
-- The analysis covers `--under` behavior and whether tags/labels can identify a
-  parent target or only filter candidate sets.
-- The analysis covers shell completion for tags/labels and for commands that
-  accept item IDs or slugs.
-- The analysis covers `tree`, `list`, `report`, `show`, `doctor`, `move`,
-  `create`, archive behavior, and future website generation.
-- The analysis covers invalid tags, renamed tags, missing targets, case
-  sensitivity, and tag normalization.
-- The proposed MVP behavior keeps command targets unambiguous and avoids
-  surprising movement or creation under multiple tagged items.
-- Smokey coverage requirements are identified before implementation.
+- Tags are supported on milestones, tasks, and subtasks.
+- Marker frontmatter stores tags once as a YAML list without a leading `#`, for
+  example `tags: [bug, website]` or its equivalent block-list form.
+- Tags are case-insensitive and normalized to one canonical lowercase form.
+  Validation defines the allowed character set, rejects empty values, and
+  prevents duplicate normalized tags on one item.
+- `taskr show '#tag'` performs an exact case-insensitive tag lookup. One match
+  renders the item; multiple matches use Show's existing candidate output and
+  nonzero ambiguity result. Help and examples explain that shells require the
+  leading `#` to be quoted or escaped.
+- A `#tag` token activates tag matching in generated-site search. A query
+  without `#` continues to search only the existing ID, slug, and title
+  surfaces and does not match tags accidentally.
+- `taskr list --tags tag1,tag2,tag3` accepts a comma-separated, case-insensitive
+  tag list. All supplied tags are required; repeated filters therefore narrow
+  the result set with AND semantics and compose with existing list filters.
+- Shell completion suggests known normalized tags after `#` on tag-aware
+  read-only search surfaces and within each comma-separated `--tags` value.
+- `taskr examples` includes ordinary tag lookup and list filtering:
+  ```text
+  taskr show '#website'
+  taskr list --tags website
+  ```
+  It also includes a composed list example that demonstrates AND semantics and
+  interaction with existing filters:
+  ```text
+  taskr list --type task --status developing --tags website,release
+  ```
+  The surrounding documentation explains why `#website` must be quoted or
+  escaped in a shell.
+- Existing tags are displayed whenever present in `show` and item-list output,
+  including tree/report rows where items are listed. Missing tags add no empty
+  decoration.
+- Generated item pages and result lists render each tag as a clickable `#tag`.
+  Clicking adds that tag to the current filter context rather than replacing
+  existing filters. Existing unique-result behavior opens the item when one
+  result remains.
+- Website query URLs encode the leading hash as `%23`; it must not become a URL
+  fragment that is absent from the search query.
+- Tags do not identify targets for `move`, `status`, `priority`, `rename`,
+  `archive`, `create --under`, or other mutating selector surfaces. This avoids
+  applying changes to an ambiguous tagged set.
+- Doctor validates tag storage and normalization. Archiving preserves tags as
+  ordinary marker metadata without introducing a separate index.
+- Tag creation, replacement, removal, and root-wide rename are provided by the
+  structured non-interactive edit mechanism from ticket `095`, not by ad hoc
+  marker text replacement. Ticket `044` remains responsible for interactive
+  section editing and whole-section stdin replacement.
+- The analysis identifies implementation subtasks and Smokey coverage for
+  storage/Doctor, Show and CLI filtering/completion, structured edits, and the
+  generated website before implementation begins.
 
 # Comments
 
 - 2026-08-10: Added while discussing selector and workflow refinements. Tags
   may be useful for search and reporting, but using them as command targets
   could collide with slug/ID selector semantics and needs separate design.
+- 2026-08-14: Agreed to use only the term `tags`, support every item type, store
+  normalized tags in marker frontmatter, and display them whenever present.
+  `#tag` is limited to Show and search; CLI list filtering uses comma-separated
+  `--tags` with AND semantics and tag-aware shell completion.
+- 2026-08-14: Tag mutation and root-wide rename belong to structured
+  non-interactive editing in ticket `095`. Tags remain excluded from mutating
+  item selectors such as `--under` and Move.
+- 2026-08-14: Agreed that `taskr examples` must cover both `#tag` lookup and
+  basic plus composed `list --tags` filtering.
 
 # Outcome
