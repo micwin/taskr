@@ -1,10 +1,11 @@
 ---
 title: Set status during create
-status: reviewing
+status: done
 created_at: 2026-08-10T10:52:28Z
-updated_at: 2026-08-13T20:50:33Z
+updated_at: 2026-08-14T10:29:24Z
 developing_at: 2026-08-13T20:37:29Z
 reviewing_at: 2026-08-13T20:50:33Z
+done_at: 2026-08-14T10:29:24Z
 ---
 
 # Description
