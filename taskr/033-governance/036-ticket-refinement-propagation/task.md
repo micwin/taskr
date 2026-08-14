@@ -1,10 +1,11 @@
 ---
 title: Propagate ticket refinements into accepted sections
-status: reviewing
+status: done
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-13T20:48:22Z
+updated_at: 2026-08-14T10:29:21Z
 developing_at: 2026-08-13T20:36:05Z
 reviewing_at: 2026-08-13T20:48:22Z
+done_at: 2026-08-14T10:29:21Z
 ---
 
 # Description
