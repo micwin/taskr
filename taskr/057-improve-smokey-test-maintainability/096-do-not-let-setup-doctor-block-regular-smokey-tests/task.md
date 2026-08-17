@@ -1,9 +1,9 @@
 ---
 title: Do not let setup doctor block regular Smokey tests
-status: developing
+status: designing
 created_at: 2026-08-17T06:56:21Z
-updated_at: 2026-08-17T07:01:34Z
-designing_at: 2026-08-17T06:56:21Z
+updated_at: 2026-08-17T07:17:26Z
+designing_at: 2026-08-17T07:17:26Z
 developing_at: 2026-08-17T07:01:34Z
 ---
 
