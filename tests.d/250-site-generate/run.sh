@@ -81,11 +81,62 @@ if grep -Eq 'localStorage|sessionStorage' "${target}/assets/site.js"; then
   exit 1
 fi
 
+# Status filters should default to unfinished work and keep state in the URL.
+for status in open designing developing active reviewing blocked done cancelled; do
+  grep -Fq "data-status-filter=\"${status}\"" "${target}/index.html"
+done
+grep -Eq 'data-status-filter="done"[^>]*(checked|aria-checked="true")|(checked|aria-checked="true")[^>]*data-status-filter="done"' "${target}/index.html" && {
+  echo "done status filter should be disabled by default" >&2
+  exit 1
+}
+grep -Eq 'data-status-filter="cancelled"[^>]*(checked|aria-checked="true")|(checked|aria-checked="true")[^>]*data-status-filter="cancelled"' "${target}/index.html" && {
+  echo "cancelled status filter should be disabled by default" >&2
+  exit 1
+}
+grep -Fq 'data-status-filter="active"' "${target}/index.html"
+grep -Eq 'URLSearchParams|history\.replaceState|history\.pushState' "${target}/assets/site.js"
+if grep -Eq 'localStorage|sessionStorage' "${target}/assets/site.js"; then
+  echo "status filter state must not use shared browser storage" >&2
+  exit 1
+fi
+
 # The generated item data carries hierarchy and every searchable field.
 grep -Fq '"id":"001"' "${target}/assets/items.js"
 grep -Fq '"slug":"workflows-definieren"' "${target}/assets/items.js"
 grep -Fq '"title":"Define workflows"' "${target}/assets/items.js"
 grep -Fq '"milestone":"001"' "${target}/assets/items.js"
+grep -Fq '"parent":' "${target}/assets/items.js"
+
+# Client-side status filtering should hide terminal work by default and keep
+# milestones visible when they or any descendant match the active filter.
+node - "${target}/assets/site.js" <<'NODE'
+const fs = require('fs');
+const vm = require('vm');
+const script = fs.readFileSync(process.argv[2], 'utf8');
+const sandbox = { window: {}, document: { querySelector: () => null, querySelectorAll: () => [] }, URLSearchParams };
+vm.runInNewContext(script, sandbox);
+if (typeof sandbox.window.taskrVisibleSiteItems !== 'function') {
+  throw new Error('site.js must expose window.taskrVisibleSiteItems for filter tests');
+}
+const items = [
+  { id: '001', type: 'milestone', status: 'done' },
+  { id: '002', type: 'task', status: 'developing', parent: '001', milestone: '001' },
+  { id: '003', type: 'task', status: 'done', parent: '001', milestone: '001' },
+  { id: '004', type: 'milestone', status: 'done' },
+  { id: '005', type: 'milestone', status: 'active' },
+  { id: '006', type: 'task', status: 'cancelled', parent: '005', milestone: '005' }
+];
+const ids = params => sandbox.window.taskrVisibleSiteItems(items, new URLSearchParams(params)).map(item => item.id);
+const defaults = ids('');
+if (!defaults.includes('001') || !defaults.includes('002')) throw new Error('done milestone with visible child should remain visible by default');
+if (defaults.includes('003') || defaults.includes('004') || defaults.includes('006')) throw new Error('done/cancelled leaf items and empty done milestones should be hidden by default');
+if (!defaults.includes('005')) throw new Error('active milestone should remain visible by default');
+const withDone = ids('status=done');
+if (!withDone.includes('001') || !withDone.includes('003') || !withDone.includes('004')) throw new Error('explicit done status should show done milestones and done tasks');
+if (withDone.includes('002') || withDone.includes('006')) throw new Error('explicit done status should not show non-done leaves');
+const withCancelled = ids('status=cancelled');
+if (!withCancelled.includes('005') || !withCancelled.includes('006')) throw new Error('milestone with visible cancelled child should remain visible when cancelled is enabled');
+NODE
 
 # Item pages contain complete collapsible Markdown and safe external links.
 item_page="${target}/items/003-workflows-definieren.html"
