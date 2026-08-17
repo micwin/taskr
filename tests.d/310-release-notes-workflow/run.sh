@@ -81,8 +81,8 @@ if grep -q 'Users can see the visible change\.' "${stdout}"; then
   exit 1
 fi
 
-# release.sh should build Taskr's changelog entry from Taskr-root notes before
-# pushing the release branch.
+# prepare-release.sh should build Taskr's changelog entry from Taskr-root notes
+# before release.sh commits and pushes the release branch.
 release_remote="${SMOKEY_STATE_DIR}/release-notes-origin.git"
 release_repo="${SMOKEY_STATE_DIR}/release-notes-repo"
 git init --bare "${release_remote}" >/dev/null
@@ -91,8 +91,10 @@ git -C "${release_repo}" config user.name "Taskr Smokey"
 git -C "${release_repo}" config user.email "taskr-smokey@example.invalid"
 mkdir -p "${release_repo}/scripts"
 cp scripts/release.sh "${release_repo}/scripts/release.sh"
+cp scripts/prepare-release.sh "${release_repo}/scripts/prepare-release.sh"
 cp scripts/collect-taskr-release-notes.sh "${release_repo}/scripts/collect-taskr-release-notes.sh"
 chmod +x "${release_repo}/scripts/release.sh"
+chmod +x "${release_repo}/scripts/prepare-release.sh"
 cp -R "${root}" "${release_repo}/taskr-data"
 printf '0.1.0\n' >"${release_repo}/VERSION"
 printf '99\n' >"${release_repo}/BUILD"
@@ -108,7 +110,9 @@ git -C "${release_repo}" remote add origin "${release_remote}"
 git -C "${release_repo}" push -u origin develop >/dev/null
 git -C "${release_repo}" branch release
 git -C "${release_repo}" push origin release >/dev/null
-run_command release_collects_notes env -C "${release_repo}" TASKR_ROOT=taskr-data scripts/release.sh
+run_command prepare_collects_notes env -C "${release_repo}" TASKR_ROOT=taskr-data scripts/prepare-release.sh
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q '^## \[0\.1\.0+99\]' "${release_repo}/CHANGELOG.md"
 grep -q 'Users can see the visible change\.' "${release_repo}/CHANGELOG.md"
+run_command release_collects_notes env -C "${release_repo}" scripts/release.sh
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

@@ -1,10 +1,11 @@
 ---
 title: Review and gate Taskr release process
-status: developing
+status: reviewing
 created_at: 2026-08-17T08:31:52Z
-updated_at: 2026-08-17T08:56:36Z
+updated_at: 2026-08-17T09:00:47Z
 designing_at: 2026-08-17T08:31:52Z
 developing_at: 2026-08-17T08:56:36Z
+reviewing_at: 2026-08-17T09:00:47Z
 ---
 
 # Description
@@ -107,3 +108,26 @@ Target workflow:
   separate governed process with a policy and gate before more script changes.
 
 # Outcome
+
+Implemented the release workflow as a repository-only three-step process:
+
+- Added `scripts/prepare-release.sh`, invoked from clean synchronized
+  `develop`, which switches to `release` and prepares release files there
+  without committing, pushing, tagging, or publishing.
+- Reworked `scripts/release.sh` to run only on `release`, verify the prepared
+  changelog/version/tag state, create the release-preparation commit, and push
+  `release`.
+- Added `scripts/post-release.sh`, which merges the released branch back into
+  `develop` and raises the next development `VERSION` with patch as default
+  plus `--raise-minor` and `--raise-major`.
+- Updated `RELEASING.md` as the canonical release workflow document.
+- Added the `AGENTS.md` pointer to `RELEASING.md` without duplicating the
+  workflow inline.
+- Updated release Smokey coverage for prepare/release/post-release behavior and
+  kept release-note collection in the preparation step.
+
+# Release Notes
+
+Taskr releases now use separate prepare, release, and post-release scripts so
+release preparation can be reviewed before the release branch is committed and
+published.

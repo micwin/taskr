@@ -20,6 +20,7 @@ conflict.
 
 - Prefer project scripts when they exist. If a new script is added, document its
   purpose and prerequisites.
+- Follow the release process documented in `RELEASING.md` for Taskr releases.
 - Use Smokey for user-visible workflows. Run the full suite with
   `smokey --tests-dir tests.d` when `tests.d/` exists.
 - Smokey tests must follow `smokey agents-help`: suite-only execution,

@@ -1,23 +1,25 @@
 # Releasing Taskr
 
-Taskr development happens on `develop`. The dedicated `release` branch is a
-publication trigger: `scripts/release.sh` fast-forwards it to the already
-committed and pushed `develop` head. GitHub Actions then verifies, packages,
-tags, and publishes that exact commit.
+Taskr development happens on `develop`. Releases are prepared on the dedicated
+`release` branch. The `release` branch is the publication trigger: pushing it
+runs GitHub Actions, which verifies, packages, tags, and publishes that exact
+commit.
+
+Release concerns belong to repository tooling and documentation, not Taskr
+product commands.
 
 ## Prerequisites
 
-- Work on `develop` and push the intended release commit to `origin/develop`.
-- Keep the worktree and index clean, including untracked files.
-- Confirm `VERSION` and `BUILD` contain the version to publish. The release
-  process does not increment either value.
+- Work from a clean `develop` branch with no untracked files.
+- Push the intended development commit to `origin/develop`.
+- Confirm `VERSION` and `BUILD` contain the version to publish. Release builds
+  do not increment either value.
+- Keep `CHANGELOG.md` with a `## [Unreleased]` heading.
 - Ensure completed Taskr dogfood tickets with user-visible changes contain a
   `# Release Notes` section. Tickets without user-visible release impact use
   `release_note: no-release-note` in frontmatter.
-- Keep `CHANGELOG.md` with a `## [Unreleased]` heading. If the exact release
-  heading is missing, `scripts/release.sh` generates it from dogfood release
-  notes completed since the previous release tag.
-- Ensure local Go, Doctor, and Smokey verification is green before release.
+- Ensure local Go, Doctor, and Smokey verification is green before release
+  preparation.
 
 Normal builds increment `BUILD`. Release and CI builds instead use:
 
@@ -29,18 +31,32 @@ scripts/build.sh all --keep-build-count
 commit, embedded binary version, Debian version, artifact names, tag, and
 GitHub Release all describe the same build.
 
+## Prepare
+
+From clean synchronized `develop`, run:
+
+```bash
+scripts/prepare-release.sh
+```
+
+The script verifies `develop`, switches to or creates local `release`,
+fast-forwards it to the intended `develop` commit, and prepares tracked release
+files there. It may modify files such as `CHANGELOG.md`.
+
+`prepare-release.sh` does not commit, push, tag, or publish. Review its changes
+on `release` before continuing.
+
 ## Publish
 
-From a clean and synchronized `develop` branch, run:
+From the prepared `release` branch, run:
 
 ```bash
 scripts/release.sh
 ```
 
-The script fetches `origin`, rejects unpushed or divergent `develop` work,
-generates a changelog entry from Taskr dogfood release notes when needed,
-rejects an already published tag, checks out or creates `release`, requires a
-fast-forward from `develop`, pushes `release`, and returns to `develop`.
+The script verifies the prepared release state, creates the release-preparation
+commit on `release`, rejects an already published tag, and pushes `release`.
+It does not modify `develop`.
 
 The `Taskr Release` workflow then:
 
@@ -54,6 +70,26 @@ The `Taskr Release` workflow then:
 
 GitHub Pages is not part of this workflow.
 
+## Post Release
+
+After GitHub Actions has published the release successfully, run:
+
+```bash
+scripts/post-release.sh
+```
+
+The script returns to `develop`, merges the released `release` branch back into
+`develop`, raises the next development version, and commits that post-release
+state. Patch is the default raise:
+
+```bash
+scripts/post-release.sh --raise-patch
+scripts/post-release.sh --raise-minor
+scripts/post-release.sh --raise-major
+```
+
+The version raise changes `VERSION` only. `BUILD` is preserved.
+
 ## Verification
 
 After a successful Action run:
@@ -65,9 +101,11 @@ After a successful Action run:
 
 ## Failed Releases
 
-If verification or packaging fails before the tag step, fix the problem on
-`develop`, update `BUILD` through a normal build, update the changelog heading,
-commit and push, then run `scripts/release.sh` again.
+If preparation fails before `release` is pushed, fix the issue and rerun
+`scripts/prepare-release.sh`.
+
+If GitHub Actions fails before the tag step, fix the problem on `develop`,
+prepare a new release branch state, and rerun `scripts/release.sh`.
 
 If the tag exists and points to the correct commit, use GitHub Actions to rerun
 the failed workflow. The workflow accepts that tag only when it resolves to the
