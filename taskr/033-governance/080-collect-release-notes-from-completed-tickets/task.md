@@ -1,9 +1,10 @@
 ---
 title: Collect release notes from completed tickets
-status: designing
+status: developing
 created_at: 2026-08-10T17:56:10Z
-updated_at: 2026-08-10T17:56:23Z
+updated_at: 2026-08-17T08:11:53Z
 designing_at: 2026-08-10T17:56:23Z
+developing_at: 2026-08-17T08:11:53Z
 ---
 
 # Description
@@ -13,11 +14,10 @@ Make release-note intent part of completing a Taskr ticket. A transition to
 decision that the ticket needs no release note. The decision and note are
 stored in the existing ticket marker file inside the Taskr root.
 
-Release preparation collects pending notes from completed Taskr items and
-builds the release body from that data. Projects must not be required to keep a
-Taskr-specific `CHANGELOG.md`, staging file, or directory outside their Taskr
-root. The tracked Taskr agent policy must require the same decision before an
-agent completes a ticket.
+Taskr's own release preparation collects pending notes from completed Taskr
+dogfood items and builds the Taskr changelog/release body from that data. This
+ticket does not define a general public `taskr release-notes` command for every
+managed project; that broader product surface needs separate design.
 
 # Acceptance
 
@@ -26,8 +26,9 @@ agent completes a ticket.
   metadata before implementation begins.
 - The `done` transition requires exactly one of a release note or an explicit
   no-release-note decision for newly completed tickets.
-- The CLI supports both decisions without requiring direct marker-file edits;
-  proposed forms are `--release-note <text>` and `--no-release-note`.
+- Closing Taskr dogfood tickets supports both decisions without requiring
+  direct marker-file edits; proposed forms are `status ... done --release-note
+  <text>` and `status ... done --no-release-note`.
 - Multiline release notes have a documented stdin or file-input workflow.
 - Release notes describe user-visible effects and do not duplicate the full
   technical `# Outcome`.
@@ -59,10 +60,11 @@ agent completes a ticket.
 - The release boundary is derived from version-control release metadata or is
   recorded inside Taskr items; no external project-specific data structure is
   mandatory.
-- `scripts/release.sh` or a Taskr command called by it renders the collected
-  notes for the GitHub Release workflow.
-- Projects may still maintain a conventional changelog, but Taskr release-note
-  collection does not require one.
+- `scripts/release.sh` or a private helper script called by it renders the
+  collected notes for Taskr's GitHub Release workflow.
+- Taskr still maintains its repository `CHANGELOG.md`, but the release entry is
+  generated from Taskr dogfood ticket release-note sections during Taskr's own
+  release process.
 - `AGENTS.md` requires release-note intent to be recorded in the same commit
   that moves a ticket to `done`.
 - Smokey covers note-bearing completion, explicit omission, missing intent,
@@ -89,5 +91,8 @@ agent completes a ticket.
   The exact release-note/no-release-note representation remains deliberately
   open during designing. Legacy completed tickets without either decision are
   migrated by `doctor --fix` to explicit no-release-note entries.
+- 2026-08-17: Clarified scope with Michael: this is not a new general `taskr`
+  command. The immediate need is Taskr's own release process collecting release
+  notes from Taskr dogfood tickets into the Taskr changelog/release notes.
 
 # Outcome
