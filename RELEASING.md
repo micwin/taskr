@@ -54,6 +54,12 @@ prepares tracked release files there. It may modify files such as
 `prepare-release.sh` does not commit, push, tag, or publish. Review its changes
 on `release` before continuing.
 
+Release-note bullets should be written as readable Markdown in `CHANGELOG.md`.
+When a bullet wraps, continuation lines should be indented with two spaces.
+The release-note extractor also normalizes accidentally wrapped lowercase or
+backtick-starting bullet lines into continuations so GitHub does not render
+them as separate bullets.
+
 ## Publish
 
 From the prepared `release` branch, run:

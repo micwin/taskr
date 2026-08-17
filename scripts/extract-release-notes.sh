@@ -14,4 +14,13 @@ awk -v header="## [${release_version}]" '
   found && /^## \[/ { exit }
   found { print }
   END { if (!found) exit 1 }
-' "${changelog}"
+' "${changelog}" | awk '
+  /^- / {
+    item = substr($0, 3)
+    if (item ~ /^[[:lower:]`]/) {
+      print "  " item
+      next
+    }
+  }
+  { print }
+'

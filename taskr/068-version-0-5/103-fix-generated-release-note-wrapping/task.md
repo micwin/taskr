@@ -1,10 +1,11 @@
 ---
 title: Fix generated release-note wrapping
-status: developing
+status: reviewing
 created_at: 2026-08-17T09:21:31Z
-updated_at: 2026-08-17T09:25:38Z
+updated_at: 2026-08-17T09:32:26Z
 designing_at: 2026-08-17T09:21:31Z
 developing_at: 2026-08-17T09:25:38Z
+reviewing_at: 2026-08-17T09:32:26Z
 ---
 
 # Description
@@ -54,3 +55,22 @@ Likely areas to inspect:
   shows continuation lines from the `0.1.0+82` notes as separate bullets.
 
 # Outcome
+
+Implemented release-note wrapping normalization in
+`scripts/extract-release-notes.sh`.
+
+The extractor still passes the requested version section through, but it now
+rewrites accidental top-level bullet lines that look like wrapped continuations
+into Markdown continuation lines. This covers the observed GitHub rendering
+issue where wrapped lines such as `- output...` and ``- `list --tags`...`` were
+shown as separate bullets.
+
+Updated `RELEASING.md` to document the preferred changelog formatting rule:
+wrapped bullet continuation lines should be indented with two spaces. Smokey
+now covers both malformed wrapped bullets and already-correct wrapped bullets.
+
+# Release Notes
+
+GitHub Release notes now normalize accidentally wrapped changelog bullets so
+continuation lines render inside the intended bullet instead of as separate
+items.
