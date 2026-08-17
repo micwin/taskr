@@ -70,6 +70,9 @@ Target workflow:
   must not modify `develop`.
 - `post-release.sh` runs after a successful release, merges `release` back into
   `develop`, and prepares the next development version.
+- `post-release.sh` clears the `## [Unreleased]` changelog staging section
+  while preserving all versioned changelog sections, and commits that cleanup
+  with the next development version.
 - Post-release version raising supports `--raise-major`, `--raise-minor`, and
   `--raise-patch`, with `--raise-patch` as the default.
 - Tag creation remains in the GitHub Actions release workflow after all release
@@ -119,7 +122,8 @@ Implemented the release workflow as a repository-only three-step process:
   `release`.
 - Added `scripts/post-release.sh`, which merges the released branch back into
   `develop` and raises the next development `VERSION` with patch as default
-  plus `--raise-minor` and `--raise-major`.
+  plus `--raise-minor` and `--raise-major`. It also clears the `## [Unreleased]`
+  changelog staging section while preserving versioned release entries.
 - Updated `RELEASING.md` as the canonical release workflow document.
 - Added the `AGENTS.md` pointer to `RELEASING.md` without duplicating the
   workflow inline.

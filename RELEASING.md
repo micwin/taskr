@@ -88,7 +88,8 @@ scripts/post-release.sh
 
 The script returns to `develop`, merges the released `release` branch back into
 `develop`, raises the next development version, and commits that post-release
-state. Patch is the default raise:
+state. It also clears the `## [Unreleased]` changelog staging section while
+keeping all versioned release sections. Patch is the default raise:
 
 ```bash
 scripts/post-release.sh --raise-patch

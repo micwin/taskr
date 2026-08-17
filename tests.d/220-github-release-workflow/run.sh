@@ -189,6 +189,12 @@ run_command post_release_success env -C "${release_repo}" scripts/post-release.s
 [ "$(git -C "${release_repo}" branch --show-current)" = "develop" ]
 grep -qx '0.1.1' "${release_repo}/VERSION"
 grep -qx '41' "${release_repo}/BUILD"
+if awk '/^## \[Unreleased\]/{in_unreleased=1; next} in_unreleased && /^## \[/{exit} in_unreleased && NF{found=1} END{exit found ? 0 : 1}' "${release_repo}/CHANGELOG.md"; then
+  echo "post-release should clear the Unreleased changelog staging section" >&2
+  exit 1
+fi
+grep -q '^## \[0\.1\.0+41\]' "${release_repo}/CHANGELOG.md"
+grep -q -- '- Release fixture\.' "${release_repo}/CHANGELOG.md"
 grep -q 'post release 0.1.1' <(git -C "${release_repo}" log -1 --format=%s)
 
 # Post-release supports explicit minor and major raises without changing BUILD.
