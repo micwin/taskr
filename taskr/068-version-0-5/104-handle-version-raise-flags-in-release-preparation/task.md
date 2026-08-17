@@ -1,11 +1,12 @@
 ---
 title: Handle version raise flags in release preparation
-status: reviewing
+status: done
 created_at: 2026-08-17T09:35:24Z
-updated_at: 2026-08-17T09:46:58Z
+updated_at: 2026-08-17T09:53:47Z
 designing_at: 2026-08-17T09:35:24Z
 developing_at: 2026-08-17T09:45:09Z
 reviewing_at: 2026-08-17T09:46:58Z
+done_at: 2026-08-17T09:53:47Z
 ---
 
 # Description

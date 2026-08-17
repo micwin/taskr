@@ -1,11 +1,12 @@
 ---
 title: Fix generated release-note wrapping
-status: reviewing
+status: done
 created_at: 2026-08-17T09:21:31Z
-updated_at: 2026-08-17T09:32:26Z
+updated_at: 2026-08-17T09:53:47Z
 designing_at: 2026-08-17T09:21:31Z
 developing_at: 2026-08-17T09:25:38Z
 reviewing_at: 2026-08-17T09:32:26Z
+done_at: 2026-08-17T09:53:47Z
 ---
 
 # Description
