@@ -1,10 +1,11 @@
 ---
 title: Analyze tags and labels
-status: reviewing
+status: done
 created_at: 2026-08-10T12:33:35Z
-updated_at: 2026-08-17T07:34:32Z
+updated_at: 2026-08-17T07:46:53Z
 developing_at: 2026-08-17T07:01:33Z
 reviewing_at: 2026-08-17T07:34:32Z
+done_at: 2026-08-17T07:46:53Z
 ---
 
 # Description
