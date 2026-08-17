@@ -113,7 +113,7 @@ node - "${target}/assets/site.js" <<'NODE'
 const fs = require('fs');
 const vm = require('vm');
 const script = fs.readFileSync(process.argv[2], 'utf8');
-const sandbox = { window: {}, document: { querySelector: () => null, querySelectorAll: () => [] }, URLSearchParams };
+const sandbox = { window: { location: { search: '', pathname: '/index.html' } }, history: { replaceState: () => {} }, document: { querySelector: () => null, querySelectorAll: () => [] }, URLSearchParams };
 vm.runInNewContext(script, sandbox);
 if (typeof sandbox.window.taskrVisibleSiteItems !== 'function') {
   throw new Error('site.js must expose window.taskrVisibleSiteItems for filter tests');

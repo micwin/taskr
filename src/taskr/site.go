@@ -20,6 +20,7 @@ type siteItem struct {
 	Priority  string   `json:"priority,omitempty"`
 	Tags      []string `json:"tags,omitempty"`
 	Milestone string   `json:"milestone,omitempty"`
+	Parent    string   `json:"parent,omitempty"`
 	URL       string   `json:"url"`
 }
 
@@ -133,9 +134,13 @@ func newSiteItem(it *item) siteItem {
 	if milestone != nil {
 		milestoneID = milestone.IDText
 	}
+	parentID := ""
+	if it.Parent != nil {
+		parentID = it.Parent.IDText
+	}
 	return siteItem{
 		ID: it.IDText, Slug: it.Slug, Title: it.Title, Type: it.Type,
-		Status: it.Status, Priority: it.Priority, Tags: it.Tags, Milestone: milestoneID,
+		Status: it.Status, Priority: it.Priority, Tags: it.Tags, Milestone: milestoneID, Parent: parentID,
 		URL: "items/" + siteItemFilename(it),
 	}
 }
@@ -149,6 +154,7 @@ func renderIndexPage(t *tree, items []*item, generatedAt string) string {
 	var content strings.Builder
 	fmt.Fprintf(&content, `<header class="page-header"><div><p class="eyebrow">Taskr project</p><h1>%s</h1><p class="generated">Generated <time datetime="%s">%s</time></p></div></header>`, html.EscapeString(project), generatedAt, generatedAt)
 	content.WriteString(`<form class="search" action="results.html" method="get"><label for="site-search">Search items</label><div class="search-row"><input id="site-search" type="search" name="q" placeholder="ID, slug, or title" required><button type="submit">Search</button></div></form>`)
+	content.WriteString(renderStatusFilterControls())
 	content.WriteString(`<section><h2>Project status</h2>`)
 	content.WriteString(renderStatusLinks(items, ""))
 	content.WriteString(`</section><section><h2>Milestones</h2>`)
@@ -156,7 +162,7 @@ func renderIndexPage(t *tree, items []*item, generatedAt string) string {
 		if milestone.Type != "milestone" {
 			continue
 		}
-		fmt.Fprintf(&content, `<article class="milestone"><h3><a href="items/%s">Milestone: %s</a></h3><p class="meta"><span>%s</span><span>%s</span></p>`, siteItemFilename(milestone), html.EscapeString(milestone.Title), html.EscapeString(milestone.IDText), html.EscapeString(milestone.Slug))
+		fmt.Fprintf(&content, `<article class="milestone" data-item-id="%s"><h3><a href="items/%s">Milestone: %s</a></h3><p class="meta"><span>%s</span><span>%s</span></p>`, html.EscapeString(milestone.IDText), siteItemFilename(milestone), html.EscapeString(milestone.Title), html.EscapeString(milestone.IDText), html.EscapeString(milestone.Slug))
 		var descendants []*item
 		for _, candidate := range items {
 			if candidate != milestone && itemMilestone(candidate) == milestone {
@@ -195,8 +201,22 @@ func renderStatusLinks(items []*item, milestone string) string {
 	return b.String()
 }
 
+func renderStatusFilterControls() string {
+	var b strings.Builder
+	b.WriteString(`<section class="filters" data-status-filters><h2>Status filters</h2><div class="filter-grid">`)
+	for _, status := range statuses {
+		checked := ` checked`
+		if closedStatus(status) {
+			checked = ""
+		}
+		fmt.Fprintf(&b, `<label><input type="checkbox" data-status-filter="%s" value="%s"%s> %s</label>`, html.EscapeString(status), html.EscapeString(status), checked, html.EscapeString(status))
+	}
+	b.WriteString(`</div></section>`)
+	return b.String()
+}
+
 func renderIndexItem(b *strings.Builder, it *item, depth int) {
-	fmt.Fprintf(b, `<div class="item-row" style="--depth:%d"><a class="item-id" href="items/%s">%s</a><a href="items/%s">%s</a><span class="item-slug">%s</span><span class="badge">%s %s</span></div>`, depth, siteItemFilename(it), html.EscapeString(it.IDText), siteItemFilename(it), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status), renderSiteTags(it.Tags, ""))
+	fmt.Fprintf(b, `<div class="item-row" data-item-id="%s" style="--depth:%d"><a class="item-id" href="items/%s">%s</a><a href="items/%s">%s</a><span class="item-slug">%s</span><span class="badge">%s %s</span></div>`, html.EscapeString(it.IDText), depth, siteItemFilename(it), html.EscapeString(it.IDText), siteItemFilename(it), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status), renderSiteTags(it.Tags, ""))
 	for _, child := range it.Children {
 		renderIndexItem(b, child, depth+1)
 	}
@@ -380,13 +400,19 @@ func siteDocument(title, assetPrefix, content string, scripts bool) string {
 	return fmt.Sprintf(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>%s</title><link rel="stylesheet" href="%sassets/site.css"></head><body>%s%s</body></html>`, html.EscapeString(title), assetPrefix, content, scriptTags)
 }
 
-const siteCSS = `:root{color-scheme:light;--ink:#17202a;--muted:#66717d;--line:#d9dee3;--paper:#fff;--wash:#f4f6f7;--accent:#176b5b;--warm:#a44c22;font-family:Inter,ui-sans-serif,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink);letter-spacing:0}.page-header,main,body>section,body>form{max-width:1120px;margin:0 auto;padding:24px}.page-header{display:flex;align-items:end;justify-content:space-between;border-bottom:1px solid var(--line);background:var(--paper)}.page-header.compact{align-items:center}.eyebrow{margin:0;color:var(--accent);font-weight:700;text-transform:uppercase;font-size:.75rem}.page-header h1{margin:4px 0 0;font-size:2rem}.generated,.meta{display:flex;gap:12px;color:var(--muted);font-size:.875rem}.search{background:var(--paper)}.search label{display:block;font-weight:700;margin-bottom:8px}.search-row{display:flex;gap:8px}.search input{min-width:0;flex:1;padding:11px;border:1px solid #9da7b0}.search button,.pager button{padding:10px 16px;border:0;background:var(--accent);color:#fff;cursor:pointer}section{background:var(--paper)}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.status{display:flex;justify-content:space-between;padding:12px;border-left:4px solid var(--accent);background:var(--wash);color:inherit;text-decoration:none}.milestone{border-top:1px solid var(--line);padding:18px 0}.milestone h3{margin:0}.item-list{margin-top:12px}.item-row{display:grid;grid-template-columns:60px minmax(180px,1fr) minmax(100px,220px) 100px;gap:10px;padding:8px 8px 8px calc(8px + var(--depth)*24px);border-top:1px solid var(--line);align-items:center}.item-id{font-family:ui-monospace,monospace}.item-slug{color:var(--muted);overflow-wrap:anywhere}.badge{font-size:.75rem;text-transform:uppercase;color:var(--warm)}a{color:var(--accent)}.table-wrap{overflow:auto;background:var(--paper)}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}.pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}.title-row{display:flex;align-items:center;gap:10px}.result-nav{font-size:1.5rem;text-decoration:none}.ticket details,.metadata{max-width:900px;margin:12px auto;background:var(--paper);border:1px solid var(--line)}.ticket summary{padding:14px;font-weight:700;cursor:pointer}.markdown{padding:0 18px 16px;line-height:1.6}.metadata{padding:16px}.metadata dl{display:grid;grid-template-columns:120px 1fr;gap:6px}.metadata dt{font-weight:700}.metadata dd{margin:0}@media(max-width:680px){.page-header{align-items:flex-start;gap:16px;flex-direction:column}.item-row{grid-template-columns:48px 1fr}.item-slug,.badge{grid-column:2}.search-row{flex-direction:column}}`
+const siteCSS = `:root{color-scheme:light;--ink:#17202a;--muted:#66717d;--line:#d9dee3;--paper:#fff;--wash:#f4f6f7;--accent:#176b5b;--warm:#a44c22;font-family:Inter,ui-sans-serif,system-ui,sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--wash);color:var(--ink);letter-spacing:0}.page-header,main,body>section,body>form{max-width:1120px;margin:0 auto;padding:24px}.page-header{display:flex;align-items:end;justify-content:space-between;border-bottom:1px solid var(--line);background:var(--paper)}.page-header.compact{align-items:center}.eyebrow{margin:0;color:var(--accent);font-weight:700;text-transform:uppercase;font-size:.75rem}.page-header h1{margin:4px 0 0;font-size:2rem}.generated,.meta{display:flex;gap:12px;color:var(--muted);font-size:.875rem}.search{background:var(--paper)}.search label{display:block;font-weight:700;margin-bottom:8px}.search-row{display:flex;gap:8px}.search input{min-width:0;flex:1;padding:11px;border:1px solid #9da7b0}.search button,.pager button{padding:10px 16px;border:0;background:var(--accent);color:#fff;cursor:pointer}section{background:var(--paper)}.filters{border-top:1px solid var(--line)}.filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.filter-grid label{display:flex;align-items:center;gap:8px;padding:8px;background:var(--wash)}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.status{display:flex;justify-content:space-between;padding:12px;border-left:4px solid var(--accent);background:var(--wash);color:inherit;text-decoration:none}.milestone{border-top:1px solid var(--line);padding:18px 0}.milestone h3{margin:0}.item-list{margin-top:12px}.item-row{display:grid;grid-template-columns:60px minmax(180px,1fr) minmax(100px,220px) 100px;gap:10px;padding:8px 8px 8px calc(8px + var(--depth)*24px);border-top:1px solid var(--line);align-items:center}.item-id{font-family:ui-monospace,monospace}.item-slug{color:var(--muted);overflow-wrap:anywhere}.badge{font-size:.75rem;text-transform:uppercase;color:var(--warm)}[hidden]{display:none!important}a{color:var(--accent)}.table-wrap{overflow:auto;background:var(--paper)}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line)}.pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:16px}.title-row{display:flex;align-items:center;gap:10px}.result-nav{font-size:1.5rem;text-decoration:none}.ticket details,.metadata{max-width:900px;margin:12px auto;background:var(--paper);border:1px solid var(--line)}.ticket summary{padding:14px;font-weight:700;cursor:pointer}.markdown{padding:0 18px 16px;line-height:1.6}.metadata{padding:16px}.metadata dl{display:grid;grid-template-columns:120px 1fr;gap:6px}.metadata dt{font-weight:700}.metadata dd{margin:0}@media(max-width:680px){.page-header{align-items:flex-start;gap:16px;flex-direction:column}.item-row{grid-template-columns:48px 1fr}.item-slug,.badge{grid-column:2}.search-row{flex-direction:column}}`
 
 const siteJavaScript = `(() => {
   const items = window.TASKR_ITEMS || [];
   const params = new URLSearchParams(window.location.search);
   const pageSize = 25;
+  const defaultStatuses = ['open','designing','developing','active','reviewing','blocked'];
   const normalizedID = value => value.replace(/^0+/, '') || '0';
+  const explicitStatuses = parameters => parameters.getAll('status').filter(Boolean);
+  const activeStatuses = parameters => {
+    const explicit = explicitStatuses(parameters);
+    return new Set(explicit.length ? explicit : defaultStatuses);
+  };
   const queryMatches = (item, query) => {
     if (!query) return true;
     if (query.startsWith('#')) {
@@ -395,15 +421,55 @@ const siteJavaScript = `(() => {
     }
     return normalizedID(item.id) === normalizedID(query) || item.slug.toLowerCase().includes(query) || item.title.toLowerCase().includes(query);
   };
+  const itemMatches = (item, parameters) => {
+    const query = (parameters.get('q') || '').trim().toLowerCase();
+    const milestone = parameters.get('milestone') || '';
+    if (!activeStatuses(parameters).has(item.status)) return false;
+    if (milestone && item.milestone !== milestone && item.id !== milestone) return false;
+    return queryMatches(item, query);
+  };
+  const itemHasMatchingDescendant = (item, all, parameters) => all.some(candidate => candidate.parent === item.id && (itemMatches(candidate, parameters) || itemHasMatchingDescendant(candidate, all, parameters)));
+  const visibleSiteItems = (all, parameters) => all.filter(item => {
+    if (itemMatches(item, parameters)) return true;
+    return item.type === 'milestone' && itemHasMatchingDescendant(item, all, parameters);
+  });
+  window.taskrVisibleSiteItems = visibleSiteItems;
   const matches = item => {
     const query = (params.get('q') || '').trim().toLowerCase();
-    const status = params.get('status') || '';
     const milestone = params.get('milestone') || '';
-    if (status && item.status !== status) return false;
     if (milestone && item.milestone !== milestone) return false;
     return queryMatches(item, query);
   };
-  const resultItems = items.filter(matches);
+  const resultItems = visibleSiteItems(items, params).filter(matches);
+  let indexFilterControls = [];
+  const applyIndexFilters = (parameters = params) => {
+    const controls = indexFilterControls;
+    if (!controls.length) return;
+    const explicit = explicitStatuses(parameters);
+    const active = activeStatuses(parameters);
+    const visible = new Set(visibleSiteItems(items, parameters).map(item => item.id));
+    document.querySelectorAll('[data-item-id]').forEach(node => {
+      node.hidden = !visible.has(node.dataset.itemId);
+    });
+    controls.forEach(control => {
+      control.checked = active.has(control.value);
+    });
+    if (!explicit.length) {
+      controls.filter(control => control.value === 'done' || control.value === 'cancelled').forEach(control => { control.checked = false; });
+    }
+  };
+  indexFilterControls = Array.from(document.querySelectorAll('[data-status-filter]'));
+  indexFilterControls.forEach(control => {
+    control.addEventListener('change', () => {
+      const next = new URLSearchParams(window.location.search);
+      next.delete('status');
+      indexFilterControls.filter(item => item.checked).forEach(item => next.append('status', item.value));
+      const query = next.toString();
+      history.replaceState(null, '', window.location.pathname + (query ? '?' + query : ''));
+      applyIndexFilters(next);
+    });
+  });
+  applyIndexFilters();
   const table = document.querySelector('#result-table');
   if (table) {
     if (params.get('q') && resultItems.length === 1) {
@@ -455,9 +521,8 @@ const siteJavaScript = `(() => {
     const context = new URLSearchParams(params.get('context'));
     const ordered = items.filter(item => {
       const query = (context.get('q') || '').trim().toLowerCase();
-      const status = context.get('status') || '';
       const milestone = context.get('milestone') || '';
-      return (!status || item.status === status) && (!milestone || item.milestone === milestone) && queryMatches(item, query);
+      return (!milestone || item.milestone === milestone) && itemMatches(item, context) && queryMatches(item, query);
     });
     const currentName = decodeURIComponent(window.location.pathname.split('/').pop()).replace(/\.html$/, '');
     const index = ordered.findIndex(item => item.id + '-' + item.slug === currentName);

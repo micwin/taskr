@@ -1,10 +1,11 @@
 ---
 title: Add status filters to generated site
-status: developing
+status: reviewing
 created_at: 2026-08-17T07:52:27Z
-updated_at: 2026-08-17T07:57:59Z
+updated_at: 2026-08-17T08:01:52Z
 designing_at: 2026-08-17T07:52:27Z
 developing_at: 2026-08-17T07:57:59Z
+reviewing_at: 2026-08-17T08:01:52Z
 ---
 
 # Description
@@ -61,3 +62,29 @@ below them while keeping the rule general for future filters beyond status.
   checks prove the filtering rules without requiring a full browser.
 
 # Outcome
+
+Implemented status filters for generated sites.
+
+Delivered behavior:
+
+- `index.html` renders a checkbox filter for every configured status.
+- `done` and `cancelled` are disabled by default; all other statuses are
+  enabled by default.
+- Filter state is reflected in the URL via repeated `status=` query parameters.
+- The overview updates visible rows client-side without regeneration.
+- Generated item data now includes parent item IDs so client-side hierarchy
+  rules can evaluate descendants.
+- Milestones remain visible when they match the active filter themselves or
+  when any descendant matches.
+- Empty milestones that do not match the active filter are hidden.
+- Result pages use the same default unfinished-first status visibility unless
+  explicit status parameters are present.
+
+Verified with `go test ./src/taskr` and `smokey --tests-dir tests.d`
+(`31/31 ok`).
+
+# Release Notes
+
+Generated Taskr sites now include status filters. Done and cancelled work is
+hidden by default, can be toggled back on, and milestones stay visible whenever
+they contain visible work.
