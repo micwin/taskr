@@ -1,11 +1,12 @@
 ---
 title: Collect release notes from completed tickets
-status: developing
+status: cancelled
 created_at: 2026-08-10T17:56:10Z
-updated_at: 2026-08-17T08:28:22Z
+updated_at: 2026-08-17T08:34:12Z
 designing_at: 2026-08-10T17:56:23Z
 developing_at: 2026-08-17T08:28:22Z
 reviewing_at: 2026-08-17T08:22:35Z
+cancelled_at: 2026-08-17T08:34:12Z
 ---
 
 # Description
@@ -89,6 +90,8 @@ completion, API behavior, or product Doctor behavior.
 - 2026-08-17: Michael clarified further that release concerns have no place in
   Taskr product code at all. Release handling belongs to repository release
   tooling and governance only.
+- 2026-08-17: Cancelled because the release-note/tooling work needs to wait
+  for the dedicated release-process review in ticket 102.
 
 # Outcome
 
