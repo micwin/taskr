@@ -78,10 +78,14 @@ if grep -qi 'pages' .github/workflows/release.yml; then
   exit 1
 fi
 
-# Release documentation and changelog should describe the frozen-version process.
+# Release documentation, agent policy, and changelog should describe the
+# frozen-version process.
 test -f RELEASING.md
 test -f CHANGELOG.md
+grep -q 'RELEASING.md' AGENTS.md
 grep -q 'scripts/release.sh' RELEASING.md
+grep -q 'scripts/prepare-release.sh' RELEASING.md
+grep -q 'scripts/post-release.sh' RELEASING.md
 grep -q -- '--keep-build-count' RELEASING.md
 grep -qi 'VERSION.*BUILD\|BUILD.*VERSION' RELEASING.md
 grep -qi 'failed release\|failure' RELEASING.md
@@ -112,7 +116,7 @@ fi
 run_command missing_release_notes scripts/extract-release-notes.sh 0.1.0+42 "${release_changelog}"
 [ "${exit_code}" -ne 0 ] || { echo "missing release notes should fail" >&2; exit 1; }
 
-# Build a local remote whose release branch can fast-forward to synchronized develop.
+# Build a local remote for the prepare/release/post-release contract.
 release_remote="${SMOKEY_STATE_DIR}/release-origin.git"
 release_repo="${SMOKEY_STATE_DIR}/release-repo"
 git init --bare "${release_remote}" >/dev/null
@@ -121,13 +125,17 @@ git -C "${release_repo}" config user.name "Taskr Smokey"
 git -C "${release_repo}" config user.email "taskr-smokey@example.invalid"
 mkdir -p "${release_repo}/scripts"
 cp scripts/release.sh "${release_repo}/scripts/release.sh"
+cp scripts/prepare-release.sh "${release_repo}/scripts/prepare-release.sh"
+cp scripts/post-release.sh "${release_repo}/scripts/post-release.sh"
 chmod +x "${release_repo}/scripts/release.sh"
+chmod +x "${release_repo}/scripts/prepare-release.sh"
+chmod +x "${release_repo}/scripts/post-release.sh"
 printf '0.1.0\n' >"${release_repo}/VERSION"
 printf '41\n' >"${release_repo}/BUILD"
 cat >"${release_repo}/CHANGELOG.md" <<'EOF'
 # Changelog
 
-## [0.1.0+41]
+## [Unreleased]
 
 - Release fixture.
 EOF
@@ -143,26 +151,76 @@ git -C "${release_repo}" add tracked.txt
 git -C "${release_repo}" commit -m candidate >/dev/null
 git -C "${release_repo}" push origin develop >/dev/null
 
-# A valid release should fast-forward and push release, then return to develop.
+# Prepare starts on clean synchronized develop, switches to release, and writes
+# release preparation there without committing or pushing.
+run_command prepare_success env -C "${release_repo}" scripts/prepare-release.sh
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+[ "$(git -C "${release_repo}" branch --show-current)" = "release" ]
+grep -q '^## \[0\.1\.0+41\]' "${release_repo}/CHANGELOG.md"
+[ -n "$(git -C "${release_repo}" status --porcelain)" ] || {
+  echo "prepare-release should leave reviewable changes on release" >&2
+  exit 1
+}
+[ "$(git --git-dir="${release_remote}" rev-parse release)" != "$(git -C "${release_repo}" rev-parse release)" ] || {
+  echo "prepare-release should not push release" >&2
+  exit 1
+}
+
+# Release runs only on release, commits the prepared state, pushes release, and
+# does not move develop.
+develop_before_release="$(git -C "${release_repo}" rev-parse develop)"
 run_command release_success env -C "${release_repo}" scripts/release.sh
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-[ "$(git -C "${release_repo}" branch --show-current)" = "develop" ]
-[ "$(git -C "${release_repo}" rev-parse develop)" = "$(git --git-dir="${release_remote}" rev-parse release)" ]
+[ "$(git -C "${release_repo}" branch --show-current)" = "release" ]
+[ -z "$(git -C "${release_repo}" status --porcelain)" ]
+[ "$(git -C "${release_repo}" rev-parse develop)" = "${develop_before_release}" ]
+[ "$(git -C "${release_repo}" rev-parse release)" = "$(git --git-dir="${release_remote}" rev-parse release)" ]
+grep -q 'prepare release 0.1.0+41' <(git -C "${release_repo}" log -1 --format=%s)
 
-# Wrong branches, dirty trees, and unsynchronized develop should fail before pushing.
-git -C "${release_repo}" switch release >/dev/null
-run_command release_wrong_branch env -C "${release_repo}" scripts/release.sh
-[ "${exit_code}" -ne 0 ] || { echo "release outside develop should fail" >&2; exit 1; }
-grep -qi 'develop' "${stderr}"
+# Post-release returns to develop, merges release, and raises the next patch by default.
+run_command post_release_success env -C "${release_repo}" scripts/post-release.sh
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+[ "$(git -C "${release_repo}" branch --show-current)" = "develop" ]
+grep -qx '0.1.1' "${release_repo}/VERSION"
+grep -qx '41' "${release_repo}/BUILD"
+grep -q 'post release 0.1.1' <(git -C "${release_repo}" log -1 --format=%s)
+
+# Post-release supports explicit minor and major raises without changing BUILD.
+post_minor_repo="${SMOKEY_STATE_DIR}/post-minor-repo"
+cp -R "${release_repo}" "${post_minor_repo}"
+git -C "${post_minor_repo}" switch release >/dev/null
+run_command post_release_minor env -C "${post_minor_repo}" scripts/post-release.sh --raise-minor
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx '0.2.0' "${post_minor_repo}/VERSION"
+grep -qx '41' "${post_minor_repo}/BUILD"
+
+post_major_repo="${SMOKEY_STATE_DIR}/post-major-repo"
+cp -R "${release_repo}" "${post_major_repo}"
+git -C "${post_major_repo}" switch release >/dev/null
+run_command post_release_major env -C "${post_major_repo}" scripts/post-release.sh --raise-major
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx '1.0.0' "${post_major_repo}/VERSION"
+grep -qx '41' "${post_major_repo}/BUILD"
+
+# Prepare rejects wrong branches, dirty trees, and unsynchronized develop before
+# modifying release.
 git -C "${release_repo}" switch develop >/dev/null
 printf 'dirty\n' >"${release_repo}/untracked.txt"
-run_command release_dirty env -C "${release_repo}" scripts/release.sh
-[ "${exit_code}" -ne 0 ] || { echo "release with dirty tree should fail" >&2; exit 1; }
+run_command prepare_dirty env -C "${release_repo}" scripts/prepare-release.sh
+[ "${exit_code}" -ne 0 ] || { echo "prepare-release with dirty tree should fail" >&2; exit 1; }
 grep -qi 'dirty\|clean' "${stderr}"
 rm "${release_repo}/untracked.txt"
 printf 'local only\n' >>"${release_repo}/tracked.txt"
 git -C "${release_repo}" add tracked.txt
 git -C "${release_repo}" commit -m local-only >/dev/null
-run_command release_unsynchronized env -C "${release_repo}" scripts/release.sh
-[ "${exit_code}" -ne 0 ] || { echo "release with unpushed develop should fail" >&2; exit 1; }
+run_command prepare_unsynchronized env -C "${release_repo}" scripts/prepare-release.sh
+[ "${exit_code}" -ne 0 ] || { echo "prepare-release with unpushed develop should fail" >&2; exit 1; }
 grep -qi 'synchron\|origin/develop\|push develop' "${stderr}"
+
+# Release itself only runs on release and requires a prepared clean release
+# branch with the changelog entry already present.
+git -C "${release_repo}" reset --hard origin/develop >/dev/null
+git -C "${release_repo}" switch develop >/dev/null
+run_command release_wrong_branch env -C "${release_repo}" scripts/release.sh
+[ "${exit_code}" -ne 0 ] || { echo "release outside release branch should fail" >&2; exit 1; }
+grep -qi 'release' "${stderr}"

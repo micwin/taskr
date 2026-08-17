@@ -1,9 +1,10 @@
 ---
 title: Review and gate Taskr release process
-status: designing
+status: developing
 created_at: 2026-08-17T08:31:52Z
-updated_at: 2026-08-17T08:31:52Z
+updated_at: 2026-08-17T08:56:36Z
 designing_at: 2026-08-17T08:31:52Z
+developing_at: 2026-08-17T08:56:36Z
 ---
 
 # Description
@@ -26,11 +27,52 @@ Release concerns remain outside Taskr product code. The scope here is Taskr's
 repository release process, including scripts, GitHub Actions, changelog
 generation, release-note collection, branch/tag handling, and local/CI gates.
 
+Target workflow:
+
+1. `scripts/prepare-release.sh` is invoked from a clean `develop` branch.
+   After the initial `develop` preflight, it switches to or creates the local
+   `release` branch, fast-forwards it to the intended `develop` commit, and
+   prepares the release on `release`.
+2. `prepare-release.sh` may modify tracked release-preparation files on
+   `release`, such as `CHANGELOG.md`, but it does not commit, push, create
+   tags, or publish anything.
+3. The user reviews the generated `release` branch changes.
+4. `scripts/release.sh` runs only on the `release` branch. It verifies the
+   prepared release state, creates the release-preparation commit on `release`,
+   pushes `release`, and does not modify `develop`.
+5. Pushing `release` triggers GitHub Actions, where verification, artifact
+   creation, release tagging, and GitHub Release publication happen.
+6. `scripts/post-release.sh` runs after a successful release. It returns to
+   `develop`, merges the released `release` branch back into `develop`, raises
+   the next development version, and leaves or creates the corresponding commit
+   according to the documented policy.
+
 # Acceptance
 
 - The current release workflow is documented end to end, including what happens
   locally, what happens in GitHub Actions, and where release notes/changelog
   content comes from.
+- The canonical release documentation is `RELEASING.md`. If that document is
+  removed or unavailable in the future, the workflow must live in a runbook or
+  `README.md` instead.
+- `AGENTS.md` refers agents to the canonical release-process documentation
+  without duplicating the process inline.
+- The documented workflow contains separate `scripts/prepare-release.sh`,
+  `scripts/release.sh`, and `scripts/post-release.sh` steps.
+- `prepare-release.sh` must be invoked from clean `develop`, but after the
+  initial preflight all preparation changes are made on the local `release`
+  branch.
+- `prepare-release.sh` is allowed to modify preparation files on `release`, but
+  must not commit, push, create tags, or publish releases.
+- `release.sh` runs only on `release`, verifies the prepared release state,
+  creates the release-preparation commit on `release`, pushes `release`, and
+  must not modify `develop`.
+- `post-release.sh` runs after a successful release, merges `release` back into
+  `develop`, and prepares the next development version.
+- Post-release version raising supports `--raise-major`, `--raise-minor`, and
+  `--raise-patch`, with `--raise-patch` as the default.
+- Tag creation remains in the GitHub Actions release workflow after all release
+  verification has passed.
 - The process explicitly separates:
   - release-tooling development,
   - release preparation,
@@ -43,9 +85,8 @@ generation, release-note collection, branch/tag handling, and local/CI gates.
 - The gate defines the checks required before a release can be executed,
   including clean worktree, synchronized branches, release-note/changelog
   state, Doctor, Smokey, and CI expectations.
-- The gate defines whether local release tooling may create commits, push
-  commits, create or move branches, create tags, or only prepare output for the
-  user to commit/push manually.
+- The gate defines exactly which local release step may create commits, push
+  commits, create or move branches, or create tags.
 - The release process defines how generated changelog entries are reviewed and
   committed.
 - The release process defines how `VERSION` and `BUILD` are treated and when
