@@ -93,5 +93,9 @@ filters on item and result pages.
   lowercase. CLI display uses compact tag values without a `tags=` prefix;
   leading `#` is primarily a disambiguation marker in free text and search
   input, not part of stored tag values.
+- 2026-08-17: While moving valid tag fixtures into the shared Smokey base root,
+  `000-setup` doctor was made non-blocking with `|| true` so the new red tag
+  contract can coexist with the shared fixture before implementation. The
+  general strict doctor gate policy is tracked separately in ticket `096`.
 
 # Outcome

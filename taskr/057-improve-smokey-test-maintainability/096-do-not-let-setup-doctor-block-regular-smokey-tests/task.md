@@ -9,30 +9,42 @@ developing_at: 2026-08-17T07:01:34Z
 
 # Description
 
-Change the Smokey `000-setup` doctor call from a hard suite gate into a visible
-diagnostic helper for regular development runs. The shared fixture should still
-emit doctor output when it is inconsistent, but ordinary workflow tests should
-not require a globally doctor-clean fixture just to exercise one changed
-contract.
+Define how setup doctor diagnostics should interact with ticket lifecycle and
+release readiness. The shared fixture doctor run is useful feedback during
+regular development, but it must not encourage every feature test to create a
+private fixture root just because a future contract is temporarily ahead of the
+implementation.
 
-Release builds still need a strict doctor gate. That stricter behavior belongs
-in the release/build workflow, not in the regular Smokey setup helper, and it
-must break the release build or release test when doctor reports problems.
+Code must not be committed for `reviewing` or `done` states when the setup
+doctor reports problems, regardless of whether doctor can fix those problems.
+Regular development runs in other states may continue after setup doctor
+diagnostics, but the output must remain visible.
+
+The exact technical mechanism is still open. Possible approaches include an
+explicit environment variable for strict gates, a release-branch check, a final
+explicit doctor assertion before review/done, or another mechanism agreed with
+the user. Negativtests that intentionally keep doctor-broken data require their
+own suite or fixture root.
 
 # Acceptance
 
-- `tests.d/000-setup/run.sh` runs doctor against the shared valid fixture and
-  prints useful output when doctor reports problems.
-- A failing setup doctor does not stop the regular Smokey suite.
-- The ticket documents that release builds must keep or add a separate strict
-  doctor check before producing release artifacts, and that this release gate
-  fails the build or release test on doctor errors.
-- The change does not hide setup failures unrelated to the doctor diagnostic.
+- Document the policy for setup doctor output during ordinary development,
+  `reviewing`, `done`, and release readiness.
+- Decide how strict setup doctor enforcement is activated without making Smokey
+  test code depend directly on Taskr ticket status unless explicitly agreed.
+- Ensure strict enforcement breaks the relevant build or test when doctor
+  reports problems.
+- Keep ordinary non-strict doctor runs visible but non-blocking.
+- Document that intentionally doctor-broken negative test data belongs in a
+  dedicated suite or fixture root.
 
 # Comments
 
 - 2026-08-17: Added after tag workflow tests exposed that a hard setup doctor
   gate encourages unnecessary fixture duplication whenever a future contract
   temporarily makes the shared fixture invalid before implementation.
+- 2026-08-17: Clarified that the `|| true` change in `000-setup` is part of
+  preparing the tag workflow contract, not the full solution for this ticket.
+  This ticket remains about defining and implementing the strict gate policy.
 
 # Outcome
