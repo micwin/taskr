@@ -5,6 +5,15 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+## [0.1.0+82]
+
+- Taskr items can now carry tags in marker frontmatter. Tags are visible in CLI
+- output and generated sites, searchable with `show '#tag'`, filterable with
+- `list --tags`, completed by the shell, and validated by Doctor.
+- Generated Taskr sites now include status filters. Done and cancelled work is
+- hidden by default, can be toggled back on, and milestones stay visible whenever
+- they contain visible work.
+
 - Added `taskr site open` with loopback serving, browser selection, positional
   site search, optional regeneration, and live watch reload.
 - Added repeatable, case-insensitive `taskr list --glob` filtering over complete

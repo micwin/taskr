@@ -68,7 +68,27 @@ esac
 
 next_version="${major}.${minor}.${patch}"
 printf '%s\n' "${next_version}" >VERSION
-git add VERSION
+
+tmp_changelog="$(mktemp)"
+awk '
+  BEGIN { in_unreleased = 0 }
+  /^## \[Unreleased\]/ {
+    print
+    print ""
+    in_unreleased = 1
+    next
+  }
+  in_unreleased && /^## \[/ {
+    in_unreleased = 0
+    print
+    next
+  }
+  in_unreleased { next }
+  { print }
+' CHANGELOG.md >"${tmp_changelog}" || { rm -f "${tmp_changelog}"; fail "could not reset CHANGELOG.md Unreleased section"; }
+mv "${tmp_changelog}" CHANGELOG.md
+
+git add VERSION CHANGELOG.md
 git commit -m "post release ${next_version}"
 
 echo "post release prepared version=${next_version} build=${build}"

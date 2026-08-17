@@ -36,12 +36,20 @@ GitHub Release all describe the same build.
 From clean synchronized `develop`, run:
 
 ```bash
+git push origin develop
+```
+
+Then run:
+
+```bash
 scripts/prepare-release.sh
 ```
 
-The script verifies `develop`, switches to or creates local `release`,
-fast-forwards it to the intended `develop` commit, and prepares tracked release
-files there. It may modify files such as `CHANGELOG.md`.
+The user is responsible for pushing `develop`; `prepare-release.sh` verifies
+that local `develop` matches `origin/develop`. The script then switches to or
+creates local `release`, fast-forwards it to the intended `develop` commit, and
+prepares tracked release files there. It may modify files such as
+`CHANGELOG.md`.
 
 `prepare-release.sh` does not commit, push, tag, or publish. Review its changes
 on `release` before continuing.
@@ -80,7 +88,8 @@ scripts/post-release.sh
 
 The script returns to `develop`, merges the released `release` branch back into
 `develop`, raises the next development version, and commits that post-release
-state. Patch is the default raise:
+state. It also clears the `## [Unreleased]` changelog staging section while
+keeping all versioned release sections. Patch is the default raise:
 
 ```bash
 scripts/post-release.sh --raise-patch
