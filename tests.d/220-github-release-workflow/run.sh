@@ -13,6 +13,41 @@ run_command() {
   set -e
 }
 
+create_release_fixture_repo() {
+  local repo="$1"
+  local remote="$2"
+  local version="$3"
+  local build="$4"
+
+  git init --bare "${remote}" >/dev/null
+  git init -b develop "${repo}" >/dev/null
+  git -C "${repo}" config user.name "Taskr Smokey"
+  git -C "${repo}" config user.email "taskr-smokey@example.invalid"
+  mkdir -p "${repo}/scripts"
+  cp scripts/release.sh "${repo}/scripts/release.sh"
+  cp scripts/prepare-release.sh "${repo}/scripts/prepare-release.sh"
+  cp scripts/post-release.sh "${repo}/scripts/post-release.sh"
+  chmod +x "${repo}/scripts/release.sh"
+  chmod +x "${repo}/scripts/prepare-release.sh"
+  chmod +x "${repo}/scripts/post-release.sh"
+  printf '%s\n' "${version}" >"${repo}/VERSION"
+  printf '%s\n' "${build}" >"${repo}/BUILD"
+  cat >"${repo}/CHANGELOG.md" <<'EOF'
+# Changelog
+
+## [Unreleased]
+
+- Release fixture.
+EOF
+  printf 'initial\n' >"${repo}/tracked.txt"
+  git -C "${repo}" add .
+  git -C "${repo}" commit -m initial >/dev/null
+  git -C "${repo}" remote add origin "${remote}"
+  git -C "${repo}" push -u origin develop >/dev/null
+  git -C "${repo}" branch release
+  git -C "${repo}" push origin release >/dev/null
+}
+
 # Frozen builds should preserve both version files and stamp every artifact consistently.
 version_file="${SMOKEY_STATE_DIR}/release-VERSION"
 build_file="${SMOKEY_STATE_DIR}/release-BUILD"
@@ -216,6 +251,52 @@ grep -q '^## \[0\.1\.0+41\]' "${release_repo}/CHANGELOG.md"
   echo "prepare-release should not push release" >&2
   exit 1
 }
+
+# Prepare can select a raised release version on the release branch while
+# preserving BUILD.
+prepare_minor_remote="${SMOKEY_STATE_DIR}/prepare-minor-origin.git"
+prepare_minor_repo="${SMOKEY_STATE_DIR}/prepare-minor-repo"
+create_release_fixture_repo "${prepare_minor_repo}" "${prepare_minor_remote}" 1.2.3 77
+run_command prepare_raise_minor env -C "${prepare_minor_repo}" scripts/prepare-release.sh --raise-minor
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+[ "$(git -C "${prepare_minor_repo}" branch --show-current)" = "release" ]
+grep -qx '1.3.0' "${prepare_minor_repo}/VERSION"
+grep -qx '77' "${prepare_minor_repo}/BUILD"
+grep -q '^## \[1\.3\.0+77\]' "${prepare_minor_repo}/CHANGELOG.md"
+[ -n "$(git -C "${prepare_minor_repo}" status --porcelain)" ] || {
+  echo "prepare-release --raise-minor should leave reviewable changes on release" >&2
+  exit 1
+}
+[ "$(git --git-dir="${prepare_minor_remote}" rev-parse release)" != "$(git -C "${prepare_minor_repo}" rev-parse release)" ] || {
+  echo "prepare-release --raise-minor should not push release" >&2
+  exit 1
+}
+
+prepare_major_remote="${SMOKEY_STATE_DIR}/prepare-major-origin.git"
+prepare_major_repo="${SMOKEY_STATE_DIR}/prepare-major-repo"
+create_release_fixture_repo "${prepare_major_repo}" "${prepare_major_remote}" 1.2.3 77
+run_command prepare_raise_major env -C "${prepare_major_repo}" scripts/prepare-release.sh --raise-major
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+[ "$(git -C "${prepare_major_repo}" branch --show-current)" = "release" ]
+grep -qx '2.0.0' "${prepare_major_repo}/VERSION"
+grep -qx '77' "${prepare_major_repo}/BUILD"
+grep -q '^## \[2\.0\.0+77\]' "${prepare_major_repo}/CHANGELOG.md"
+
+prepare_bad_remote="${SMOKEY_STATE_DIR}/prepare-bad-origin.git"
+prepare_bad_repo="${SMOKEY_STATE_DIR}/prepare-bad-repo"
+create_release_fixture_repo "${prepare_bad_repo}" "${prepare_bad_remote}" 1.2.3 77
+run_command prepare_mutually_exclusive env -C "${prepare_bad_repo}" scripts/prepare-release.sh --raise-major --raise-minor
+[ "${exit_code}" -ne 0 ] || { echo "mutually exclusive prepare raise flags should fail" >&2; exit 1; }
+grep -qi 'mutually\|exclusive\|raise' "${stderr}"
+[ "$(git -C "${prepare_bad_repo}" branch --show-current)" = "develop" ]
+grep -qx '1.2.3' "${prepare_bad_repo}/VERSION"
+grep -qx '77' "${prepare_bad_repo}/BUILD"
+run_command prepare_unknown_flag env -C "${prepare_bad_repo}" scripts/prepare-release.sh --raise-potato
+[ "${exit_code}" -ne 0 ] || { echo "unknown prepare flag should fail" >&2; exit 1; }
+grep -qi 'unknown option\|usage' "${stderr}"
+[ "$(git -C "${prepare_bad_repo}" branch --show-current)" = "develop" ]
+grep -qx '1.2.3' "${prepare_bad_repo}/VERSION"
+grep -qx '77' "${prepare_bad_repo}/BUILD"
 
 # Release runs only on release, commits the prepared state, pushes release, and
 # does not move develop.

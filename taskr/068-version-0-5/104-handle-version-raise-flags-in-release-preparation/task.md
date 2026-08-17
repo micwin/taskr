@@ -1,9 +1,10 @@
 ---
 title: Handle version raise flags in release preparation
-status: designing
+status: developing
 created_at: 2026-08-17T09:35:24Z
-updated_at: 2026-08-17T09:35:24Z
+updated_at: 2026-08-17T09:45:09Z
 designing_at: 2026-08-17T09:35:24Z
+developing_at: 2026-08-17T09:45:09Z
 ---
 
 # Description
@@ -28,27 +29,40 @@ That is misleading. If a release-preparation script receives a flag, it must
 either implement that flag deliberately or reject it. Silent flag ignoring is
 not acceptable for release tooling.
 
-The design must clarify whether version raising belongs to:
+Version raising belongs to both release preparation and post-release, with
+different semantics:
 
-- `prepare-release.sh` before preparing the release,
-- `post-release.sh` after publishing, or
-- both, with different semantics.
+- `prepare-release.sh --raise-major` and `--raise-minor` select the version to
+  release now.
+- `post-release.sh` raises the next development version after the release has
+  been published.
 
 Current known policy: `post-release.sh` already raises the next development
 version, with patch as default and explicit `--raise-minor`/`--raise-major`.
 
+For release preparation, starting from `VERSION=1.2.3`:
+
+- `--raise-major` prepares `2.0.0`.
+- `--raise-minor` prepares `1.3.0`.
+- Smaller version components are reset to `0`.
+- `BUILD` remains unchanged.
+
 # Acceptance
 
 - `prepare-release.sh` rejects unknown arguments instead of ignoring them.
-- The workflow explicitly documents whether `prepare-release.sh` supports
-  `--raise-major`, `--raise-minor`, and `--raise-patch`.
-- If `prepare-release.sh` supports raise flags, the script updates `VERSION` on
-  the `release` branch before generating the release changelog entry, while
-  preserving `BUILD`.
-- If `prepare-release.sh` does not support raise flags, it exits non-zero with
-  a clear message that version raising belongs to `post-release.sh` or another
-  documented step.
+- `prepare-release.sh` supports `--raise-major` and `--raise-minor`.
+- `prepare-release.sh` does not support implicit patch raising; with no raise
+  flag, it prepares the current `VERSION+BUILD`.
+- `prepare-release.sh --raise-major` increments major and resets minor and
+  patch to `0`.
+- `prepare-release.sh --raise-minor` increments minor and resets patch to `0`.
+- `prepare-release.sh` preserves `BUILD` for every raise mode.
+- `prepare-release.sh` updates `VERSION` on the `release` branch before
+  generating the release changelog entry.
+- `--raise-major` and `--raise-minor` are mutually exclusive.
 - Smokey covers the chosen behavior for `prepare-release.sh --raise-minor`.
+- Smokey covers `prepare-release.sh --raise-major`.
+- Smokey covers mutually exclusive raise flags.
 - Smokey covers at least one unknown flag and verifies it fails before
   switching branches or modifying files.
 - `RELEASING.md` documents the chosen behavior.
