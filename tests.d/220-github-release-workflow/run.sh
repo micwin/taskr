@@ -60,6 +60,9 @@ grep -q 'taskr doctor\|go run ./src/taskr doctor' .github/workflows/ci.yml
 grep -q 'smokey --tests-dir tests.d' .github/workflows/ci.yml
 grep -q '^name: .*Release' .github/workflows/release.yml
 grep -q 'release' .github/workflows/release.yml
+grep -q 'ref: release' .github/workflows/release.yml
+grep -q 'GITHUB_REF_NAME.*release\|release.*GITHUB_REF_NAME' .github/workflows/release.yml
+grep -q 'git rev-parse HEAD.*GITHUB_SHA\|GITHUB_SHA.*git rev-parse HEAD' .github/workflows/release.yml
 grep -q 'contents: write' .github/workflows/release.yml
 grep -q 'scripts/build.sh all --keep-build-count' .github/workflows/release.yml
 grep -q 'go test ./...' .github/workflows/release.yml
@@ -156,6 +159,7 @@ git -C "${release_repo}" push origin develop >/dev/null
 run_command prepare_success env -C "${release_repo}" scripts/prepare-release.sh
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 [ "$(git -C "${release_repo}" branch --show-current)" = "release" ]
+grep -q 'branch=release' "${stdout}"
 grep -q '^## \[0\.1\.0+41\]' "${release_repo}/CHANGELOG.md"
 [ -n "$(git -C "${release_repo}" status --porcelain)" ] || {
   echo "prepare-release should leave reviewable changes on release" >&2
@@ -172,9 +176,11 @@ develop_before_release="$(git -C "${release_repo}" rev-parse develop)"
 run_command release_success env -C "${release_repo}" scripts/release.sh
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 [ "$(git -C "${release_repo}" branch --show-current)" = "release" ]
+grep -q 'branch=release' "${stdout}"
 [ -z "$(git -C "${release_repo}" status --porcelain)" ]
 [ "$(git -C "${release_repo}" rev-parse develop)" = "${develop_before_release}" ]
 [ "$(git -C "${release_repo}" rev-parse release)" = "$(git --git-dir="${release_remote}" rev-parse release)" ]
+[ "$(git -C "${release_repo}" rev-parse release)" != "$(git -C "${release_repo}" rev-parse develop)" ]
 grep -q 'prepare release 0.1.0+41' <(git -C "${release_repo}" log -1 --format=%s)
 
 # Post-release returns to develop, merges release, and raises the next patch by default.

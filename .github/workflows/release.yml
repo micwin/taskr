@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: release
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -31,6 +32,9 @@ jobs:
         id: version
         shell: bash
         run: |
+          test "$(git branch --show-current)" = "release"
+          test "${GITHUB_REF_NAME}" = "release"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           version="$(tr -d '[:space:]' <VERSION)"
           build="$(tr -d '[:space:]' <BUILD)"
           [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]

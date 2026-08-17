@@ -29,4 +29,4 @@ git add -A
 git commit -m "prepare release ${release_version}"
 git push -u origin release
 
-echo "release branch pushed version=${release_version} commit=$(git rev-parse --short HEAD)"
+echo "release branch pushed version=${release_version} branch=release commit=$(git rev-parse --short HEAD)"

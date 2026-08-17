@@ -35,6 +35,7 @@ if git show-ref --verify --quiet refs/heads/release; then
 else
   git switch -c release develop
 fi
+[ "$(git branch --show-current)" = "release" ] || fail "prepare-release failed to switch to release"
 
 if grep -Fq "## [${release_version}]" CHANGELOG.md; then
   echo "release already prepared version=${release_version}"
