@@ -15,20 +15,25 @@ run_taskr() {
   set -e
 }
 
-invalid_root="${SMOKEY_STATE_DIR}/invalid-tags-root"
 tag_root="${SMOKEY_STATE_DIR}/tag-workflow-root"
 cp -R "${TASKR_BASE_ROOT}" "${tag_root}"
-cp -R "${SMOKEY_TEST_DIR}/fixtures/invalid-tags" "${invalid_root}"
 
 # Doctor accepts valid mixed-case tag input and normalizes internally.
 run_taskr doctor_valid "${tag_root}" doctor
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 
 # Doctor rejects invalid tag characters and duplicate normalized tags.
-run_taskr doctor_invalid "${invalid_root}" doctor
-[ "${exit_code}" -ne 0 ] || { echo "invalid tags should fail doctor" >&2; exit 1; }
-grep -qi "tag" "${stderr}"
-grep -qi "release1\\|#release\\|duplicate" "${stderr}"
+for case in invalid-digit invalid-hash duplicate-normalized; do
+  invalid_root="${SMOKEY_STATE_DIR}/${case}-root"
+  mkdir -p "${invalid_root}"
+  cp -R "${SMOKEY_TEST_DIR}/fixtures/invalid-tags/"*"${case}" "${invalid_root}/"
+  run_taskr "doctor_${case}" "${invalid_root}" doctor
+  [ "${exit_code}" -ne 0 ] || { echo "${case} tags should fail doctor" >&2; exit 1; }
+  grep -qi "tag" "${stderr}"
+done
+grep -qi "release1" "${SMOKEY_STATE_DIR}/doctor_invalid-digit.stderr"
+grep -qi "#release" "${SMOKEY_STATE_DIR}/doctor_invalid-hash.stderr"
+grep -qi "duplicate" "${SMOKEY_STATE_DIR}/doctor_duplicate-normalized.stderr"
 
 # Show resolves an exact #tag across every item type and reports ambiguity.
 run_taskr show_copy "${tag_root}" show '#copy'
@@ -81,4 +86,4 @@ grep -qx $'public\t tag' "${stdout}"
 # Mutating selectors do not accept tag selectors as targets.
 run_taskr status_tag_rejected "${tag_root}" status '#copy' reviewing
 [ "${exit_code}" -ne 0 ] || { echo "mutating tag selector should fail" >&2; exit 1; }
-grep -qi 'not found\\|tag\\|selector' "${stderr}"
+grep -qi 'not found\|tag\|selector' "${stderr}"

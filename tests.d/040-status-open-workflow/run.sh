@@ -64,7 +64,7 @@ grep -q "new=developing" "${stdout}"
 assert_status_timestamp "${child_marker}" developing_at
 run_taskr list_developing "${root}" list --status developing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "004 subtask developing Define selectors" "${stdout}"
+grep -q "004 subtask developing #copy Define selectors" "${stdout}"
 run_taskr status_parent_developing_blocked "${root}" status 003 done
 [ "${exit_code}" -ne 0 ] || { echo "parent should not close while child is developing" >&2; exit 1; }
 grep -q "004" "${stderr}"
@@ -77,7 +77,7 @@ grep -q "new=reviewing" "${stdout}"
 assert_status_timestamp "${child_marker}" reviewing_at
 run_taskr list_reviewing "${root}" list --status reviewing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "004 subtask reviewing Define selectors" "${stdout}"
+grep -q "004 subtask reviewing #copy Define selectors" "${stdout}"
 run_taskr status_parent_still_blocked "${root}" status 003 done
 [ "${exit_code}" -ne 0 ] || { echo "parent should not close while child is reviewing" >&2; exit 1; }
 grep -q "004" "${stderr}"

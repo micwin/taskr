@@ -68,6 +68,7 @@ run_taskr show_meta "${root}" show 003 --meta
 grep -q '^ID: 003$' "${stdout}"
 grep -q '^Title: Define workflows$' "${stdout}"
 grep -q '^Status: active$' "${stdout}"
+grep -q '^Tags: #(release,website)$' "${stdout}"
 grep -q '^Created at:' "${stdout}"
 grep -q '^Updated at:' "${stdout}"
 if grep -q '^# Description$' "${stdout}"; then
@@ -78,20 +79,20 @@ fi
 # Default list output should be stable and omit terminal items.
 run_taskr list_root "${root}" list
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "001 milestone active MVP" "${stdout}"
-if grep -q "002 task done Define directory structure" "${stdout}"; then
+grep -q "001 milestone active #(public,website) MVP" "${stdout}"
+if grep -q "002 task done #internal Define directory structure" "${stdout}"; then
   echo "default list should hide done items" >&2
   exit 1
 fi
 run_taskr list_root_all "${root}" list --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "002 task done Define directory structure" "${stdout}"
+grep -q "002 task done #internal Define directory structure" "${stdout}"
 run_taskr list_under "${root}" list --under 001
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "003 task active Define workflows" "${stdout}"
+grep -q "003 task active #(release,website) Define workflows" "${stdout}"
 run_taskr list_filtered "${root}" list --type task --status active
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q "003 task active Define workflows" "${stdout}"
+grep -q "003 task active #(release,website) Define workflows" "${stdout}"
 
 # Missing and ambiguous selectors should fail with useful diagnostics.
 run_taskr show_missing "${root}" show does-not-exist

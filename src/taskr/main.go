@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var version = "dev"
@@ -68,6 +69,7 @@ type item struct {
 	Title      string
 	Status     string
 	Priority   string
+	Tags       []string
 	CreatedAt  string
 	UpdatedAt  string
 	StatusAt   map[string]string
@@ -207,12 +209,15 @@ Inspect work:
   taskr list --all
   taskr list --glob workflow
   taskr list --all --type task --under 001 --glob 'release*' --glob artifact
+  taskr list --tags website
+  taskr list --type task --status developing --tags website,release
   taskr tree
   taskr tree 001 --all
   taskr tree 001 --ascii
   taskr tree 001 --all --show-priority
   taskr tree 001 --hide-priority
   taskr show 002
+  taskr show '#website'
   taskr show 002 --meta
   taskr report
 
@@ -384,7 +389,7 @@ func doctorCommand(rootPath string) *cobra.Command {
 
 Current validation checks that the root can be loaded as a Taskr worktree:
 marker structure, item directory IDs, marker frontmatter used by Taskr, status
-values, optional status-transition timestamps, task priority metadata, and
+values, optional status-transition timestamps, task priority metadata, tags, and
 root-wide duplicate IDs. Optional root-local taskr.toml project configuration
 is parsed strictly; configured site paths and ownership markers are validated
 with the worktree.
@@ -493,20 +498,23 @@ func showCommand(rootPath string) *cobra.Command {
 By default, show prints readable item identity and the complete Markdown body.
 Stored high and low task priorities are always visible. Use --meta to print all
 marker metadata, including effective normal priority, without the body.
-Ambiguous selectors fail and list every matching item's ID and title.`,
+Ambiguous selectors fail and list every matching item's ID and title.
+
+Use a quoted or escaped #tag selector to search exact tags, for example
+taskr show '#website'.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
 			if err != nil {
 				return err
 			}
-			it, err := resolveItem(t, args[0])
+			it, err := resolveShowItem(t, args[0])
 			if err != nil {
 				return err
 			}
 			return writeShownItem(cmd.OutOrStdout(), it, metaOnly)
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: tagAwareSelectorArgCompletion(rootPath, true),
 	}
 	cmd.Flags().BoolVar(&metaOnly, "meta", false, "show marker metadata without the Markdown body")
 	return cmd
@@ -516,6 +524,9 @@ func writeShownItem(w io.Writer, it *item, metaOnly bool) error {
 	fmt.Fprintf(w, "ID: %s\nType: %s\nTitle: %s\nStatus: %s\n", it.IDText, it.Type, it.Title, it.Status)
 	if it.Type == "task" && (metaOnly || it.Priority != "normal") {
 		fmt.Fprintf(w, "Priority: %s\n", it.Priority)
+	}
+	if tags := compactTags(it.Tags); tags != "" {
+		fmt.Fprintf(w, "Tags: %s\n", tags)
 	}
 	fmt.Fprintf(w, "Marker: %s\n", filepath.ToSlash(filepath.Join(it.RelDir, it.Marker)))
 	if metaOnly {
@@ -558,7 +569,7 @@ func markerBody(path string) (string, error) {
 }
 
 func listCommand(rootPath string) *cobra.Command {
-	var under, typeFilter, statusFilter, priorityFilter, groupBy string
+	var under, typeFilter, statusFilter, priorityFilter, groupBy, tagFilter string
 	var globs []string
 	var includeAll, showPriority, hidePriority bool
 
@@ -570,7 +581,9 @@ func listCommand(rootPath string) *cobra.Command {
 By default, list excludes done and cancelled items. Use --all to include them.
 Explicit done or cancelled status filters therefore require --all. Repeated
 --glob values filter complete marker text case-insensitively and must each match
-at least one marker line.`,
+at least one marker line.
+
+Use --tags with a comma-separated list to require all supplied tags.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPriority && hidePriority {
@@ -590,7 +603,7 @@ at least one marker line.`,
 			if err != nil {
 				return err
 			}
-			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter, includeAll)
+			items, err := filteredItems(t, under, typeFilter, statusFilter, priorityFilter, tagFilter, includeAll)
 			if err != nil {
 				return err
 			}
@@ -620,6 +633,7 @@ at least one marker line.`,
 	cmd.Flags().StringVar(&typeFilter, "type", "", "item type filter")
 	cmd.Flags().StringVar(&statusFilter, "status", "", "item status filter")
 	cmd.Flags().StringVar(&priorityFilter, "priority", "", "effective task priority filter")
+	cmd.Flags().StringVar(&tagFilter, "tags", "", "comma-separated tag filter; all tags must match")
 	cmd.Flags().BoolVar(&showPriority, "show-priority", false, "show effective priority for every task")
 	cmd.Flags().BoolVar(&hidePriority, "hide-priority", false, "hide all task priority values")
 	cmd.Flags().StringVar(&groupBy, "group-by", "", "group task output by priority")
@@ -629,6 +643,7 @@ at least one marker line.`,
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	mustRegisterCompletion(cmd, "priority", staticCompletion(priorities))
 	mustRegisterCompletion(cmd, "group-by", staticCompletion([]string{"priority"}))
+	mustRegisterCompletion(cmd, "tags", tagListCompletion(rootPath))
 	return cmd
 }
 
@@ -1102,10 +1117,14 @@ func directChildCount(it *item, itemType string) int {
 }
 
 func reportItemLine(it *item, withType bool) string {
-	if withType {
-		return fmt.Sprintf("%s [%s %s] %s", it.IDText, it.Type, it.Status, it.Title)
+	tags := compactTags(it.Tags)
+	if tags != "" {
+		tags += " "
 	}
-	return fmt.Sprintf("%s [%s] %s", it.IDText, it.Status, it.Title)
+	if withType {
+		return fmt.Sprintf("%s [%s %s] %s%s", it.IDText, it.Type, it.Status, tags, it.Title)
+	}
+	return fmt.Sprintf("%s [%s] %s%s", it.IDText, it.Status, tags, it.Title)
 }
 
 func titlePluralItemType(itemType string) string {
@@ -1813,6 +1832,10 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 	if err != nil {
 		return nil, err
 	}
+	tags, err := parseMarkerTags(filepath.Join(dir, marker))
+	if err != nil {
+		return nil, err
+	}
 	statusAt := make(map[string]string, len(statuses))
 	for _, candidate := range statuses {
 		field := candidate + "_at"
@@ -1832,6 +1855,7 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 		Title:      title,
 		Status:     status,
 		Priority:   priority,
+		Tags:       tags,
 		CreatedAt:  fields["created_at"],
 		UpdatedAt:  fields["updated_at"],
 		StatusAt:   statusAt,
@@ -1904,6 +1928,72 @@ func parseFrontmatter(path string) (map[string]string, error) {
 	return nil, exitError{code: 2, msg: fmt.Sprintf("%s: unterminated frontmatter", path)}
 }
 
+func frontmatterDocument(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	content := string(data)
+	if !strings.HasPrefix(content, "---\n") {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("%s: missing frontmatter", path)}
+	}
+	end := strings.Index(content[len("---\n"):], "\n---\n")
+	if end < 0 {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("%s: unterminated frontmatter", path)}
+	}
+	return []byte(content[len("---\n") : len("---\n")+end]), nil
+}
+
+func parseMarkerTags(path string) ([]string, error) {
+	document, err := frontmatterDocument(path)
+	if err != nil {
+		return nil, err
+	}
+	var fields map[string]any
+	if err := yaml.Unmarshal(document, &fields); err != nil {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("%s: invalid frontmatter yaml: %v", path, err)}
+	}
+	raw, ok := fields["tags"]
+	if !ok || raw == nil {
+		return nil, nil
+	}
+	values, ok := raw.([]any)
+	if !ok {
+		return nil, exitError{code: 2, msg: fmt.Sprintf("%s: tags must be a YAML list", path)}
+	}
+	var tags []string
+	seen := map[string]bool{}
+	for _, entry := range values {
+		value, ok := entry.(string)
+		if !ok {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("%s: tags must contain strings", path)}
+		}
+		tag, err := normalizeTag(value)
+		if err != nil {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("%s: invalid tag %q: %v", path, value, err)}
+		}
+		if seen[tag] {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("%s: duplicate normalized tag %q", path, tag)}
+		}
+		seen[tag] = true
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags, nil
+}
+
+func normalizeTag(value string) (string, error) {
+	if value == "" {
+		return "", errors.New("empty tag")
+	}
+	for _, r := range value {
+		if r < 'A' || r > 'Z' && (r < 'a' || r > 'z') {
+			return "", errors.New("only ASCII letters are allowed")
+		}
+	}
+	return strings.ToLower(value), nil
+}
+
 func parseDirName(name string) (string, string, error) {
 	id, slug, ok := strings.Cut(name, "-")
 	if !ok || id == "" || slug == "" {
@@ -1949,6 +2039,30 @@ func resolveItem(t *tree, selector string) (*item, error) {
 	return matches[0], nil
 }
 
+func resolveShowItem(t *tree, selector string) (*item, error) {
+	selector = strings.TrimSpace(selector)
+	if strings.HasPrefix(selector, "#") {
+		tag, err := normalizeTag(strings.TrimPrefix(selector, "#"))
+		if err != nil {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid tag selector %q: %v", selector, err)}
+		}
+		var matches []*item
+		for _, it := range t.Items {
+			if itemHasTag(it, tag) {
+				matches = append(matches, it)
+			}
+		}
+		if len(matches) == 0 {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("no match for selector %q", selector)}
+		}
+		if len(matches) > 1 {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("ambiguous selector %q; candidates:%s", selector, candidateList(matches))}
+		}
+		return matches[0], nil
+	}
+	return resolveItem(t, selector)
+}
+
 func resolveUnder(t *tree, under string) ([]*item, error) {
 	if under == "" {
 		return t.Items, nil
@@ -1987,9 +2101,16 @@ func staticCompletion(values []string) func(*cobra.Command, []string, string) ([
 }
 
 func selectorArgCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return tagAwareSelectorArgCompletion(rootPath, false)
+}
+
+func tagAwareSelectorArgCompletion(rootPath string, includeTags bool) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		if includeTags && strings.HasPrefix(toComplete, "#") {
+			return tagHashCompletion(rootPath)(cmd, args, toComplete)
 		}
 		return selectorCompletion(rootPath)(cmd, args, toComplete)
 	}
@@ -1997,6 +2118,30 @@ func selectorArgCompletion(rootPath string) func(*cobra.Command, []string, strin
 
 func selectorCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return filteredSelectorCompletion(rootPath, func(*item) bool { return true })
+}
+
+func tagHashCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		t, err := loadTree(rootPath)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return filterCompletions(tagCompletions(t, true), toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func tagListCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		t, err := loadTree(rootPath)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		_, suffix, _ := strings.Cut(toComplete, ",")
+		if strings.Contains(toComplete, ",") {
+			return filterCompletions(tagCompletions(t, false), suffix), cobra.ShellCompDirectiveNoFileComp
+		}
+		return filterCompletions(tagCompletions(t, false), toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
 }
 
 func treeArgCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
@@ -2093,6 +2238,26 @@ func selectorCompletions(t *tree, include func(*item) bool) []string {
 	return values
 }
 
+func tagCompletions(t *tree, hash bool) []string {
+	seen := map[string]bool{}
+	var values []string
+	for _, it := range t.Items {
+		for _, tag := range it.Tags {
+			if seen[tag] {
+				continue
+			}
+			seen[tag] = true
+			value := tag
+			if hash {
+				value = "#" + value
+			}
+			values = append(values, fmt.Sprintf("%s\t tag", value))
+		}
+	}
+	sort.Strings(values)
+	return values
+}
+
 func filterCompletions(values []string, prefix string) []string {
 	if prefix == "" {
 		return append([]string(nil), values...)
@@ -2110,7 +2275,7 @@ func filterCompletions(values []string, prefix string) []string {
 	return out
 }
 
-func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter string, includeAll bool) ([]*item, error) {
+func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter, tagFilter string, includeAll bool) ([]*item, error) {
 	if typeFilter != "" {
 		if _, ok := typeMarkers[typeFilter]; !ok {
 			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid type %q", typeFilter)}
@@ -2124,6 +2289,10 @@ func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter stri
 	}
 	if priorityFilter != "" && !isPriority(priorityFilter) {
 		return nil, exitError{code: 2, msg: fmt.Sprintf("invalid priority %q", priorityFilter)}
+	}
+	requiredTags, err := parseTagFilter(tagFilter)
+	if err != nil {
+		return nil, err
 	}
 	items, err := resolveUnder(t, under)
 	if err != nil {
@@ -2143,10 +2312,50 @@ func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter stri
 		if priorityFilter != "" && (it.Type != "task" || it.Priority != priorityFilter) {
 			continue
 		}
+		if len(requiredTags) > 0 && !itemHasAllTags(it, requiredTags) {
+			continue
+		}
 		out = append(out, it)
 	}
 	sortItems(out)
 	return out, nil
+}
+
+func parseTagFilter(value string) ([]string, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+	var tags []string
+	seen := map[string]bool{}
+	for _, part := range strings.Split(value, ",") {
+		tag, err := normalizeTag(strings.TrimSpace(part))
+		if err != nil {
+			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid tag filter %q: %v", part, err)}
+		}
+		if !seen[tag] {
+			seen[tag] = true
+			tags = append(tags, tag)
+		}
+	}
+	return tags, nil
+}
+
+func itemHasAllTags(it *item, tags []string) bool {
+	for _, tag := range tags {
+		if !itemHasTag(it, tag) {
+			return false
+		}
+	}
+	return true
+}
+
+func itemHasTag(it *item, tag string) bool {
+	for _, candidate := range it.Tags {
+		if candidate == tag {
+			return true
+		}
+	}
+	return false
 }
 
 func compileLineGlobs(patterns []string) ([]*regexp.Regexp, error) {
@@ -2291,7 +2500,7 @@ func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix s
 		writeASCIITreeItem(w, it, prefix, last, root, opts)
 		return
 	}
-	fmt.Fprintf(w, "%s%s [%s] %s\n", strings.Repeat(opts.indent, depth), it.IDText, treeItemMeta(it, opts.priority), it.Title)
+	fmt.Fprintf(w, "%s%s [%s] %s%s\n", strings.Repeat(opts.indent, depth), it.IDText, treeItemMeta(it, opts.priority), tagPrefix(it), it.Title)
 	children := visibleItems(it.Children, opts)
 	for i, child := range children {
 		writeTreeItem(w, child, "", depth+1, i == len(children)-1, false, opts)
@@ -2300,9 +2509,9 @@ func writeTreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix s
 
 func writeASCIITreeItem(w interface{ Write([]byte) (int, error) }, it *item, prefix string, last bool, root bool, opts treeOptions) {
 	if root {
-		fmt.Fprintf(w, "%s [%s] %s\n", it.IDText, treeItemMeta(it, opts.priority), it.Title)
+		fmt.Fprintf(w, "%s [%s] %s%s\n", it.IDText, treeItemMeta(it, opts.priority), tagPrefix(it), it.Title)
 	} else {
-		fmt.Fprintf(w, "%s+- %s [%s] %s\n", prefix, it.IDText, treeItemMeta(it, opts.priority), it.Title)
+		fmt.Fprintf(w, "%s+- %s [%s] %s%s\n", prefix, it.IDText, treeItemMeta(it, opts.priority), tagPrefix(it), it.Title)
 	}
 	childPrefix := prefix
 	if !root {
@@ -2689,10 +2898,11 @@ func writeItemLinesWithPriority(w interface{ Write([]byte) (int, error) }, items
 		if it.Type == "task" && (mode == priorityDisplayShow || mode == priorityDisplayAuto && it.Priority != "normal") {
 			priority = " priority=" + it.Priority
 		}
+		tags := tagPrefix(it)
 		if withType {
-			fmt.Fprintf(w, "%s %s %s%s %s\n", it.IDText, it.Type, it.Status, priority, it.Title)
+			fmt.Fprintf(w, "%s %s %s%s %s%s\n", it.IDText, it.Type, it.Status, priority, tags, it.Title)
 		} else {
-			fmt.Fprintf(w, "%s %s%s %s\n", it.IDText, it.Status, priority, it.Title)
+			fmt.Fprintf(w, "%s %s%s %s%s\n", it.IDText, it.Status, priority, tags, it.Title)
 		}
 	}
 }
@@ -2715,9 +2925,27 @@ func writePriorityGroups(w interface{ Write([]byte) (int, error) }, items []*ite
 			if rowMode == priorityDisplayShow {
 				priorityText = " priority=" + it.Priority
 			}
-			fmt.Fprintf(w, "  %s %s %s%s %s\n", it.IDText, it.Type, it.Status, priorityText, it.Title)
+			fmt.Fprintf(w, "  %s %s %s%s %s%s\n", it.IDText, it.Type, it.Status, priorityText, tagPrefix(it), it.Title)
 		}
 	}
+}
+
+func tagPrefix(it *item) string {
+	tags := compactTags(it.Tags)
+	if tags == "" {
+		return ""
+	}
+	return tags + " "
+}
+
+func compactTags(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	if len(tags) == 1 {
+		return "#" + tags[0]
+	}
+	return "#(" + strings.Join(tags, ",") + ")"
 }
 
 func sortItemsByPriority(items []*item) {

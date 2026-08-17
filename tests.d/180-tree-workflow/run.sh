@@ -25,9 +25,9 @@ if [ "${exit_code}" -ne 0 ]; then
   cat "${stderr}" >&2
   exit 1
 fi
-grep -q '^001 \[milestone active\] MVP$' "${stdout}"
-grep -q '^  003 \[task active\] Define workflows$' "${stdout}"
-grep -q '^    004 \[subtask designing\] Define selectors$' "${stdout}"
+grep -q '^001 \[milestone active\] #(public,website) MVP$' "${stdout}"
+grep -q '^  003 \[task active\] #(release,website) Define workflows$' "${stdout}"
+grep -q '^    004 \[subtask designing\] #copy Define selectors$' "${stdout}"
 if grep -q '+- \||  ' "${stdout}"; then
   echo "default tree should not use branch markers" >&2
   exit 1
@@ -44,7 +44,7 @@ if [ "${exit_code}" -ne 0 ]; then
   cat "${stderr}" >&2
   exit 1
 fi
-grep -q '^  002 \[task done\] Define directory structure$' "${stdout}"
+grep -q '^  002 \[task done\] #internal Define directory structure$' "${stdout}"
 grep -q '^  005 \[task active\] Open work$' "${stdout}"
 
 # ASCII mode should preserve the previous branch-marker output.
@@ -54,18 +54,18 @@ if [ "${exit_code}" -ne 0 ]; then
   cat "${stderr}" >&2
   exit 1
 fi
-grep -q '^+- 003 \[task active\] Define workflows$' "${stdout}"
-grep -q '^|  +- 004 \[subtask designing\] Define selectors$' "${stdout}"
+grep -q '^+- 003 \[task active\] #(release,website) Define workflows$' "${stdout}"
+grep -q '^|  +- 004 \[subtask designing\] #copy Define selectors$' "${stdout}"
 
 # Tabs and wide mode should offer alternate indentation styles.
 run_taskr tree_tabs "${root}" tree --tabs
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q $'^\t003 \\[task active\\] Define workflows$' "${stdout}"
-grep -q $'^\t\t004 \\[subtask designing\\] Define selectors$' "${stdout}"
+grep -q $'^\t003 \\[task active\\] #(release,website) Define workflows$' "${stdout}"
+grep -q $'^\t\t004 \\[subtask designing\\] #copy Define selectors$' "${stdout}"
 run_taskr tree_wide "${root}" tree --wide
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^    003 \[task active\] Define workflows$' "${stdout}"
-grep -q '^        004 \[subtask designing\] Define selectors$' "${stdout}"
+grep -q '^    003 \[task active\] #(release,website) Define workflows$' "${stdout}"
+grep -q '^        004 \[subtask designing\] #copy Define selectors$' "${stdout}"
 
 # Selected subtree output should start at the selected item.
 run_taskr tree_subtree "${root}" tree 003
@@ -74,8 +74,8 @@ if [ "${exit_code}" -ne 0 ]; then
   cat "${stderr}" >&2
   exit 1
 fi
-grep -q '^003 \[task active\] Define workflows$' "${stdout}"
-grep -q '^  004 \[subtask designing\] Define selectors$' "${stdout}"
+grep -q '^003 \[task active\] #(release,website) Define workflows$' "${stdout}"
+grep -q '^  004 \[subtask designing\] #copy Define selectors$' "${stdout}"
 if grep -q '^001 ' "${stdout}"; then
   echo "selected tree should not include parent item" >&2
   exit 1
@@ -91,14 +91,14 @@ if [ "${exit_code}" -ne 0 ]; then
   cat "${stderr}" >&2
   exit 1
 fi
-grep -q '^001 \[milestone active\] MVP$' "${stdout}"
+grep -q '^001 \[milestone active\] #(public,website) MVP$' "${stdout}"
 if grep -q '\[task done\]\|\[task cancelled\]' "${stdout}"; then
   echo "default tree should hide terminal items" >&2
   exit 1
 fi
 run_taskr tree_with_terminal "${root}" tree --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^  002 \[task done\] Define directory structure$' "${stdout}"
+grep -q '^  002 \[task done\] #internal Define directory structure$' "${stdout}"
 grep -q '^  005 \[task cancelled\] Open work$' "${stdout}"
 
 # Refinement-style multi-milestone output should stay readable.

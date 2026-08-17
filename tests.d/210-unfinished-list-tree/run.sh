@@ -56,9 +56,9 @@ run_taskr status_cancelled_milestone "${root}" status 013 cancelled
 # Default list should include every non-terminal status and exclude both terminal statuses.
 run_taskr list_unfinished "${root}" list
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '001 milestone active MVP' "${stdout}"
-grep -q '003 task active Define workflows' "${stdout}"
-grep -q '004 subtask designing Define selectors' "${stdout}"
+grep -q '001 milestone active #(public,website) MVP' "${stdout}"
+grep -q '003 task active #(release,website) Define workflows' "${stdout}"
+grep -q '004 subtask designing #copy Define selectors' "${stdout}"
 grep -q '006 task open Open task' "${stdout}"
 grep -q '007 task developing Developing task' "${stdout}"
 grep -q '008 task reviewing Reviewing task' "${stdout}"
@@ -71,7 +71,7 @@ fi
 # List --all should restore terminal milestones, tasks, and subtasks.
 run_taskr list_all "${root}" list --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '002 task done Define directory structure' "${stdout}"
+grep -q '002 task done #internal Define directory structure' "${stdout}"
 grep -q '005 task cancelled Open work' "${stdout}"
 grep -q '010 subtask done Done subtask' "${stdout}"
 grep -q '011 subtask cancelled Cancelled subtask' "${stdout}"
@@ -87,7 +87,7 @@ run_taskr list_cancelled_without_all "${root}" list --status cancelled
 grep -qi 'cancelled.*--all\|--all.*cancelled' "${stderr}"
 run_taskr list_done_with_all "${root}" list --all --status done
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '002 task done Define directory structure' "${stdout}"
+grep -q '002 task done #internal Define directory structure' "${stdout}"
 grep -q '010 subtask done Done subtask' "${stdout}"
 grep -q '012 milestone done Done milestone' "${stdout}"
 if grep -q ' cancelled ' "${stdout}"; then
@@ -113,7 +113,7 @@ fi
 run_taskr list_priority_all "${root}" list --all --under 001 --type task --priority high --group-by priority
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q '^Priority: high$' "${stdout}"
-grep -q '^  002 task done Define directory structure$' "${stdout}"
+grep -q '^  002 task done #internal Define directory structure$' "${stdout}"
 grep -q '^  006 task open Open task$' "${stdout}"
 
 # Tree should use the same default and --all visibility for every item type.
@@ -127,7 +127,7 @@ if grep -q ' done\]\| cancelled\]' "${stdout}"; then
 fi
 run_taskr tree_all "${root}" tree --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '002 \[task done priority=high\] Define directory structure' "${stdout}"
+grep -q '002 \[task done priority=high\] #internal Define directory structure' "${stdout}"
 grep -q '005 \[task cancelled\] Open work' "${stdout}"
 grep -q '010 \[subtask done\] Done subtask' "${stdout}"
 grep -q '011 \[subtask cancelled\] Cancelled subtask' "${stdout}"

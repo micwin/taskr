@@ -1,9 +1,10 @@
 ---
 title: Analyze tags and labels
-status: developing
+status: reviewing
 created_at: 2026-08-10T12:33:35Z
-updated_at: 2026-08-17T07:01:33Z
+updated_at: 2026-08-17T07:34:32Z
 developing_at: 2026-08-17T07:01:33Z
+reviewing_at: 2026-08-17T07:34:32Z
 ---
 
 # Description
@@ -99,3 +100,32 @@ filters on item and result pages.
   general strict doctor gate policy is tracked separately in ticket `096`.
 
 # Outcome
+
+Implemented tags for milestones, tasks, and subtasks.
+
+Delivered behavior:
+
+- Marker frontmatter accepts `tags` as a YAML list in inline or block form.
+- Tags are normalized to lowercase and validated as ASCII letters only.
+- Doctor rejects invalid tag values, non-list tag storage, non-string tag
+  values, and duplicate normalized tags.
+- `show '#tag'` performs exact tag lookup and reports normal ambiguity
+  diagnostics when multiple items share the tag.
+- `list --tags tag1,tag2` filters with case-insensitive AND semantics.
+- `show`, `list`, `tree`, and `report` display existing tags compactly.
+- Shell completion suggests known tags for `show '#...'` and `list --tags`.
+- Mutating item selectors continue to reject tag selectors.
+- Generated site data includes tags, item/result pages render clickable tag
+  links, and `q=%23tag` searches tags without making ordinary text queries
+  match tags accidentally.
+- Shared Smokey fixtures carry valid tags; intentionally invalid tag data stays
+  isolated in the tag workflow suite.
+
+Verified with `go test ./src/taskr` and `smokey --tests-dir tests.d`
+(`31/31 ok`).
+
+# Release Notes
+
+Taskr items can now carry tags in marker frontmatter. Tags are visible in CLI
+output and generated sites, searchable with `show '#tag'`, filterable with
+`list --tags`, completed by the shell, and validated by Doctor.

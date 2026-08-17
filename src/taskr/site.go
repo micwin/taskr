@@ -12,14 +12,15 @@ import (
 )
 
 type siteItem struct {
-	ID        string `json:"id"`
-	Slug      string `json:"slug"`
-	Title     string `json:"title"`
-	Type      string `json:"type"`
-	Status    string `json:"status"`
-	Priority  string `json:"priority,omitempty"`
-	Milestone string `json:"milestone,omitempty"`
-	URL       string `json:"url"`
+	ID        string   `json:"id"`
+	Slug      string   `json:"slug"`
+	Title     string   `json:"title"`
+	Type      string   `json:"type"`
+	Status    string   `json:"status"`
+	Priority  string   `json:"priority,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
+	Milestone string   `json:"milestone,omitempty"`
+	URL       string   `json:"url"`
 }
 
 type markerSection struct {
@@ -134,7 +135,7 @@ func newSiteItem(it *item) siteItem {
 	}
 	return siteItem{
 		ID: it.IDText, Slug: it.Slug, Title: it.Title, Type: it.Type,
-		Status: it.Status, Priority: it.Priority, Milestone: milestoneID,
+		Status: it.Status, Priority: it.Priority, Tags: it.Tags, Milestone: milestoneID,
 		URL: "items/" + siteItemFilename(it),
 	}
 }
@@ -195,7 +196,7 @@ func renderStatusLinks(items []*item, milestone string) string {
 }
 
 func renderIndexItem(b *strings.Builder, it *item, depth int) {
-	fmt.Fprintf(b, `<div class="item-row" style="--depth:%d"><a class="item-id" href="items/%s">%s</a><a href="items/%s">%s</a><span class="item-slug">%s</span><span class="badge">%s</span></div>`, depth, siteItemFilename(it), html.EscapeString(it.IDText), siteItemFilename(it), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status))
+	fmt.Fprintf(b, `<div class="item-row" style="--depth:%d"><a class="item-id" href="items/%s">%s</a><a href="items/%s">%s</a><span class="item-slug">%s</span><span class="badge">%s %s</span></div>`, depth, siteItemFilename(it), html.EscapeString(it.IDText), siteItemFilename(it), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status), renderSiteTags(it.Tags, ""))
 	for _, child := range it.Children {
 		renderIndexItem(b, child, depth+1)
 	}
@@ -209,7 +210,7 @@ func itemMilestone(it *item) *item {
 }
 
 func renderResultsPage(t *tree, generatedAt string) string {
-	content := `<header class="page-header compact"><div><p class="eyebrow">Taskr results</p><h1 id="results-title">Matching items</h1><p id="results-summary" aria-live="polite"></p></div><a href="index.html">Project overview</a></header><main><div class="table-wrap"><table id="result-table"><thead><tr><th>ID</th><th>Title</th><th>Slug</th><th>Type</th><th>Status</th></tr></thead><tbody></tbody></table><p id="empty-results" hidden>No matching items.</p></div><nav class="pager" aria-label="Result pages"><button id="previous-page" type="button">Previous</button><span id="page-status"></span><button id="next-page" type="button">Next</button></nav></main>`
+	content := `<header class="page-header compact"><div><p class="eyebrow">Taskr results</p><h1 id="results-title">Matching items</h1><p id="results-summary" aria-live="polite"></p></div><a href="index.html">Project overview</a></header><main><div class="table-wrap"><table id="result-table"><thead><tr><th>ID</th><th>Title</th><th>Slug</th><th>Type</th><th>Status</th><th>Tags</th></tr></thead><tbody></tbody></table><p id="empty-results" hidden>No matching items.</p></div><nav class="pager" aria-label="Result pages"><button id="previous-page" type="button">Previous</button><span id="page-status"></span><button id="next-page" type="button">Next</button></nav></main>`
 	return siteDocument(filepath.Base(t.Root)+" results - Taskr", "", content, true)
 }
 
@@ -223,7 +224,7 @@ func renderItemPage(t *tree, it *item, generatedAt string) (string, error) {
 		return "", fmt.Errorf("render %s: %w", it.MarkerPath, err)
 	}
 	var body strings.Builder
-	fmt.Fprintf(&body, `<header class="page-header compact"><div><p class="eyebrow">%s <span>%s</span></p><div class="title-row"><a id="previous-result" class="result-nav" hidden aria-label="Previous result">&lt;</a><h1>%s</h1><a id="next-result" class="result-nav" hidden aria-label="Next result">&gt;</a></div><p class="meta"><span>%s</span><span>%s</span><span>%s</span></p></div><a href="../index.html">Project overview</a></header>`, html.EscapeString(it.Type), html.EscapeString(it.IDText), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status), html.EscapeString(it.Priority))
+	fmt.Fprintf(&body, `<header class="page-header compact"><div><p class="eyebrow">%s <span>%s</span></p><div class="title-row"><a id="previous-result" class="result-nav" hidden aria-label="Previous result">&lt;</a><h1>%s</h1><a id="next-result" class="result-nav" hidden aria-label="Next result">&gt;</a></div><p class="meta"><span>%s</span><span>%s</span><span>%s</span><span>%s</span></p></div><a href="../index.html">Project overview</a></header>`, html.EscapeString(it.Type), html.EscapeString(it.IDText), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status), html.EscapeString(it.Priority), renderSiteTags(it.Tags, "../"))
 	body.WriteString(`<main class="ticket" data-result-context><section class="metadata"><h2>Metadata</h2><dl>`)
 	metadata := [][2]string{{"ID", it.IDText}, {"Type", it.Type}, {"Slug", it.Slug}, {"Status", it.Status}, {"Priority", it.Priority}, {"Created", it.CreatedAt}, {"Updated", it.UpdatedAt}}
 	for _, entry := range metadata {
@@ -231,12 +232,31 @@ func renderItemPage(t *tree, it *item, generatedAt string) (string, error) {
 			fmt.Fprintf(&body, `<dt>%s</dt><dd>%s</dd>`, entry[0], html.EscapeString(entry[1]))
 		}
 	}
+	if len(it.Tags) > 0 {
+		fmt.Fprintf(&body, `<dt>Tags</dt><dd>%s</dd>`, renderSiteTags(it.Tags, "../"))
+	}
 	body.WriteString(`</dl></section>`)
 	for _, section := range sections {
 		fmt.Fprintf(&body, `<details open><summary>%s</summary><div class="markdown">%s</div></details>`, html.EscapeString(section.Title), renderMarkerMarkdown(section.Body))
 	}
 	body.WriteString(`</main>`)
 	return siteDocument(it.Title+" - Taskr", "../", body.String(), true), nil
+}
+
+func renderSiteTags(tags []string, prefix string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	var links []string
+	for _, tag := range tags {
+		query := urlQueryEscape("#" + tag)
+		links = append(links, fmt.Sprintf(`<a class="tag" href="%sresults.html?q=%s">#%s</a>`, prefix, query, html.EscapeString(tag)))
+	}
+	return strings.Join(links, " ")
+}
+
+func urlQueryEscape(value string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(value, "#", "%23"), " ", "+")
 }
 
 func parseMarkerSections(marker string) ([]markerSection, error) {
@@ -367,14 +387,21 @@ const siteJavaScript = `(() => {
   const params = new URLSearchParams(window.location.search);
   const pageSize = 25;
   const normalizedID = value => value.replace(/^0+/, '') || '0';
+  const queryMatches = (item, query) => {
+    if (!query) return true;
+    if (query.startsWith('#')) {
+      const tag = query.slice(1);
+      return tag && (item.tags || []).some(value => value.toLowerCase() === tag);
+    }
+    return normalizedID(item.id) === normalizedID(query) || item.slug.toLowerCase().includes(query) || item.title.toLowerCase().includes(query);
+  };
   const matches = item => {
     const query = (params.get('q') || '').trim().toLowerCase();
     const status = params.get('status') || '';
     const milestone = params.get('milestone') || '';
     if (status && item.status !== status) return false;
     if (milestone && item.milestone !== milestone) return false;
-    if (!query) return true;
-    return normalizedID(item.id) === normalizedID(query) || item.slug.toLowerCase().includes(query) || item.title.toLowerCase().includes(query);
+    return queryMatches(item, query);
   };
   const resultItems = items.filter(matches);
   const table = document.querySelector('#result-table');
@@ -402,6 +429,15 @@ const siteJavaScript = `(() => {
         const cell = document.createElement('td');
         cell.textContent = value; row.appendChild(cell);
       });
+      const tags = document.createElement('td');
+      (item.tags || []).forEach(tag => {
+        const link = document.createElement('a');
+        link.href = 'results.html?q=' + encodeURIComponent('#' + tag);
+        link.textContent = '#' + tag;
+        tags.appendChild(link);
+        tags.appendChild(document.createTextNode(' '));
+      });
+      row.appendChild(tags);
       body.appendChild(row);
     });
     document.querySelector('#empty-results').hidden = resultItems.length !== 0;
@@ -421,7 +457,7 @@ const siteJavaScript = `(() => {
       const query = (context.get('q') || '').trim().toLowerCase();
       const status = context.get('status') || '';
       const milestone = context.get('milestone') || '';
-      return (!status || item.status === status) && (!milestone || item.milestone === milestone) && (!query || normalizedID(item.id) === normalizedID(query) || item.slug.toLowerCase().includes(query) || item.title.toLowerCase().includes(query));
+      return (!status || item.status === status) && (!milestone || item.milestone === milestone) && queryMatches(item, query);
     });
     const currentName = decodeURIComponent(window.location.pathname.split('/').pop()).replace(/\.html$/, '');
     const index = ordered.findIndex(item => item.id + '-' + item.slug === currentName);
