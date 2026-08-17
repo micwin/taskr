@@ -1,10 +1,11 @@
 ---
 title: Move Smokey shared environment setup to preload
-status: reviewing
+status: done
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-17T10:03:20Z
+updated_at: 2026-08-17T12:53:22Z
 developing_at: 2026-08-17T10:00:47Z
 reviewing_at: 2026-08-17T10:03:20Z
+done_at: 2026-08-17T12:53:22Z
 ---
 
 # Description
