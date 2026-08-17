@@ -1,9 +1,10 @@
 ---
 title: Move Smokey shared environment setup to preload
-status: developing
+status: reviewing
 created_at: 2026-08-10T00:00:00Z
-updated_at: 2026-08-17T10:00:47Z
+updated_at: 2026-08-17T10:03:20Z
 developing_at: 2026-08-17T10:00:47Z
+reviewing_at: 2026-08-17T10:03:20Z
 ---
 
 # Description
@@ -50,3 +51,13 @@ fallbacks alive is the wrong tradeoff here.
   run-script fallbacks are actively undesirable.
 
 # Outcome
+
+Implemented `tests.d/env.preseed` as the single committed source for shared
+Smokey suite variables derived from `SMOKEY_STATE_DIR`.
+
+Removed duplicated suite-wide `TASKR_*` variable initialization, direct-run
+fallback expressions, and `smokey_env_save` usage from the setup and workflow
+scripts. Individual Smokey tests now rely on suite-managed state and setup
+ordering instead of trying to remain standalone executable.
+
+Verified with `smokey --tests-dir tests.d`: 32/32 tests passed.

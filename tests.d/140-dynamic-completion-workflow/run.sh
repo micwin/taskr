@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
-TASKR_BASE_ROOT="${TASKR_BASE_ROOT:-${SMOKEY_STATE_DIR}/fixtures/base-root}"
 
 run_complete() {
   local name="$1"

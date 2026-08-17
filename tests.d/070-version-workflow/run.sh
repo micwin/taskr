@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
 version_file="${SMOKEY_STATE_DIR}/VERSION"
 build_file="${SMOKEY_STATE_DIR}/BUILD"
 output_dir="${SMOKEY_STATE_DIR}/version-bin"

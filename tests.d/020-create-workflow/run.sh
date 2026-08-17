@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Derive shared executable path from Smokey state for this runner.
-TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
-
 # Run a command and capture its outputs for assertions.
 run_taskr() {
   local name="$1"

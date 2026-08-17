@@ -3,8 +3,6 @@ set -euo pipefail
 
 trap 'echo "priority workflow failed at line ${LINENO}" >&2' ERR
 
-TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
-TASKR_BASE_ROOT="${TASKR_BASE_ROOT:-${SMOKEY_STATE_DIR}/fixtures/base-root}"
 
 run_taskr() {
   local name="$1"
