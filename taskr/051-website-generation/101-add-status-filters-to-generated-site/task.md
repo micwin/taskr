@@ -1,11 +1,12 @@
 ---
 title: Add status filters to generated site
-status: reviewing
+status: done
 created_at: 2026-08-17T07:52:27Z
-updated_at: 2026-08-17T08:01:52Z
+updated_at: 2026-08-17T08:06:12Z
 designing_at: 2026-08-17T07:52:27Z
 developing_at: 2026-08-17T07:57:59Z
 reviewing_at: 2026-08-17T08:01:52Z
+done_at: 2026-08-17T08:06:12Z
 ---
 
 # Description
