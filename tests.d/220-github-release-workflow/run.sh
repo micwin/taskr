@@ -119,6 +119,53 @@ fi
 run_command missing_release_notes scripts/extract-release-notes.sh 0.1.0+42 "${release_changelog}"
 [ "${exit_code}" -ne 0 ] || { echo "missing release notes should fail" >&2; exit 1; }
 
+# Release-note extraction should normalize accidentally wrapped bullets so
+# GitHub does not render continuation lines as separate bullet points.
+wrapped_changelog="${SMOKEY_STATE_DIR}/wrapped-release-notes-CHANGELOG.md"
+wrapped_notes="${SMOKEY_STATE_DIR}/wrapped-release-notes.md"
+cat >"${wrapped_changelog}" <<'EOF'
+# Changelog
+
+## [Unreleased]
+
+## [0.1.0+82]
+
+- Taskr items can now carry tags in marker frontmatter. Tags are visible in CLI
+- output and generated sites, searchable with `show '#tag'`, filterable with
+- `list --tags`, completed by the shell, and validated by Doctor.
+- Generated Taskr sites now include status filters. Done and cancelled work is
+- hidden by default, can be toggled back on, and milestones stay visible whenever
+- they contain visible work.
+
+- Added `taskr site open` with loopback serving, browser selection, positional
+  site search, optional regeneration, and live watch reload.
+- Added repeatable, case-insensitive `taskr list --glob` filtering over complete
+  marker text.
+
+## [0.1.0+81]
+
+- Previous release note.
+EOF
+scripts/extract-release-notes.sh 0.1.0+82 "${wrapped_changelog}" >"${wrapped_notes}"
+grep -qx -- '- Taskr items can now carry tags in marker frontmatter. Tags are visible in CLI' "${wrapped_notes}"
+grep -qx -- '  output and generated sites, searchable with `show '\''#tag'\''`, filterable with' "${wrapped_notes}"
+grep -qx -- '  `list --tags`, completed by the shell, and validated by Doctor.' "${wrapped_notes}"
+grep -qx -- '- Generated Taskr sites now include status filters. Done and cancelled work is' "${wrapped_notes}"
+grep -qx -- '  hidden by default, can be toggled back on, and milestones stay visible whenever' "${wrapped_notes}"
+grep -qx -- '  they contain visible work.' "${wrapped_notes}"
+grep -qx -- '- Added `taskr site open` with loopback serving, browser selection, positional' "${wrapped_notes}"
+grep -qx -- '  site search, optional regeneration, and live watch reload.' "${wrapped_notes}"
+grep -qx -- '- Added repeatable, case-insensitive `taskr list --glob` filtering over complete' "${wrapped_notes}"
+grep -qx -- '  marker text.' "${wrapped_notes}"
+if grep -qx -- '- output and generated sites, searchable with `show '\''#tag'\''`, filterable with' "${wrapped_notes}"; then
+  echo "wrapped continuation should not remain a top-level bullet" >&2
+  exit 1
+fi
+if grep -qx -- '- hidden by default, can be toggled back on, and milestones stay visible whenever' "${wrapped_notes}"; then
+  echo "wrapped continuation should not remain a top-level bullet" >&2
+  exit 1
+fi
+
 # Build a local remote for the prepare/release/post-release contract.
 release_remote="${SMOKEY_STATE_DIR}/release-origin.git"
 release_repo="${SMOKEY_STATE_DIR}/release-repo"
