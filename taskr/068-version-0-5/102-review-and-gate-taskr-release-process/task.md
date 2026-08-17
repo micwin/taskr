@@ -1,11 +1,12 @@
 ---
 title: Review and gate Taskr release process
-status: reviewing
+status: done
 created_at: 2026-08-17T08:31:52Z
-updated_at: 2026-08-17T09:00:47Z
+updated_at: 2026-08-17T09:23:04Z
 designing_at: 2026-08-17T08:31:52Z
 developing_at: 2026-08-17T08:56:36Z
 reviewing_at: 2026-08-17T09:00:47Z
+done_at: 2026-08-17T09:23:04Z
 ---
 
 # Description
