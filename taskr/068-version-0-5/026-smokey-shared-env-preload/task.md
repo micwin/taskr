@@ -60,4 +60,8 @@ fallback expressions, and `smokey_env_save` usage from the setup and workflow
 scripts. Individual Smokey tests now rely on suite-managed state and setup
 ordering instead of trying to remain standalone executable.
 
+Centralized repeated Smokey helper functions for command capture and copied
+fixture roots in `tests.d/env.preseed`, so workflow scripts use the suite
+environment instead of redefining those helpers locally.
+
 Verified with `smokey --tests-dir tests.d`: 32/32 tests passed.

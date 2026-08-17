@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run a command and capture its outputs for assertions.
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 # Create a complete hierarchy from an empty root with editor disabled.
 root="${SMOKEY_STATE_DIR}/create-root"
 mkdir -p "${root}"

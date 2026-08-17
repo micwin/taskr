@@ -2,18 +2,6 @@
 set -euo pipefail
 
 
-# Run a command and capture its outputs for assertions.
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 # A real status transition must timestamp both the target status and the marker update.
 assert_status_timestamp() {
   local marker="$1"

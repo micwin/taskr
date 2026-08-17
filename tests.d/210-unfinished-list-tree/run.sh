@@ -2,18 +2,6 @@
 set -euo pipefail
 
 
-# Run a command and capture its outputs for assertions.
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 # Build one valid root containing every lifecycle status and item type.
 root="${SMOKEY_STATE_DIR}/unfinished-root"
 cp -R "${TASKR_BASE_ROOT}" "${root}"

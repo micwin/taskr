@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-run_build() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 home="${SMOKEY_STATE_DIR}/completion-home"
 mkdir -p "${home}"
 

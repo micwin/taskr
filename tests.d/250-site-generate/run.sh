@@ -2,37 +2,19 @@
 set -euo pipefail
 
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
-new_root() {
-  local name="$1"
-  local root="${SMOKEY_STATE_DIR}/${name}-root"
-  cp -R "${TASKR_BASE_ROOT}" "${root}"
-  printf '%s\n' "${root}"
-}
-
 site_checksum() {
   local target="$1"
   find "${target}" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum
 }
 
 # Generation requires a site association and points users to site init.
-root="$(new_root site-generate-uninitialized)"
+root="$(new_root site-generate-uninitialized -root)"
 run_taskr site_generate_uninitialized "${root}" site generate
 [ "${exit_code}" -eq 2 ] || { echo "uninitialized generation should exit 2" >&2; exit 1; }
 grep -qi 'site init' "${stderr}"
 
 # Initialize one owned target and add representative Markdown and URL content.
-root="$(new_root site-generate)"
+root="$(new_root site-generate -root)"
 target="${SMOKEY_STATE_DIR}/site-generate-output"
 run_taskr site_generate_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -170,7 +152,7 @@ run_taskr site_generate_source_failure "${root}" site generate
 [ "${before}" = "$(site_checksum "${target}")" ]
 
 # Missing and empty configured targets are not silently reclaimed by generate.
-root="$(new_root site-generate-missing-target)"
+root="$(new_root site-generate-missing-target -root)"
 target="${SMOKEY_STATE_DIR}/site-generate-missing-output"
 run_taskr site_generate_missing_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -180,7 +162,7 @@ run_taskr site_generate_missing_target "${root}" site generate
 [ ! -e "${target}" ]
 grep -qi 'site init\|missing\|ownership' "${stderr}"
 
-root="$(new_root site-generate-empty-target)"
+root="$(new_root site-generate-empty-target -root)"
 target="${SMOKEY_STATE_DIR}/site-generate-empty-output"
 run_taskr site_generate_empty_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -190,7 +172,7 @@ run_taskr site_generate_empty_target "${root}" site generate
 grep -qi 'site init\|ownership\|marker' "${stderr}"
 
 # A foreign configured target remains untouched when generation is rejected.
-root="$(new_root site-generate-foreign-target)"
+root="$(new_root site-generate-foreign-target -root)"
 target="${SMOKEY_STATE_DIR}/site-generate-foreign-output"
 mkdir -p "${target}"
 printf 'foreign\n' >"${target}/keep.txt"

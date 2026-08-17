@@ -2,24 +2,6 @@
 set -euo pipefail
 
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
-new_root() {
-  local name="$1"
-  local root="${SMOKEY_STATE_DIR}/${name}"
-  cp -R "${TASKR_BASE_ROOT}" "${root}"
-  printf '%s\n' "${root}"
-}
-
 # A missing project config remains valid, while a valid [site] table is loaded.
 root="$(new_root config-valid)"
 run_taskr config_missing "${root}" doctor

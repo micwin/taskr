@@ -2,24 +2,6 @@
 set -euo pipefail
 
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
-new_root() {
-  local name="$1"
-  local root="${SMOKEY_STATE_DIR}/${name}-root"
-  cp -R "${TASKR_BASE_ROOT}" "${root}"
-  printf '%s\n' "${root}"
-}
-
 assert_marker_status() {
   local root="$1"
   local slug="$2"
@@ -33,13 +15,13 @@ assert_marker_status() {
 }
 
 # Without project defaults, create retains its built-in open fallback.
-root="$(new_root project-default-absent)"
+root="$(new_root project-default-absent -root)"
 run_taskr project_default_absent "${root}" create task "Absent project default" --under 001 --no-edit
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 assert_marker_status "${root}" absent-project-default task.md open
 
 # One common create_status applies to every item type.
-root="$(new_root project-default-common)"
+root="$(new_root project-default-common -root)"
 cat >"${root}/taskr.toml" <<'EOF'
 [defaults]
 create_status = "designing"
@@ -55,7 +37,7 @@ assert_marker_status "${root}" common-task task.md designing
 assert_marker_status "${root}" common-subtask subtask.md designing
 
 # Type-specific defaults override the common value independently.
-root="$(new_root project-default-specific)"
+root="$(new_root project-default-specific -root)"
 cat >"${root}/taskr.toml" <<'EOF'
 [defaults]
 create_status = "designing"
@@ -74,7 +56,7 @@ assert_marker_status "${root}" specific-task task.md developing
 assert_marker_status "${root}" specific-subtask subtask.md reviewing
 
 # A missing type override falls back to the common default.
-root="$(new_root project-default-partial)"
+root="$(new_root project-default-partial -root)"
 cat >"${root}/taskr.toml" <<'EOF'
 [defaults]
 create_status = "active"
@@ -94,7 +76,7 @@ assert_marker_status "${root}" explicit-override task.md reviewing
 
 # Doctor and normal root loading reject invalid or closed configured defaults.
 for value in done cancelled unknown; do
-  root="$(new_root "project-default-invalid-${value}")"
+  root="$(new_root "project-default-invalid-${value}" -root)"
   printf '[defaults]\ncreate_status = "%s"\n' "${value}" >"${root}/taskr.toml"
   run_taskr "project_default_doctor_${value}" "${root}" doctor
   [ "${exit_code}" -eq 2 ] || { echo "Doctor should reject default ${value}" >&2; exit 1; }
@@ -106,7 +88,7 @@ for value in done cancelled unknown; do
 done
 
 # Unknown defaults remain strict configuration errors rather than ignored typos.
-root="$(new_root project-default-unknown-key)"
+root="$(new_root project-default-unknown-key -root)"
 cat >"${root}/taskr.toml" <<'EOF'
 [defaults]
 create_stats = "designing"

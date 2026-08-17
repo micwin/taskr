@@ -4,17 +4,6 @@ set -euo pipefail
 trap 'echo "priority workflow failed at line ${LINENO}" >&2' ERR
 
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 add_frontmatter_field() {
   local marker="$1"
   local field="$2"

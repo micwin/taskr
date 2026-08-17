@@ -2,17 +2,6 @@
 set -euo pipefail
 
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 # Default init should create ./taskr below the current project directory.
 project="${SMOKEY_STATE_DIR}/init-project"
 mkdir -p "${project}/src"

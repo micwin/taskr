@@ -11,24 +11,6 @@ cleanup_processes() {
 }
 trap cleanup_processes EXIT
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
-new_root() {
-  local name="$1"
-  local root="${SMOKEY_STATE_DIR}/${name}-root"
-  cp -R "${TASKR_BASE_ROOT}" "${root}"
-  printf '%s\n' "${root}"
-}
-
 free_port() {
   node -e 'const s=require("net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})'
 }
@@ -82,12 +64,12 @@ stop_open() {
 }
 
 # Open requires an initialized site and an existing generated index by default.
-root="$(new_root site-open-uninitialized)"
+root="$(new_root site-open-uninitialized -root)"
 run_taskr site_open_uninitialized "${root}" site open --no-browser
 [ "${exit_code}" -eq 2 ] || { echo "uninitialized site open should exit 2" >&2; exit 1; }
 grep -qi 'site init' "${stderr}"
 
-root="$(new_root site-open-missing-index)"
+root="$(new_root site-open-missing-index -root)"
 target="${SMOKEY_STATE_DIR}/site-open-missing-index-output"
 run_taskr site_open_missing_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -96,7 +78,7 @@ run_taskr site_open_missing_index "${root}" site open --no-browser
 grep -qi 'site generate\|regenerate' "${stderr}"
 
 # Normal open serves existing output, prints the complete URL, and does not regenerate.
-root="$(new_root site-open-normal)"
+root="$(new_root site-open-normal -root)"
 target="${SMOKEY_STATE_DIR}/site-open-normal-output"
 run_taskr site_open_normal_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -127,7 +109,7 @@ stop_open "${pid}"
 [ "${stopped_code}" -eq 0 ]
 
 # Regenerate creates a missing index before serving it.
-root="$(new_root site-open-regenerate)"
+root="$(new_root site-open-regenerate -root)"
 target="${SMOKEY_STATE_DIR}/site-open-regenerate-output"
 run_taskr site_open_regenerate_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
@@ -200,7 +182,7 @@ wait "${blocker_pid}" 2>/dev/null || true
 OPEN_PIDS=" ${OPEN_PIDS// ${blocker_pid}/}"
 
 # Watch serves reload support and regenerates after relevant marker changes.
-root="$(new_root site-open-watch)"
+root="$(new_root site-open-watch -root)"
 target="${SMOKEY_STATE_DIR}/site-open-watch-output"
 run_taskr site_open_watch_init "${root}" site init "${target}" --create-if-missing
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }

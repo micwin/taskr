@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-run_command() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 root="${SMOKEY_STATE_DIR}/release-notes-root"
 cp -R "${SMOKEY_TEST_DIR}/fixtures/release-root" "${root}"
 

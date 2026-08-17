@@ -5,19 +5,8 @@ version_file="${SMOKEY_STATE_DIR}/VERSION"
 build_file="${SMOKEY_STATE_DIR}/BUILD"
 output_dir="${SMOKEY_STATE_DIR}/version-bin"
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 # The default development build should remain explicit.
-run_taskr version_dev "${TASKR_BIN}" version
+run_command version_dev "${TASKR_BIN}" version
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "taskr version dev" "${stdout}"
 
@@ -25,7 +14,7 @@ grep -q "taskr version dev" "${stdout}"
 printf '0.1.0\n' >"${version_file}"
 printf '41\n' >"${build_file}"
 
-run_taskr build_binary ./scripts/build.sh binary \
+run_command build_binary ./scripts/build.sh binary \
   --version-file "${version_file}" \
   --build-file "${build_file}" \
   --output-dir "${output_dir}" \
@@ -35,14 +24,14 @@ run_taskr build_binary ./scripts/build.sh binary \
 grep -q "built binary path=${output_dir}/taskr version=0.1.0+42" "${stdout}"
 grep -q '^42$' "${build_file}"
 
-run_taskr version_release "${output_dir}/taskr" version
+run_command version_release "${output_dir}/taskr" version
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "taskr version 0.1.0+42" "${stdout}"
 grep -q "commit=abcdef1" "${stdout}"
 grep -q "built_at=2026-08-07T09:00:00Z" "${stdout}"
 
 # Minor and major raises reset lower SemVer components but keep the build counter monotonic.
-run_taskr build_raise_minor ./scripts/build.sh binary \
+run_command build_raise_minor ./scripts/build.sh binary \
   --version-file "${version_file}" \
   --build-file "${build_file}" \
   --output-dir "${output_dir}" \
@@ -54,7 +43,7 @@ grep -q '^0.2.0$' "${version_file}"
 grep -q '^43$' "${build_file}"
 grep -q "version=0.2.0+43" "${stdout}"
 
-run_taskr build_raise_major ./scripts/build.sh binary \
+run_command build_raise_major ./scripts/build.sh binary \
   --version-file "${version_file}" \
   --build-file "${build_file}" \
   --output-dir "${output_dir}" \

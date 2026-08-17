@@ -2,18 +2,6 @@
 set -euo pipefail
 
 
-# Run a command and capture its outputs for assertions.
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 # Doctor help should advertise fix mode without making it the default.
 run_taskr doctor_help doctor --help
 if [ "${exit_code}" -ne 0 ]; then

@@ -2,26 +2,8 @@
 set -euo pipefail
 
 
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
-new_root() {
-  local name="$1"
-  local root="${SMOKEY_STATE_DIR}/${name}-root"
-  cp -R "${TASKR_BASE_ROOT}" "${root}"
-  printf '%s\n' "${root}"
-}
-
 # Existing empty directories are claimed and configured relative to the Taskr root.
-root="$(new_root site-init-existing)"
+root="$(new_root site-init-existing -root)"
 target="${SMOKEY_STATE_DIR}/site-init-existing-output"
 mkdir -p "${target}"
 run_taskr site_init_existing "${root}" site init ../site-init-existing-output
@@ -41,7 +23,7 @@ run_taskr site_init_same "${root}" site init ../site-init-existing-output
 grep -q 'created=false changed=false' "${stdout}"
 
 # Missing directories require the explicit creation flag, which creates parents too.
-root="$(new_root site-init-missing)"
+root="$(new_root site-init-missing -root)"
 target="${SMOKEY_STATE_DIR}/site-init-missing-parent/site"
 run_taskr site_init_missing "${root}" site init ../site-init-missing-parent/site
 [ "${exit_code}" -eq 2 ] || { echo "missing site directory should exit 2" >&2; exit 1; }
@@ -55,7 +37,7 @@ grep -qx 'taskr-site-v1' "${target}/.taskr-site"
 grep -q 'created=true changed=true' "${stdout}"
 
 # Absolute target paths remain absolute in taskr.toml.
-root="$(new_root site-init-absolute)"
+root="$(new_root site-init-absolute -root)"
 target="${SMOKEY_STATE_DIR}/site-init-absolute-output"
 mkdir -p "${target}"
 run_taskr site_init_absolute "${root}" site init "${target}"
@@ -63,7 +45,7 @@ run_taskr site_init_absolute "${root}" site init "${target}"
 grep -Fq "directory = \"${target}\"" "${root}/taskr.toml"
 
 # Existing comments survive adding the first supported table.
-root="$(new_root site-init-comments)"
+root="$(new_root site-init-comments -root)"
 target="${SMOKEY_STATE_DIR}/site-init-comments-output"
 mkdir -p "${target}"
 printf '# project comment\n' >"${root}/taskr.toml"
@@ -83,7 +65,7 @@ run_taskr site_init_reconfigure "${root}" site init ../site-init-comments-other
 grep -qi 'config\|already.*initial' "${stderr}"
 
 # Foreign content, regular files, and symlinks cannot be claimed.
-root="$(new_root site-init-foreign)"
+root="$(new_root site-init-foreign -root)"
 target="${SMOKEY_STATE_DIR}/site-init-foreign-output"
 mkdir -p "${target}"
 printf 'foreign\n' >"${target}/keep.txt"
@@ -91,12 +73,12 @@ run_taskr site_init_foreign "${root}" site init ../site-init-foreign-output
 [ "${exit_code}" -eq 2 ] || { echo "foreign site directory should exit 2" >&2; exit 1; }
 [ ! -e "${root}/taskr.toml" ]
 grep -qi 'nonempty\|not empty\|ownership' "${stderr}"
-root="$(new_root site-init-file)"
+root="$(new_root site-init-file -root)"
 target="${SMOKEY_STATE_DIR}/site-init-file-output"
 printf 'file\n' >"${target}"
 run_taskr site_init_file "${root}" site init ../site-init-file-output
 [ "${exit_code}" -eq 2 ] || { echo "site target file should exit 2" >&2; exit 1; }
-root="$(new_root site-init-symlink)"
+root="$(new_root site-init-symlink -root)"
 real_target="${SMOKEY_STATE_DIR}/site-init-real-output"
 target="${SMOKEY_STATE_DIR}/site-init-symlink-output"
 mkdir -p "${real_target}"
@@ -105,7 +87,7 @@ run_taskr site_init_symlink "${root}" site init ../site-init-symlink-output
 [ "${exit_code}" -eq 2 ] || { echo "site target symlink should exit 2" >&2; exit 1; }
 
 # Source and output trees must not overlap in either direction.
-root="$(new_root site-init-overlap)"
+root="$(new_root site-init-overlap -root)"
 run_taskr site_init_same_root "${root}" site init .
 [ "${exit_code}" -eq 2 ] || { echo "Taskr root cannot be its own site directory" >&2; exit 1; }
 run_taskr site_init_child "${root}" site init ./generated --create-if-missing
