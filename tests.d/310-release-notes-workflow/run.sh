@@ -1,19 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TASKR_BIN="${TASKR_BIN:-${SMOKEY_STATE_DIR}/bin/taskr}"
-
-run_taskr() {
-  local name="$1"
-  shift
-  stdout="${SMOKEY_STATE_DIR}/${name}.stdout"
-  stderr="${SMOKEY_STATE_DIR}/${name}.stderr"
-  set +e
-  "${TASKR_BIN}" "$@" >"${stdout}" 2>"${stderr}"
-  exit_code=$?
-  set -e
-}
-
 run_command() {
   local name="$1"
   shift
@@ -28,61 +15,69 @@ run_command() {
 root="${SMOKEY_STATE_DIR}/release-notes-root"
 cp -R "${SMOKEY_TEST_DIR}/fixtures/release-root" "${root}"
 
-# Closing done work requires exactly one release-note intent.
-run_taskr done_without_intent "${root}" status 002 done
-[ "${exit_code}" -eq 2 ] || { echo "done without release-note intent should exit 2" >&2; exit 1; }
-grep -qi 'release.note\|no-release-note' "${stderr}"
-
-run_taskr done_note_and_omission "${root}" status 002 done --release-note "Visible release note" --no-release-note
-[ "${exit_code}" -eq 2 ] || { echo "release-note and no-release-note together should exit 2" >&2; exit 1; }
-grep -qi 'mutually\|exactly one\|release.note' "${stderr}"
-
-# Single-line and multiline release notes are stored in the existing marker file.
-run_taskr done_with_note "${root}" status 002 done --release-note "Users can see the visible change."
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^status id=002 old=reviewing new=done changed=true$' "${stdout}"
-grep -q '^# Release Notes$' "${root}/001-release-notes/002-visible-change/task.md"
-grep -q '^Users can see the visible change\.$' "${root}/001-release-notes/002-visible-change/task.md"
-
-printf 'Line one.\nLine two.\n' | run_taskr done_with_stdin_note "${root}" status 003 done --release-note-stdin
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^Line one\.$' "${root}/001-release-notes/003-internal-cleanup/task.md"
-grep -q '^Line two\.$' "${root}/001-release-notes/003-internal-cleanup/task.md"
-
-# Explicit no-release-note intent is represented in frontmatter and not emitted.
-run_taskr create_no_note "${root}" create task "No note work" --under 001 --status reviewing --no-edit
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-run_taskr done_no_note "${root}" status 006 done --no-release-note
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^release_note: no-release-note$' "${root}/001-release-notes/006-no-note-work/task.md"
-
-# Doctor rejects missing and contradictory intent, and --fix only migrates safe missing intent.
-run_taskr doctor_missing_or_contradictory "${root}" doctor
-[ "${exit_code}" -ne 0 ] || { echo "doctor should reject missing or contradictory release-note intent" >&2; exit 1; }
-grep -q '004' "${stderr}"
-grep -q '005' "${stderr}"
-run_taskr doctor_fix_blocked "${root}" doctor --fix
-[ "${exit_code}" -ne 0 ] || { echo "doctor --fix should not partially write when contradictions exist" >&2; exit 1; }
-if grep -q '^release_note: no-release-note$' "${root}/001-release-notes/004-missing-intent/task.md"; then
-  echo "doctor --fix should not partially migrate when preflight finds contradictions" >&2
-  exit 1
-fi
-rm -rf "${root}/001-release-notes/005-contradictory"
-run_taskr doctor_fix_missing "${root}" doctor --fix
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^release_note: no-release-note$' "${root}/001-release-notes/004-missing-intent/task.md"
-grep -qi '004\|1' "${stdout}"
-run_taskr doctor_clean "${root}" doctor
-[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-
 # Release-note rendering is a release-script helper for Taskr itself, not a
 # public taskr command.
 run_command render_notes scripts/collect-taskr-release-notes.sh "${root}" --since-ref none
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q 'Users can see the visible change\.' "${stdout}"
-grep -q 'Line one\.' "${stdout}"
-if grep -q 'No note work\|Missing intent' "${stdout}"; then
+if grep -q 'Internal cleanup' "${stdout}"; then
   echo "release notes should omit explicit no-release-note items" >&2
+  exit 1
+fi
+
+empty_root="${SMOKEY_STATE_DIR}/release-notes-empty-root"
+cp -R "${root}" "${empty_root}"
+rm -rf "${empty_root}/001-release-notes/002-visible-change"
+run_command render_empty scripts/collect-taskr-release-notes.sh "${empty_root}" --since-ref none
+[ "${exit_code}" -eq 1 ] || { echo "release-note helper should fail when no notes are available" >&2; exit 1; }
+grep -q 'no release notes found' "${stderr}"
+
+boundary_repo="${SMOKEY_STATE_DIR}/release-notes-boundary-repo"
+git init -b develop "${boundary_repo}" >/dev/null
+git -C "${boundary_repo}" config user.name "Taskr Smokey"
+git -C "${boundary_repo}" config user.email "taskr-smokey@example.invalid"
+cp -R "${root}" "${boundary_repo}/taskr-data"
+git -C "${boundary_repo}" add .
+git -C "${boundary_repo}" commit -m previous >/dev/null
+git -C "${boundary_repo}" tag v0.1.0+1
+run_command render_unchanged_since_tag env -C "${boundary_repo}" "${PWD}/scripts/collect-taskr-release-notes.sh" taskr-data --since-ref v0.1.0+1
+[ "${exit_code}" -eq 1 ] || { echo "unchanged release notes should be skipped after the boundary tag" >&2; exit 1; }
+grep -q 'no release notes found' "${stderr}"
+mkdir -p "${boundary_repo}/taskr-data/001-release-notes/004-new-visible-change"
+cat >"${boundary_repo}/taskr-data/001-release-notes/004-new-visible-change/task.md" <<'EOF'
+---
+title: New visible change
+status: done
+created_at: 2026-08-17T00:00:00Z
+updated_at: 2026-08-17T00:00:00Z
+done_at: 2026-08-17T00:00:00Z
+---
+
+# Description
+
+New completed work.
+
+# Acceptance
+
+- Release boundary collection can see this new marker.
+
+# Comments
+
+# Outcome
+
+New work was delivered.
+
+# Release Notes
+
+New visible change is included after the previous release tag.
+EOF
+git -C "${boundary_repo}" add .
+git -C "${boundary_repo}" commit -m new-note >/dev/null
+run_command render_changed_since_tag env -C "${boundary_repo}" "${PWD}/scripts/collect-taskr-release-notes.sh" taskr-data --since-ref v0.1.0+1
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q 'New visible change is included after the previous release tag\.' "${stdout}"
+if grep -q 'Users can see the visible change\.' "${stdout}"; then
+  echo "release boundary collection should not repeat notes from the previous tag" >&2
   exit 1
 fi
 
@@ -117,4 +112,3 @@ run_command release_collects_notes env -C "${release_repo}" TASKR_ROOT=taskr-dat
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q '^## \[0\.1\.0+99\]' "${release_repo}/CHANGELOG.md"
 grep -q 'Users can see the visible change\.' "${release_repo}/CHANGELOG.md"
-grep -q 'Line one\.' "${release_repo}/CHANGELOG.md"

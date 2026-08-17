@@ -93,6 +93,11 @@ conflict.
 - Move a ticket from `reviewing` to `done` only after explicit user instruction
   and in a dedicated closure commit. That commit contains only the ticket
   status and timestamp update plus the required `BUILD` update.
+- When moving a Taskr dogfood ticket to `done`, record release-note intent in
+  that same dedicated closure commit. User-visible changes need a concise
+  `# Release Notes` section in the ticket marker file. Tickets without
+  user-visible release impact use `release_note: no-release-note` in
+  frontmatter.
 - The dedicated closure-commit rule applies to `done`; it does not
   automatically prescribe the commit shape for `cancelled` or other
   non-delivery closures.

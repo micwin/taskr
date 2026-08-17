@@ -11,8 +11,12 @@ tags, and publishes that exact commit.
 - Keep the worktree and index clean, including untracked files.
 - Confirm `VERSION` and `BUILD` contain the version to publish. The release
   process does not increment either value.
-- Add a `CHANGELOG.md` heading in the form `## [VERSION+BUILD] - YYYY-MM-DD`,
-  for example `## [0.1.0+40] - 2026-08-10`.
+- Ensure completed Taskr dogfood tickets with user-visible changes contain a
+  `# Release Notes` section. Tickets without user-visible release impact use
+  `release_note: no-release-note` in frontmatter.
+- Keep `CHANGELOG.md` with a `## [Unreleased]` heading. If the exact release
+  heading is missing, `scripts/release.sh` generates it from dogfood release
+  notes completed since the previous release tag.
 - Ensure local Go, Doctor, and Smokey verification is green before release.
 
 Normal builds increment `BUILD`. Release and CI builds instead use:
@@ -34,9 +38,9 @@ scripts/release.sh
 ```
 
 The script fetches `origin`, rejects unpushed or divergent `develop` work,
-checks the changelog entry, rejects an already published tag, checks out or
-creates `release`, requires a fast-forward from `develop`, pushes `release`,
-and returns to `develop`.
+generates a changelog entry from Taskr dogfood release notes when needed,
+rejects an already published tag, checks out or creates `release`, requires a
+fast-forward from `develop`, pushes `release`, and returns to `develop`.
 
 The `Taskr Release` workflow then:
 

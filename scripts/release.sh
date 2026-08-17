@@ -22,7 +22,28 @@ build="$(tr -d '[:space:]' <BUILD)"
 [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "invalid VERSION ${version}"
 [[ "${build}" =~ ^[0-9]+$ ]] || fail "invalid BUILD ${build}"
 release_version="${version}+${build}"
-grep -Fq "## [${release_version}]" CHANGELOG.md || fail "CHANGELOG.md needs a ## [${release_version}] entry"
+if ! grep -Fq "## [${release_version}]" CHANGELOG.md; then
+  taskr_root="${TASKR_ROOT:-taskr}"
+  notes="$(scripts/collect-taskr-release-notes.sh "${taskr_root}" --since-ref "$(git describe --tags --abbrev=0 2>/dev/null || echo none)")" || fail "could not collect Taskr release notes"
+  tmp_changelog="$(mktemp)"
+  awk -v version="${release_version}" -v notes="${notes}" '
+    BEGIN { inserted = 0 }
+    /^## \[Unreleased\]/ {
+      print
+      print ""
+      print "## [" version "] - " strftime("%Y-%m-%d")
+      print ""
+      print notes
+      inserted = 1
+      next
+    }
+    { print }
+    END { if (!inserted) exit 1 }
+  ' CHANGELOG.md >"${tmp_changelog}" || { rm -f "${tmp_changelog}"; fail "CHANGELOG.md needs a ## [Unreleased] entry"; }
+  mv "${tmp_changelog}" CHANGELOG.md
+  git add CHANGELOG.md
+  git commit -m "docs: prepare release ${release_version}"
+fi
 
 if git ls-remote --exit-code --tags origin "refs/tags/v${release_version}" >/dev/null 2>&1; then
   fail "tag v${release_version} already exists; rerun or repair the existing GitHub Actions release"
