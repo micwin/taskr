@@ -5,6 +5,12 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+## [0.2.0+82]
+
+- Taskr releases now use separate prepare, release, and post-release scripts so
+- release preparation can be reviewed before the release branch is committed and
+- published.
+
 ## [0.1.0+82]
 
 - Taskr items can now carry tags in marker frontmatter. Tags are visible in CLI
