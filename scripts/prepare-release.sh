@@ -9,6 +9,31 @@ fail() {
   exit 2
 }
 
+raise_major=false
+raise_minor=false
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --raise-major)
+      raise_major=true
+      shift
+      ;;
+    --raise-minor)
+      raise_minor=true
+      shift
+      ;;
+    -h|--help)
+      cat <<'EOF'
+usage: scripts/prepare-release.sh [--raise-major|--raise-minor]
+EOF
+      exit 0
+      ;;
+    *)
+      fail "unknown option $1"
+      ;;
+  esac
+done
+[ "${raise_major}" = false ] || [ "${raise_minor}" = false ] || fail "--raise-major and --raise-minor are mutually exclusive"
+
 current_branch="$(git branch --show-current)"
 [ "${current_branch}" = "develop" ] || fail "prepare-release must start from develop"
 [ -z "$(git status --porcelain)" ] || fail "working tree must be clean"
@@ -19,8 +44,20 @@ git show-ref --verify --quiet refs/remotes/origin/develop || fail "origin/develo
 
 version="$(tr -d '[:space:]' <VERSION)"
 build="$(tr -d '[:space:]' <BUILD)"
-[[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "invalid VERSION ${version}"
+[[ "${version}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || fail "invalid VERSION ${version}"
+major="${BASH_REMATCH[1]}"
+minor="${BASH_REMATCH[2]}"
+patch="${BASH_REMATCH[3]}"
 [[ "${build}" =~ ^[0-9]+$ ]] || fail "invalid BUILD ${build}"
+if [ "${raise_major}" = true ]; then
+  major=$((major + 1))
+  minor=0
+  patch=0
+elif [ "${raise_minor}" = true ]; then
+  minor=$((minor + 1))
+  patch=0
+fi
+version="${major}.${minor}.${patch}"
 release_version="${version}+${build}"
 notes=""
 taskr_root="${TASKR_ROOT:-taskr}"
@@ -36,6 +73,7 @@ else
   git switch -c release develop
 fi
 [ "$(git branch --show-current)" = "release" ] || fail "prepare-release failed to switch to release"
+printf '%s\n' "${version}" >VERSION
 
 if grep -Fq "## [${release_version}]" CHANGELOG.md; then
   echo "release already prepared version=${release_version}"

@@ -257,6 +257,7 @@ grep -q '^## \[0\.1\.0+41\]' "${release_repo}/CHANGELOG.md"
 prepare_minor_remote="${SMOKEY_STATE_DIR}/prepare-minor-origin.git"
 prepare_minor_repo="${SMOKEY_STATE_DIR}/prepare-minor-repo"
 create_release_fixture_repo "${prepare_minor_repo}" "${prepare_minor_remote}" 1.2.3 77
+prepare_minor_remote_before="$(git --git-dir="${prepare_minor_remote}" rev-parse release)"
 run_command prepare_raise_minor env -C "${prepare_minor_repo}" scripts/prepare-release.sh --raise-minor
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 [ "$(git -C "${prepare_minor_repo}" branch --show-current)" = "release" ]
@@ -267,7 +268,7 @@ grep -q '^## \[1\.3\.0+77\]' "${prepare_minor_repo}/CHANGELOG.md"
   echo "prepare-release --raise-minor should leave reviewable changes on release" >&2
   exit 1
 }
-[ "$(git --git-dir="${prepare_minor_remote}" rev-parse release)" != "$(git -C "${prepare_minor_repo}" rev-parse release)" ] || {
+[ "$(git --git-dir="${prepare_minor_remote}" rev-parse release)" = "${prepare_minor_remote_before}" ] || {
   echo "prepare-release --raise-minor should not push release" >&2
   exit 1
 }

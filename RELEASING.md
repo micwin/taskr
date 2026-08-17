@@ -51,6 +51,17 @@ creates local `release`, fast-forwards it to the intended `develop` commit, and
 prepares tracked release files there. It may modify files such as
 `CHANGELOG.md`.
 
+To select a higher release version during preparation, use:
+
+```bash
+scripts/prepare-release.sh --raise-minor
+scripts/prepare-release.sh --raise-major
+```
+
+For example, `--raise-minor` changes `1.2.3` to `1.3.0`, and `--raise-major`
+changes `1.2.3` to `2.0.0`. `BUILD` is preserved. Without a raise flag, the
+current `VERSION+BUILD` is prepared.
+
 `prepare-release.sh` does not commit, push, tag, or publish. Review its changes
 on `release` before continuing.
 

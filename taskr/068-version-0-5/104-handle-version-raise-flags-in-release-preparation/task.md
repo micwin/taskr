@@ -1,10 +1,11 @@
 ---
 title: Handle version raise flags in release preparation
-status: developing
+status: reviewing
 created_at: 2026-08-17T09:35:24Z
-updated_at: 2026-08-17T09:45:09Z
+updated_at: 2026-08-17T09:46:58Z
 designing_at: 2026-08-17T09:35:24Z
 developing_at: 2026-08-17T09:45:09Z
+reviewing_at: 2026-08-17T09:46:58Z
 ---
 
 # Description
@@ -76,3 +77,22 @@ For release preparation, starting from `VERSION=1.2.3`:
   `release`, and reported the existing prepared version.
 
 # Outcome
+
+Implemented argument handling for `scripts/prepare-release.sh`.
+
+- Unknown options now fail before branch switching or file modification.
+- `--raise-major` and `--raise-minor` are supported and mutually exclusive.
+- `--raise-major` increments major and resets minor and patch to `0`.
+- `--raise-minor` increments minor and resets patch to `0`.
+- `BUILD` remains unchanged.
+- The selected `VERSION` is written on the `release` branch before generating
+  the release changelog entry.
+- `RELEASING.md` documents the prepare-time raise flags.
+- Smokey covers minor raise, major raise, mutually exclusive flags, unknown
+  flags, branch behavior, changelog headers, and unchanged `BUILD`.
+
+# Release Notes
+
+`scripts/prepare-release.sh` now supports explicit major and minor release
+version raises and rejects unknown or conflicting options instead of silently
+ignoring them.
