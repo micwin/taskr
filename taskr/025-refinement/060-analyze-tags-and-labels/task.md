@@ -1,8 +1,9 @@
 ---
 title: Analyze tags and labels
-status: designing
+status: developing
 created_at: 2026-08-10T12:33:35Z
-updated_at: 2026-08-10T12:33:35Z
+updated_at: 2026-08-17T07:01:33Z
+developing_at: 2026-08-17T07:01:33Z
 ---
 
 # Description
@@ -22,8 +23,9 @@ filters on item and result pages.
 - Marker frontmatter stores tags once as a YAML list without a leading `#`, for
   example `tags: [bug, website]` or its equivalent block-list form.
 - Tags are case-insensitive and normalized to one canonical lowercase form.
-  Validation defines the allowed character set, rejects empty values, and
-  prevents duplicate normalized tags on one item.
+  Only ASCII letters `a-zA-Z` are accepted as input. Stored tags are lowercase.
+  Empty values, whitespace, tabs, digits, punctuation, underscores, hyphens,
+  leading `#`, and duplicate normalized tags on one item are rejected.
 - `taskr show '#tag'` performs an exact case-insensitive tag lookup. One match
   renders the item; multiple matches use Show's existing candidate output and
   nonzero ambiguity result. Help and examples explain that shells require the
@@ -50,7 +52,10 @@ filters on item and result pages.
   escaped in a shell.
 - Existing tags are displayed whenever present in `show` and item-list output,
   including tree/report rows where items are listed. Missing tags add no empty
-  decoration.
+  decoration. Compact row output uses a separate tag column without `tags=`:
+  one tag is rendered as `#tag`; multiple tags are rendered as
+  `#(one,two,three)`. `show` renders tags as `Tags: #one` for one tag and
+  `Tags: #(one,two,three)` for multiple tags.
 - Generated item pages and result lists render each tag as a clickable `#tag`.
   Clicking adds that tag to the current filter context rather than replacing
   existing filters. Existing unique-result behavior opens the item when one
@@ -84,5 +89,9 @@ filters on item and result pages.
   item selectors such as `--under` and Move.
 - 2026-08-14: Agreed that `taskr examples` must cover both `#tag` lookup and
   basic plus composed `list --tags` filtering.
+- 2026-08-17: Tag validation narrowed to ASCII letters only, stored in
+  lowercase. CLI display uses compact tag values without a `tags=` prefix;
+  leading `#` is primarily a disambiguation marker in free text and search
+  input, not part of stored tag values.
 
 # Outcome

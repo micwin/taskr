@@ -18,8 +18,9 @@ cp -R "${SMOKEY_TEST_DIR}/fixtures/base-root" "${TASKR_BASE_ROOT}"
 cp -R "${SMOKEY_TEST_DIR}/fixtures/invalid-root" "${TASKR_INVALID_ROOT}"
 mkdir -p "${TASKR_EMPTY_ROOT}"
 
-# Validate the shared valid fixture before later tests mutate isolated copies.
-"${TASKR_BIN}" "${TASKR_BASE_ROOT}" doctor >/dev/null
+# Report shared fixture doctor problems without turning regular Smokey setup
+# into the release-quality data gate.
+"${TASKR_BIN}" "${TASKR_BASE_ROOT}" doctor || true
 
 # Write test-only personal config inside Smokey state.
 cat >"${TASKR_CONFIG_FILE}" <<EOF

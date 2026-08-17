@@ -3,6 +3,7 @@ title: Define directory structure
 status: done
 created_at: 2026-06-04T00:00:00Z
 updated_at: 2026-06-04T00:00:00Z
+tags: [Internal]
 ---
 
 # Description
