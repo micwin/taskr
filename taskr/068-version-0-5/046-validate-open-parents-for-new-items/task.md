@@ -1,9 +1,10 @@
 ---
 title: Validate open parents for new items
-status: developing
+status: reviewing
 created_at: 2026-08-10T10:29:12Z
-updated_at: 2026-08-17T13:00:53Z
+updated_at: 2026-08-17T13:03:20Z
 developing_at: 2026-08-17T13:00:53Z
+reviewing_at: 2026-08-17T13:03:20Z
 ---
 
 # Description
@@ -53,3 +54,13 @@ implicit side effect of creating or keeping unfinished children below it.
   under open tasks whose milestone context is also open.
 
 # Outcome
+
+Implemented terminal parent validation for create-time and worktree-load paths.
+`done` and `cancelled` parents now reject new child creation, and loaded roots
+are invalid when terminal parents contain unfinished descendants.
+
+Updated `create` and `doctor` help text to document the closed parent context
+rule.
+
+Verified with `go test ./src/taskr` and `smokey --tests-dir tests.d`: 32/32
+Smokey tests passed.

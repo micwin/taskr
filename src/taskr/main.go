@@ -390,9 +390,10 @@ func doctorCommand(rootPath string) *cobra.Command {
 Current validation checks that the root can be loaded as a Taskr worktree:
 marker structure, item directory IDs, marker frontmatter used by Taskr, status
 values, optional status-transition timestamps, task priority metadata, tags, and
-root-wide duplicate IDs. Optional root-local taskr.toml project configuration
-is parsed strictly; configured site paths and ownership markers are validated
-with the worktree.
+root-wide duplicate IDs. Terminal parent contexts are validated so done or
+cancelled items cannot contain unfinished descendants. Optional root-local
+taskr.toml project configuration is parsed strictly; configured site paths and
+ownership markers are validated with the worktree.
 
 Fix mode currently repairs only duplicate IDs. The worktree must be loadable
 apart from duplicate IDs; unsupported errors are reported and leave the
@@ -427,7 +428,10 @@ The item type determines the marker filename: milestone.md, task.md, or
 subtask.md. An explicit --status overrides type-specific project defaults in
 taskr.toml, then the common project default. Without either, the initial status
 defaults to open. Valid initial statuses are open, designing, developing,
-active, reviewing, and blocked.`,
+active, reviewing, and blocked.
+
+New work can only be created below open parent context. Parents with status
+done or cancelled are terminal and must be reopened before adding children.`,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, edit, noEdit)
@@ -1284,6 +1288,9 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 	if err := validateChildType(parent, itemType); err != nil {
 		return err
 	}
+	if err := validateCreateParentContext(parent); err != nil {
+		return err
+	}
 	if slug == "" {
 		slug = slugify(title)
 	} else {
@@ -1705,6 +1712,9 @@ func loadTreeWithOptions(rootPath string, allowDuplicateIDs bool) (*tree, error)
 			}
 			return nil, exitError{code: 2, msg: fmt.Sprintf("duplicate id %s", id)}
 		}
+	}
+	if err := validateTerminalParents(t); err != nil {
+		return nil, err
 	}
 	return t, nil
 }
@@ -2574,6 +2584,34 @@ func closedStatus(status string) bool {
 	return status == "done" || status == "cancelled"
 }
 
+func openForChildrenStatus(status string) bool {
+	return !closedStatus(status)
+}
+
+func validateCreateParentContext(parent *item) error {
+	for current := parent; current != nil; current = current.Parent {
+		if !openForChildrenStatus(current.Status) {
+			return exitError{code: 2, msg: fmt.Sprintf("cannot create below closed parent %s: status is %s", current.IDText, current.Status)}
+		}
+	}
+	return nil
+}
+
+func validateTerminalParents(t *tree) error {
+	for _, it := range t.Items {
+		if !closedStatus(it.Status) {
+			continue
+		}
+		for _, child := range descendants(it) {
+			if closedStatus(child.Status) {
+				continue
+			}
+			return exitError{code: 2, msg: fmt.Sprintf("closed parent %s (%s) contains unfinished descendant %s (%s)", it.IDText, it.Status, child.IDText, child.Status)}
+		}
+	}
+	return nil
+}
+
 func descendants(parent *item) []*item {
 	var out []*item
 	var walk func(*item)
@@ -2592,7 +2630,7 @@ func unfinishedChildren(parent *item) []string {
 	var walk func(*item)
 	walk = func(it *item) {
 		for _, child := range it.Children {
-			if child.Status != "done" {
+			if !closedStatus(child.Status) {
 				blockers = append(blockers, child.IDText)
 			}
 			walk(child)
