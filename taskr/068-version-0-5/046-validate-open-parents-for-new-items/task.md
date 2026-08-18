@@ -1,10 +1,11 @@
 ---
 title: Validate open parents for new items
-status: reviewing
+status: done
 created_at: 2026-08-10T10:29:12Z
-updated_at: 2026-08-17T13:03:20Z
+updated_at: 2026-08-18T06:19:11Z
 developing_at: 2026-08-17T13:00:53Z
 reviewing_at: 2026-08-17T13:03:20Z
+done_at: 2026-08-18T06:19:11Z
 ---
 
 # Description
