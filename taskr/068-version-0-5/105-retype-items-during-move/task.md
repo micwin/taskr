@@ -1,10 +1,11 @@
 ---
 title: Retype items during move
-status: designing
+status: developing
 created_at: 2026-08-22T14:20:00Z
-updated_at: 2026-08-22T14:20:10Z
+updated_at: 2026-08-22T14:25:01Z
 open_at: 2026-08-22T14:20:00Z
 designing_at: 2026-08-22T14:20:10Z
+developing_at: 2026-08-22T14:25:01Z
 ---
 
 # Description
