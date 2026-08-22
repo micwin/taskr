@@ -60,10 +60,10 @@ assert_move_task_parent_completion() {
   [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
   grep -qx $'001\tmilestone active MVP' "${stdout}"
   grep -qx $'mvp\tmilestone active MVP' "${stdout}"
-  if grep -qx $'002\ttask done Define directory structure' "${stdout}" ||
-    grep -qx $'003\ttask active Define workflows' "${stdout}" ||
-    grep -qx $'004\tsubtask designing Define selectors' "${stdout}"; then
-    echo "move task parent completion should show milestones only" >&2
+  grep -qx $'002\ttask done Define directory structure' "${stdout}"
+  grep -qx $'003\ttask active Define workflows' "${stdout}"
+  if grep -qx $'004\tsubtask designing Define selectors' "${stdout}"; then
+    echo "move task parent completion should hide subtasks" >&2
     exit 1
   fi
 }
@@ -77,9 +77,10 @@ assert_move_subtask_parent_completion() {
   grep -qx $'verzeichnisstruktur\ttask done Define directory structure' "${stdout}"
   grep -qx $'003\ttask active Define workflows' "${stdout}"
   grep -qx $'workflows-definieren\ttask active Define workflows' "${stdout}"
-  if grep -qx $'001\tmilestone active MVP' "${stdout}" ||
-    grep -qx $'004\tsubtask designing Define selectors' "${stdout}"; then
-    echo "move subtask parent completion should show tasks only" >&2
+  grep -qx $'001\tmilestone active MVP' "${stdout}"
+  grep -qx $'mvp\tmilestone active MVP' "${stdout}"
+  if grep -qx $'004\tsubtask designing Define selectors' "${stdout}"; then
+    echo "move subtask parent completion should hide subtasks" >&2
     exit 1
   fi
 }

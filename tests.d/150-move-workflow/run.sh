@@ -114,7 +114,7 @@ grep -qi "closed\\|terminal\\|done\\|cancelled" "${stdout}"
 run_taskr move_completion "${root}" __complete move ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -qx $'003\ttask active Define workflows' "${stdout}"
-grep -qx $'004\tsubtask designing Define selectors' "${stdout}"
+grep -qx $'004\ttask designing Define selectors' "${stdout}"
 if grep -qx $'001\tmilestone active MVP' "${stdout}"; then
   echo "move source completion should hide milestones" >&2
   exit 1

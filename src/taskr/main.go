@@ -230,6 +230,10 @@ Rename an item:
   taskr rename 003 "Plan delivery workflows" --slug delivery-plan
   taskr rename 003 "Plan delivery workflows" --keep-slug
 
+Move or reorganize work:
+  taskr move 003 --under 001
+  taskr move 003 --under 004
+
 List tickets by status:
   taskr list --type task --status open
   taskr list --type task --status developing --under 001
@@ -832,7 +836,17 @@ func moveCommand(rootPath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "move <selector>",
 		Short: "Move an item to another parent",
-		Args:  cobra.ExactArgs(1),
+		Long: `Move an item to another parent.
+
+When the destination parent expects a different child role, move automatically
+converts between task.md and subtask.md. For example, moving a task below a
+task makes it a subtask, and moving a subtask below a milestone makes it a
+task. Root-level moves keep the current item type.
+
+Move follows the same closed-parent rule as create: done and cancelled parent
+contexts are terminal and must be reopened before unfinished work can be moved
+below them.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMove(cmd, rootPath, args[0], under, toRoot)
 		},
@@ -1346,6 +1360,8 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) 
 		return err
 	}
 	destParent := t.Root
+	newType := source.Type
+	newMarker := source.Marker
 	if under != "" {
 		parent, err := resolveItem(t, under)
 		if err != nil {
@@ -1357,14 +1373,19 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) 
 		if isDescendantOf(parent, source) {
 			return exitError{code: 2, msg: "cannot move item under its own descendant"}
 		}
-		if err := validateChildType(parent, source.Type); err != nil {
+		if err := validateCreateParentContext(parent); err != nil {
 			return err
 		}
+		newType = childTypeForParent(parent)
+		newMarker = typeMarkers[newType]
 		destParent = parent.Dir
 	}
 	dest := filepath.Join(destParent, filepath.Base(source.Dir))
 	if filepath.Clean(dest) == filepath.Clean(source.Dir) {
 		return exitError{code: 2, msg: "move destination is the current location"}
+	}
+	if source.Type != newType && newType == "subtask" && len(source.Children) > 0 {
+		return exitError{code: 2, msg: fmt.Sprintf("cannot retype %s %s to subtask while it has children", source.Type, source.IDText)}
 	}
 	if _, err := os.Stat(dest); err == nil {
 		return exitError{code: 2, msg: fmt.Sprintf("move destination exists: %s", relPath(t.Root, dest))}
@@ -1376,14 +1397,33 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) 
 	if err := os.Rename(source.Dir, dest); err != nil {
 		return err
 	}
+	oldMarkerPath := filepath.Join(dest, source.Marker)
+	newMarkerPath := filepath.Join(dest, newMarker)
+	markerChanged := source.Marker != newMarker
+	if markerChanged {
+		if err := os.Rename(oldMarkerPath, newMarkerPath); err != nil {
+			rollbackErr := os.Rename(dest, source.Dir)
+			if rollbackErr != nil {
+				return exitError{code: 1, msg: fmt.Sprintf("move marker retype failed: %v; rollback: %v", err, rollbackErr)}
+			}
+			return err
+		}
+	}
 	if _, err := loadTree(t.Root); err != nil {
+		if markerChanged {
+			_ = os.Rename(newMarkerPath, oldMarkerPath)
+		}
 		rollbackErr := os.Rename(dest, source.Dir)
 		if rollbackErr != nil {
 			return exitError{code: 1, msg: fmt.Sprintf("move made invalid worktree and rollback failed: %v; rollback: %v", err, rollbackErr)}
 		}
 		return exitError{code: 2, msg: fmt.Sprintf("move would make worktree invalid: %v", err)}
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "moved id=%s from=%s to=%s\n", source.IDText, oldRel, newRel)
+	typeChange := source.Type
+	if source.Type != newType {
+		typeChange = source.Type + "->" + newType
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "moved id=%s from=%s to=%s type=%s\n", source.IDText, oldRel, newRel, typeChange)
 	return nil
 }
 
@@ -2204,10 +2244,8 @@ func moveParentCompletion(rootPath string) func(*cobra.Command, []string, string
 		}
 		include := func(it *item) bool {
 			switch sourceType {
-			case "task":
-				return it.Type == "milestone"
-			case "subtask":
-				return it.Type == "task"
+			case "task", "subtask":
+				return it.Type == "milestone" || it.Type == "task"
 			case "milestone":
 				return false
 			default:
@@ -2664,6 +2702,17 @@ func validateChildType(parent *item, childType string) error {
 		return exitError{code: 2, msg: fmt.Sprintf("cannot create %s under %s", childType, parent.Type)}
 	}
 	return nil
+}
+
+func childTypeForParent(parent *item) string {
+	switch parent.Type {
+	case "milestone":
+		return "task"
+	case "task":
+		return "subtask"
+	default:
+		return ""
+	}
 }
 
 func nextID(items []*item) int {

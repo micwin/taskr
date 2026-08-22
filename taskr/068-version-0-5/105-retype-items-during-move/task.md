@@ -1,11 +1,12 @@
 ---
 title: Retype items during move
-status: developing
+status: reviewing
 created_at: 2026-08-22T14:20:00Z
-updated_at: 2026-08-22T14:25:01Z
+updated_at: 2026-08-22T14:30:23Z
 open_at: 2026-08-22T14:20:00Z
 designing_at: 2026-08-22T14:20:10Z
 developing_at: 2026-08-22T14:25:01Z
+reviewing_at: 2026-08-22T14:30:23Z
 ---
 
 # Description
@@ -61,3 +62,20 @@ instead of silently reopening or corrupting the hierarchy.
   work.
 
 # Outcome
+
+Implemented automatic retyping in `taskr move`.
+
+Moving a task below a task now converts `task.md` to `subtask.md`. Moving a
+subtask below a milestone converts `subtask.md` to `task.md`. Existing
+same-role moves and `--root` moves keep their previous behavior. Successful
+output reports the effective type or type transition with `type=...`.
+
+Move now rejects closed parent contexts before moving and rejects task-to-subtask
+retyping when the source still has children. Marker renames and directory moves
+are rolled back if the resulting worktree fails validation.
+
+Updated move help, workflow examples, move Smokey coverage, and move completion
+expectations.
+
+Verified with `go test ./src/taskr` and `smokey --tests-dir tests.d`: 32/32
+Smokey tests passed.
