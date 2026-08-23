@@ -5,6 +5,17 @@ committed `VERSION+BUILD` value.
 
 ## [Unreleased]
 
+## [0.3.0+82]
+
+- GitHub Release notes now normalize accidentally wrapped changelog bullets so
+  continuation lines render inside the intended bullet instead of as separate
+  items.
+- `scripts/prepare-release.sh` now supports explicit major and minor release
+  version raises and rejects unknown or conflicting options instead of silently
+  ignoring them.
+- `taskr move` can now change between task and subtask roles with the explicit
+  `--retype` flag while preserving the moved item content and subtree.
+
 ## [0.2.0+82]
 
 - Taskr releases now use separate prepare, release, and post-release scripts so
