@@ -1,12 +1,13 @@
 ---
 title: Retype items during move
-status: reviewing
+status: done
 created_at: 2026-08-22T14:20:00Z
-updated_at: 2026-08-22T14:30:23Z
+updated_at: 2026-08-23T12:36:29Z
 open_at: 2026-08-22T14:20:00Z
 designing_at: 2026-08-22T14:20:10Z
 developing_at: 2026-08-22T14:25:01Z
 reviewing_at: 2026-08-22T14:30:23Z
+done_at: 2026-08-23T12:36:29Z
 ---
 
 # Description
@@ -89,3 +90,8 @@ expectations.
 
 Verified with `go test ./src/taskr` and `smokey --tests-dir tests.d`: 32/32
 Smokey tests passed.
+
+# Release Notes
+
+`taskr move` can now change between task and subtask roles with the explicit
+`--retype` flag while preserving the moved item content and subtree.
