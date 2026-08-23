@@ -232,7 +232,7 @@ Rename an item:
 
 Move or reorganize work:
   taskr move 003 --under 001
-  taskr move 003 --under 004
+  taskr move 003 --under 004 --retype
 
 List tickets by status:
   taskr list --type task --status open
@@ -831,6 +831,7 @@ func isPriority(value string) bool {
 
 func moveCommand(rootPath string) *cobra.Command {
 	var under string
+	var retype bool
 	var toRoot bool
 
 	cmd := &cobra.Command{
@@ -838,20 +839,22 @@ func moveCommand(rootPath string) *cobra.Command {
 		Short: "Move an item to another parent",
 		Long: `Move an item to another parent.
 
-When the destination parent expects a different child role, move automatically
-converts between task.md and subtask.md. For example, moving a task below a
-task makes it a subtask, and moving a subtask below a milestone makes it a
-task. Root-level moves keep the current item type.
+By default, move keeps the current item type. With --retype, move converts
+between task.md and subtask.md when the destination parent requires a different
+child role. For example, moving a task below a task with --retype makes it a
+subtask, and moving a subtask below a milestone with --retype makes it a task.
+Root-level moves keep the current item type.
 
 Move follows the same closed-parent rule as create: done and cancelled parent
 contexts are terminal and must be reopened before unfinished work can be moved
 below them.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runMove(cmd, rootPath, args[0], under, toRoot)
+			return runMove(cmd, rootPath, args[0], under, retype, toRoot)
 		},
 		ValidArgsFunction: moveArgCompletion(rootPath),
 	}
+	cmd.Flags().BoolVar(&retype, "retype", false, "change task/subtask marker type when the destination parent requires it")
 	cmd.Flags().StringVar(&under, "under", "", "destination parent selector")
 	cmd.Flags().BoolVar(&toRoot, "root", false, "move item to the root level")
 	mustRegisterCompletion(cmd, "under", moveParentCompletion(rootPath))
@@ -1347,7 +1350,7 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 	return nil
 }
 
-func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) error {
+func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoot bool) error {
 	if (under == "") == !toRoot {
 		return exitError{code: 2, msg: "move destination requires exactly one of --under or --root"}
 	}
@@ -1376,8 +1379,12 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, toRoot bool) 
 		if err := validateCreateParentContext(parent); err != nil {
 			return err
 		}
-		newType = childTypeForParent(parent)
-		newMarker = typeMarkers[newType]
+		if retype {
+			newType = childTypeForParent(parent)
+			newMarker = typeMarkers[newType]
+		} else if err := validateChildType(parent, source.Type); err != nil {
+			return err
+		}
 		destParent = parent.Dir
 	}
 	dest := filepath.Join(destParent, filepath.Base(source.Dir))
@@ -2242,10 +2249,19 @@ func moveParentCompletion(rootPath string) func(*cobra.Command, []string, string
 				sourceType = source.Type
 			}
 		}
+		retype, _ := cmd.Flags().GetBool("retype")
 		include := func(it *item) bool {
 			switch sourceType {
-			case "task", "subtask":
-				return it.Type == "milestone" || it.Type == "task"
+			case "task":
+				if retype {
+					return it.Type == "milestone" || it.Type == "task"
+				}
+				return it.Type == "milestone"
+			case "subtask":
+				if retype {
+					return it.Type == "milestone" || it.Type == "task"
+				}
+				return it.Type == "task"
 			case "milestone":
 				return false
 			default:

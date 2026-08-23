@@ -53,7 +53,11 @@ run_taskr move_missing_parent "${root}" move 002 --under missing
 [ "${exit_code}" -ne 0 ] || { echo "move missing parent should fail" >&2; exit 1; }
 grep -qi "not found\\|no match" "${stderr}"
 
-run_taskr move_task_under_task "${root}" move 005 --under 003
+run_taskr move_task_under_task_without_retype "${root}" move 005 --under 003
+[ "${exit_code}" -ne 0 ] || { echo "task under task without --retype should fail" >&2; exit 1; }
+grep -qi "cannot create task under task" "${stderr}"
+
+run_taskr move_task_under_task "${root}" move 005 --under 003 --retype
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "moved id=005" "${stdout}"
 grep -q "type=task->subtask" "${stdout}"
@@ -61,7 +65,11 @@ grep -q "to=001-mvp/003-workflows-definieren/005-open-work" "${stdout}"
 test -f "${root}/001-mvp/003-workflows-definieren/005-open-work/subtask.md"
 test ! -e "${root}/001-mvp/005-open-work"
 
-run_taskr move_subtask_to_milestone "${root}" move 005 --under 006
+run_taskr move_subtask_to_milestone_without_retype "${root}" move 005 --under 006
+[ "${exit_code}" -ne 0 ] || { echo "subtask under milestone without --retype should fail" >&2; exit 1; }
+grep -qi "cannot create subtask under milestone" "${stderr}"
+
+run_taskr move_subtask_to_milestone "${root}" move 005 --under 006 --retype
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "moved id=005" "${stdout}"
 grep -q "type=subtask->task" "${stdout}"
@@ -74,7 +82,7 @@ run_taskr show_retyped "${root}" show 005 --meta
 grep -q "^Type: task$" "${stdout}"
 grep -q "^Marker: 006-release/005-open-work/task.md$" "${stdout}"
 
-run_taskr move_subtask_under_milestone "${root}" move 004 --under 001
+run_taskr move_subtask_under_milestone "${root}" move 004 --under 001 --retype
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "moved id=004" "${stdout}"
 grep -q "type=subtask->task" "${stdout}"
@@ -86,13 +94,13 @@ run_taskr move_close_child "${closed_parent_root}" status 004 done
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 run_taskr move_close_parent "${closed_parent_root}" status 003 done
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-run_taskr move_open_under_done_task "${closed_parent_root}" move 005 --under 003
+run_taskr move_open_under_done_task "${closed_parent_root}" move 005 --under 003 --retype
 [ "${exit_code}" -ne 0 ] || { echo "open task should not move under done task" >&2; exit 1; }
 grep -qi "closed\\|terminal\\|done\\|parent" "${stderr}"
 
 rollback_root="${SMOKEY_STATE_DIR}/move-rollback-root"
 cp -R "${TASKR_BASE_ROOT}" "${rollback_root}"
-run_taskr move_invalid_retype_with_children "${rollback_root}" move 003 --under 005
+run_taskr move_invalid_retype_with_children "${rollback_root}" move 003 --under 005 --retype
 [ "${exit_code}" -ne 0 ] || { echo "task with subtask should not retype below task when invalid" >&2; exit 1; }
 grep -qi "invalid\\|cannot\\|subtask\\|children" "${stderr}"
 test -f "${rollback_root}/001-mvp/003-workflows-definieren/task.md"
@@ -108,7 +116,8 @@ run_taskr move_help "${root}" move --help
 grep -q "taskr move <selector>" "${stdout}"
 grep -q -- "--under" "${stdout}"
 grep -q -- "--root" "${stdout}"
-grep -qi "type\\|retype\\|converted\\|automatic" "${stdout}"
+grep -q -- "--retype" "${stdout}"
+grep -qi "type\\|retype\\|convert" "${stdout}"
 grep -qi "closed\\|terminal\\|done\\|cancelled" "${stdout}"
 
 run_taskr move_completion "${root}" __complete move ""

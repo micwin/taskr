@@ -11,15 +11,17 @@ reviewing_at: 2026-08-22T14:30:23Z
 
 # Description
 
-Extend `taskr move` so moving an item to a parent with a different expected
-child role automatically changes the item's marker type when the conversion is
-unambiguous.
+Extend `taskr move` with an explicit `--retype` flag so moving an item to a
+parent with a different expected child role can change the item's marker type
+when the conversion is unambiguous.
 
 The user-facing operation remains `move`: users move work to the place where it
-now belongs, and Taskr derives whether the item must become a `task` or
-`subtask` from the destination parent. The command must preserve the item's ID,
-slug, directory name, content sections, comments, outcome, child directories,
-and files while changing only the marker filename required by the new role.
+now belongs. By default, `move` keeps the current type and rejects destinations
+that would require a type change. With `--retype`, Taskr derives whether the
+item must become a `task` or `subtask` from the destination parent. The command
+must preserve the item's ID, slug, directory name, content sections, comments,
+outcome, child directories, and files while changing only the marker filename
+required by the new role.
 
 The same parent-context status rules used by `create` apply to `move`. An item
 with unfinished work must not be moved below a terminal parent context. Moving
@@ -30,9 +32,13 @@ instead of silently reopening or corrupting the hierarchy.
 
 - `taskr move <selector> --under <parent-selector>` keeps the existing behavior
   when the source item type already matches the destination parent.
-- Moving a `task` under another `task` automatically converts the source marker
-  from `task.md` to `subtask.md`.
-- Moving a `subtask` under a `milestone` automatically converts the source
+- `taskr move <selector> --under <parent-selector>` without `--retype` rejects
+  destination parents that would require a type change.
+- `taskr move <selector> --under <parent-selector> --retype` may change the
+  source marker type when the destination parent requires it.
+- Moving a `task` under another `task` with `--retype` converts the source
+  marker from `task.md` to `subtask.md`.
+- Moving a `subtask` under a `milestone` with `--retype` converts the source
   marker from `subtask.md` to `task.md`.
 - The command output reports the type change when one happened, for example
   `type=task->subtask`.
@@ -47,11 +53,12 @@ instead of silently reopening or corrupting the hierarchy.
   not introduced here.
 - Retype-and-move operations are rolled back if the resulting worktree is
   invalid.
-- `taskr move --help` documents automatic retyping and closed-parent behavior.
+- `taskr move --help` documents `--retype` and closed-parent behavior.
 - Shell completion remains valid for move sources and `--under` parents.
 - Smokey tests cover task-to-subtask move, subtask-to-task move, unchanged-type
-  move, terminal-parent rejection, rollback-relevant invalid move rejection,
-  help text, and completion surfaces.
+  move, no-`--retype` rejection for type-changing destinations,
+  terminal-parent rejection, rollback-relevant invalid move rejection, help
+  text, and completion surfaces.
 
 # Comments
 
@@ -60,15 +67,18 @@ instead of silently reopening or corrupting the hierarchy.
 - 2026-08-22: Closed parent context follows ticket 046: terminal parents are
   `done` and `cancelled`, and they must not accept new or moved unfinished
   work.
+- 2026-08-23: Michael refined the behavior: `move` must not retype
+  automatically. Type changes require explicit `--retype`.
 
 # Outcome
 
-Implemented automatic retyping in `taskr move`.
+Implemented explicit retyping in `taskr move`.
 
-Moving a task below a task now converts `task.md` to `subtask.md`. Moving a
-subtask below a milestone converts `subtask.md` to `task.md`. Existing
-same-role moves and `--root` moves keep their previous behavior. Successful
-output reports the effective type or type transition with `type=...`.
+Moving a task below a task with `--retype` converts `task.md` to `subtask.md`.
+Moving a subtask below a milestone with `--retype` converts `subtask.md` to
+`task.md`. Without `--retype`, type-changing destinations are rejected.
+Existing same-role moves and `--root` moves keep their previous behavior.
+Successful output reports the effective type or type transition with `type=...`.
 
 Move now rejects closed parent contexts before moving and rejects task-to-subtask
 retyping when the source still has children. Marker renames and directory moves
