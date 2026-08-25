@@ -91,7 +91,7 @@ item_page="${target}/items/vendor-002-mounted-task.html"
 [ -f "${item_page}" ]
 grep -Fq 'Source: vendor (Vendor Project)' "${item_page}"
 grep -Fq 'vendor:002' "${item_page}"
-grep -Eq 'href="results\.html\?[^"]*mount=vendor[^"]*"' "${item_page}"
+grep -Eq 'href="\.\./results\.html\?[^"]*mount=vendor[^"]*"' "${item_page}"
 grep -Eq 'href="https://example\.com/mounted"[^>]*target="_blank"|target="_blank"[^>]*href="https://example\.com/mounted"' "${item_page}"
 grep -Eq 'href="https?://www\.example\.org/mounted"[^>]*target="_blank"|target="_blank"[^>]*href="https?://www\.example\.org/mounted"' "${item_page}"
 grep -Fq 'id="previous-result"' "${item_page}"
