@@ -1,9 +1,10 @@
 ---
 title: Move mounted items
-status: designing
+status: developing
 created_at: 2026-08-25T17:31:00Z
-updated_at: 2026-08-25T17:31:00Z
+updated_at: 2026-08-25T19:27:44Z
 designing_at: 2026-08-25T17:31:00Z
+developing_at: 2026-08-25T19:27:44Z
 ---
 
 # Description
@@ -17,6 +18,10 @@ mounted move behavior is same-root inside the selected mounted root.
 
 - `taskr move <mount-id>:<item> --under <mount-id>:<parent>` moves inside the
   same read-write mounted root.
+- When `--under` contains a mount selector, its mount chain must match the
+  source mount chain exactly.
+- When `--under` omits a mount selector, the parent selector is resolved inside
+  the source root, not inside the command's local parent root.
 - `taskr move <mount-id>:<item> --root` moves the item to the mounted root
   level, not the parent root.
 - `taskr move .:<item> ...` targets the local root explicitly.
