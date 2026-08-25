@@ -67,9 +67,15 @@ on `release` before continuing.
 
 Release-note bullets should be written as readable Markdown in `CHANGELOG.md`.
 When a bullet wraps, continuation lines should be indented with two spaces.
-The release-note extractor also normalizes accidentally wrapped lowercase or
-backtick-starting bullet lines into continuations so GitHub does not render
-them as separate bullets.
+The release-note extractor also normalizes accidentally wrapped bullet lines
+whose continuation text starts with lowercase, so GitHub does not render them
+as separate bullets.
+
+Ticket `# Release Notes` sections may use either plain text lines or Markdown
+bullet lines. Plain text lines are converted to bullets during release-note
+collection. Existing `- ` bullet lines are preserved, including bullets whose
+text starts with a code span such as ``- `taskr move` ...``. Wrapped
+continuation lines should be indented in the ticket source.
 
 ## Publish
 

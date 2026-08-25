@@ -17,7 +17,7 @@ awk -v header="## [${release_version}]" '
 ' "${changelog}" | awk '
   /^- / {
     item = substr($0, 3)
-    if (item ~ /^[[:lower:]`]/) {
+    if (item ~ /^[[:lower:]]/) {
       print "  " item
       next
     }

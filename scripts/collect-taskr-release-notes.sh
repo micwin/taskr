@@ -50,5 +50,16 @@ if [ ! -s "${tmp}" ]; then
   exit 1
 fi
 
-sed 's/^/- /' "${tmp}"
+awk '
+  /^[[:space:]]*-/ {
+    sub(/^[[:space:]]*/, "")
+    print
+    next
+  }
+  /^[[:space:]]+/ {
+    print
+    next
+  }
+  { print "- " $0 }
+' "${tmp}"
 rm -f "${tmp}"

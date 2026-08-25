@@ -1,10 +1,11 @@
 ---
 title: Fix release note bullets starting with code spans
-status: developing
+status: reviewing
 created_at: 2026-08-23T12:42:08Z
-updated_at: 2026-08-25T16:17:11Z
+updated_at: 2026-08-25T16:21:37Z
 designing_at: 2026-08-23T12:42:08Z
 developing_at: 2026-08-25T16:17:11Z
+reviewing_at: 2026-08-25T16:21:37Z
 ---
 
 # Description
@@ -40,3 +41,22 @@ too aggressive for intentional bullets that begin with code spans.
   bullets as continuations of the first bullet.
 
 # Outcome
+
+Implemented release-note bullet preservation for code-span-starting bullets.
+
+- `scripts/collect-taskr-release-notes.sh` now preserves existing Markdown
+  bullet lines from ticket `# Release Notes` sections instead of prefixing every
+  collected line with another bullet marker.
+- `scripts/extract-release-notes.sh` no longer treats backtick-starting bullet
+  text as an accidental wrapped continuation.
+- Lowercase accidental continuation normalization remains in place.
+- `RELEASING.md` documents the supported ticket and changelog bullet wrapping
+  rules.
+- Smokey covers both the existing release workflow and a fixture matching the
+  `0.3.0+82` code-span release-note shape.
+
+# Release Notes
+
+Taskr release tooling now preserves GitHub Release bullets that start with code
+spans such as ``- `taskr move` ...`` instead of rendering them as continuations
+of the previous bullet.

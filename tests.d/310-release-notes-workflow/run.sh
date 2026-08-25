@@ -124,6 +124,7 @@ mkdir -p "${release_repo}/scripts"
 cp scripts/release.sh "${release_repo}/scripts/release.sh"
 cp scripts/prepare-release.sh "${release_repo}/scripts/prepare-release.sh"
 cp scripts/collect-taskr-release-notes.sh "${release_repo}/scripts/collect-taskr-release-notes.sh"
+cp scripts/extract-release-notes.sh "${release_repo}/scripts/extract-release-notes.sh"
 chmod +x "${release_repo}/scripts/release.sh"
 chmod +x "${release_repo}/scripts/prepare-release.sh"
 cp -R "${root}" "${release_repo}/taskr-data"
@@ -178,5 +179,14 @@ grep -q 'Users can see the visible change\.' "${release_repo}/CHANGELOG.md"
 grep -qx -- '- GitHub Release notes keep a regular bullet\.' "${release_repo}/CHANGELOG.md"
 grep -qx -- '- `scripts/prepare-release.sh` keeps a code-span-starting bullet\.' "${release_repo}/CHANGELOG.md"
 grep -qx -- '- `taskr move` keeps another code-span-starting bullet\.' "${release_repo}/CHANGELOG.md"
+run_command extract_code_span_bullets env -C "${release_repo}" scripts/extract-release-notes.sh 0.1.0+99 CHANGELOG.md
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx -- '- GitHub Release notes keep a regular bullet\.' "${stdout}"
+grep -qx -- '- `scripts/prepare-release.sh` keeps a code-span-starting bullet\.' "${stdout}"
+grep -qx -- '- `taskr move` keeps another code-span-starting bullet\.' "${stdout}"
+if grep -qx -- '  `taskr move` keeps another code-span-starting bullet\.' "${stdout}"; then
+  echo "release-note extractor must not turn code-span bullets into continuations" >&2
+  exit 1
+fi
 run_command release_collects_notes env -C "${release_repo}" scripts/release.sh
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
