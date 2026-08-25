@@ -1,10 +1,10 @@
 ---
 title: Include other Taskr roots as mounted sources
-status: designing
+status: developing
 created_at: 2026-08-17T07:23:50Z
-updated_at: 2026-08-25T17:18:02Z
+updated_at: 2026-08-25T19:30:33Z
 designing_at: 2026-08-25T17:18:02Z
-developing_at: 2026-08-25T17:16:10Z
+developing_at: 2026-08-25T19:30:33Z
 ---
 
 # Description
