@@ -1,77 +1,174 @@
 ---
 title: Include other Taskr roots as mounted sources
-status: designing
+status: developing
 created_at: 2026-08-17T07:23:50Z
-updated_at: 2026-08-25T14:38:44Z
+updated_at: 2026-08-25T17:16:10Z
 designing_at: 2026-08-17T07:23:50Z
+developing_at: 2026-08-25T17:16:10Z
 ---
 
 # Description
 
-Define support for mounting other Taskr roots into the current Taskr root so
+Implement support for mounting other Taskr roots into the current Taskr root so
 external work can be shown and, when explicitly configured, edited from the
 parent root.
 
-Mounted roots should behave like attached subtrees for display, selectors,
-search, reports, and generated sites while preserving clear source identity.
+Mounts are virtual Taskr objects stored in project configuration, not marker
+files. They live at the root level. Their ID is the configured `id`, and that
+ID is also used to qualify every mounted item ID and slug shown to the user or
+accepted as a selector.
+
+Mounted roots behave like attached subtrees for display, selectors, search,
+reports, and generated sites while preserving clear source identity.
 Mounts may be read-only or read-write. Read-only mounts can be listed and
 inspected but must reject mutating commands with clear messages. Read-write
 mounts allow supported mutations to be applied to the mounted root itself.
 
-The feature needs a command to manage mounts, a `taskr.toml` configuration
-schema, rules for where mounts can be attached, and a stable identity model.
-Initial thinking: mounted roots are attached only at the current root level, not
-inside arbitrary milestones/tasks/subtasks. Each mounted root needs an explicit
-identifier used in displays, selectors, and search terms to avoid ID and slug
+Mounts are attached only at the current root level, not inside arbitrary
+milestones, tasks, or subtasks. Each mounted root has an explicit ID used as a
+prefix in displays, selectors, slugs, and search terms to avoid ID and slug
 collisions across roots.
+
+Mount paths may point either directly at a Taskr root or at the parent
+directory that contains a `taskr` subdirectory. In both cases Taskr stores the
+resolved Taskr root path in `taskr.toml`, not the looser input path.
+
+Mounts are transitive. If a mounted root also defines mounts, those mounted
+roots are included as well. Cyclic mount references are errors. Cycles are not
+fixable by `doctor --fix` because removing an arbitrary edge would be a
+semantic decision.
+
+Mount IDs must be unique across the complete transitive mount graph. If two
+local or transitive mounts use the same ID, Taskr aborts with a clear error.
+Doctor must detect those collisions. They are not fixable by `doctor --fix`
+because choosing a replacement ID would be a semantic decision.
+Future collision-resolution mechanisms such as aliases or temporary
+replacements are tracked separately in ticket 107.
 
 Example identity shape to evaluate:
 
 - local item `003`
+- mount object `vendor`
 - mounted item `vendor:003`
 - local slug `workflow`
 - mounted slug `vendor:workflow`
 
-This parent ticket owns the overall mounted-root contract. Implementation is
-split into subtasks so the schema, read-only views, mutation routing, doctor
-checks, and site/report/completion surfaces can be designed, tested, and
-reviewed independently.
+This ticket owns the mounted-root feature as one cohesive change. The
+configuration schema, virtual mount objects, read-only views, read-write
+mutation routing, doctor checks, generated site support, reports, completion,
+documentation, help, examples, and Smokey coverage belong here.
+
+The command surface treats mounts as Taskr objects:
+
+- `taskr create mount <path> --id vendor --name "Vendor Project"`
+- `taskr create mount <path> --name "Vendor Project"`
+- `taskr create mount <path> --id vendor --name "Vendor Project" --mode read-write`
+- `taskr list --type mount`
+- `taskr show vendor`
+- `taskr reconfigure mount vendor --mode read-write`
+- `taskr reconfigure mount vendor --path ../vendor/taskr`
+- `taskr reconfigure mount vendor --name "Vendor Tickets" --mode read-only`
+- `taskr remove mount vendor`
+
+`taskr reconfigure mount <searchterm/slug/id>` accepts one or more mount
+parameters from the `create mount` surface and updates only those values.
+Supported parameters include `--name`, `--path`, and `--mode`. The `--name`
+value follows normal shell quoting rules, so names with spaces are accepted
+when quoted.
+
+`taskr remove mount <id>` removes only the mount entry from local
+`taskr.toml`. It must not delete, modify, archive, or otherwise touch the
+mounted Taskr root.
+
+When `taskr create mount` omits `--id`, Taskr derives an ID candidate from the
+first word of `--name`: first letter lowercased, then the first two letters,
+then the first three, and so on until the first word has been tried. The first
+unused valid candidate is selected. If every candidate from that word is already
+used or invalid, creation fails with a clear English error such as
+`could not derive mount id: too many attempts`.
 
 # Acceptance
 
-- Define the `taskr.toml` schema for mounted roots, including at least
-  identifier, path, and mode (`read-only` or `read-write`).
-- Define the CLI command surface for managing mounts, including adding,
-  listing, updating/removing, and validating mounted roots.
-- Define whether mounted-root paths are resolved relative to the working
-  directory, current Taskr root, or config file location.
-- Decide whether mounts are allowed only at the root level or can be attached
-  below specific local items. The current working assumption is root-level only.
-- Define allowed mount identifier syntax and how identifiers appear in list,
-  tree, show, report, generated site, errors, shell completion, and selectors.
-- Define selector syntax for mounted IDs and slugs and how ambiguity is reported
-  across local and mounted roots.
-- Define how read-only mounted items participate in display, selector
-  completion, full-text search, tag filtering, reports, generated sites, and
-  references.
-- Define which mutating commands are allowed for read-write mounts and which
-  remain local-only.
+- `taskr.toml` stores mounted roots with at least `id`, `name`, `path`, and
+  mode (`read-only` or `read-write`).
+- Mounts are virtual root-level Taskr objects. They are created with
+  `taskr create mount`, shown with normal read surfaces, updated with
+  `taskr reconfigure mount`, and removed from local configuration with
+  `taskr remove mount` without touching the external root.
+- Mounted-root paths have one documented resolution rule and do not depend on
+  the shell's current working directory after being stored.
+- `taskr create mount` accepts paths that point directly at a Taskr root and
+  paths that point at the parent directory of a `taskr` subdirectory; stored
+  configuration uses the resolved Taskr root path.
+- Mount IDs have one documented validation rule. They appear in list, tree,
+  show, report, generated site, errors, shell completion, and selectors.
+- `taskr create mount <path> --id <id> --name <name>` creates a virtual
+  root-level mount object in `taskr.toml`.
+- `taskr create mount` accepts `--mode`, defaulting to `read-only` when omitted.
+- `taskr create mount <path> --name <name>` derives a unique mount ID from the
+  first word of the name by trying progressively longer lowercase prefixes.
+- ID derivation fails clearly when all candidates from the first name word are
+  already used or invalid.
+- `taskr list --type mount` and `taskr show <id>` expose mount objects.
+- `taskr reconfigure mount <searchterm/slug/id>` updates one or more mount
+  parameters from the create surface, including `--name`, `--path`, and
+  `--mode`.
+- `taskr reconfigure mount` accepts quoted names containing spaces.
+- `taskr remove mount <id>` removes only the local mount config entry and does
+  not modify the mounted root.
+- Mounted item selectors use the mount ID as a prefix, for example
+  `vendor:003` and `vendor:workflow`.
+- Local selectors keep their current behavior. ID and slug collisions across
+  roots do not make the combined view ambiguous when a mount ID is used.
+- Configured read-only mounted roots are loaded for `list`, `tree`, and `show`.
+- Mounts are loaded transitively when mounted roots contain their own mounts.
+- Cyclic mount references fail clearly and are not fixable by `doctor --fix`.
+- Mount IDs are unique across the complete transitive mount graph.
+- Transitive mount ID collisions fail clearly and are not fixable by
+  `doctor --fix`.
+- Resolving transitive mount ID collisions through aliases, temporary
+  replacements, or similar explicit mappings is out of scope here and tracked
+  in ticket 107.
+- Mount objects are shown in overview output as root-level virtual items.
+- Read-only mounted items participate in display, selector completion,
+  full-text search, tag filtering, reports, generated sites, and references.
+- Unavailable mounted roots fail with a clear diagnostic.
 - Mutating commands against read-only mounted items fail clearly without
-  modifying either root.
+  modifying either the local root or the mounted root.
 - Read-write mutations target the mounted root's files, not shadow copies in
   the parent root.
-- Root-local validations such as doctor must distinguish local-root errors from
-  mounted-root errors and report the mount identifier in diagnostics.
-- ID and slug collisions across roots do not make the combined view ambiguous
-  when a mount identifier is used.
-- Decide whether mounted-root failures block normal parent-root operation or
-  can be degraded for read-only display.
-- Split the feature into implementation subtickets for config/schema and mount
-  commands, read-only view loading, read-write mutation routing, doctor
-  validation, and site/report/completion support.
-- Identify Smokey coverage before implementation begins, including collision,
-  read-only mutation rejection, read-write mutation routing, and unavailable
-  mounted roots.
+- Supported read-write mutations are explicitly listed before implementation
+  and covered by Smokey.
+- Root-local validations such as doctor distinguish local-root errors from
+  mounted-root errors and report the mount ID in diagnostics.
+- Default `taskr doctor` validates local structure, mount configuration, mount
+  readability, and read-write mount writability, but does not deeply validate
+  mounted item structure unless requested.
+- `taskr doctor --include-mounts` follows mounts and validates mounted item
+  structure. Read-only mounts are never fixed in place.
+- `taskr doctor --fix` removes clearly broken local mount configuration entries
+  when they are fixable.
+- `taskr doctor --fix --include-mounts` fails when a read-only mounted root
+  would need an in-place fix.
+- `taskr doctor --fix` also respects mount mode for transitively mounted roots.
+  It must not write through a read-only mount anywhere in the mount chain.
+- Unavailable or unreadable mounted roots fail clearly by default.
+- `taskr report` includes mounted-root work with source identity.
+- Generated sites include mount objects and mounted items with mount-prefixed
+  identity.
+- Site search can find mounted IDs, slugs, and titles without colliding with
+  local identity.
+- Shell completion covers mount IDs and mounted item selectors at every command
+  surface that accepts them.
+- Mutating-command completion suggests mounted selectors only when the command
+  can legally mutate that mounted item.
+- Documentation, help, and examples cover mounted read-only display,
+  reconfiguration, removal, and read-write mutation.
+- Smokey coverage includes mount creation, listing, updating, removal,
+  collision behavior, read-only mutation rejection, read-write mutation routing,
+  doctor validation, unavailable mounted roots, transitive mounts, cyclic mount
+  rejection, transitive mount ID collisions, generated site output, and
+  completion.
 
 # Comments
 
@@ -80,10 +177,31 @@ reviewed independently.
 - 2026-08-25: Michael refined the requirement from read-only include to mounted
   roots with read-only/read-write modes. A parent root should be able to show
   and optionally edit another Taskr root as if it were part of the visible tree,
-  while mounted items remain distinguishable by a root identifier such as a
-  prefix before IDs/slugs.
-- 2026-08-25: Split into subtasks 107-111. Keep 099 as the parent contract and
-  close it only when the mounted-root feature is coherent across the agreed
-  surfaces.
+  while mounted items remain distinguishable by a root ID used as a prefix
+  before IDs and slugs.
+- 2026-08-25: Temporarily split into subtasks 107-111, then folded back into
+  this ticket after Michael clarified that 099 should carry the requirements
+  and expectations directly.
+- 2026-08-25: Decided that a mount is a virtual root-level Taskr object. Its
+  `id` is the object ID and the selector/display prefix for mounted items.
+  `taskr create mount` belongs to the object creation surface.
+- 2026-08-25: If `create mount` has no explicit `--id`, derive it from the
+  first word of `--name`; fail if that word cannot produce a free valid ID.
+- 2026-08-25: `remove mount` means unmounting the external root from this Taskr
+  root. It does not delete or alter the external root.
+- 2026-08-25: Reconfiguration uses `taskr reconfigure mount <selector>` with
+  one or more create-surface parameters. `create mount` and `reconfigure mount`
+  both support `--mode`.
+- 2026-08-25: `doctor --fix --include-mounts` must fail when a read-only
+  mounted root would need an in-place fix.
+- 2026-08-25: `create mount` may receive the parent directory of a Taskr root;
+  the stored config path is the resolved Taskr root.
+- 2026-08-25: Mount loading is transitive. Cyclic references are reported as
+  non-fixable errors. Doctor fix mode must respect read-only mode across the
+  whole transitive mount chain.
+- 2026-08-25: Mount IDs must be unique across all transitive mounts. Collisions
+  are reported by normal operation and doctor, and are not `--fix`-able.
+- 2026-08-25: Follow-up ticket 107 tracks future user-controlled collision
+  resolution mechanisms.
 
 # Outcome
