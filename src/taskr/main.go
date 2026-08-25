@@ -80,6 +80,13 @@ type item struct {
 	MarkerPath string
 	Parent     *item
 	Children   []*item
+	Root       string
+	LocalID    string
+	MountID    string
+	MountName  string
+	MountMode  string
+	MountPath  string
+	IsMount    bool
 }
 
 type tree struct {
@@ -122,7 +129,7 @@ func extractRootArg(args []string) (string, []string) {
 
 func isCommandName(name string) bool {
 	switch name {
-	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "rename", "report", "show", "site", "status", "tree", "version":
+	case "__complete", "__completeNoDesc", "archive", "comment", "completion", "create", "doctor", "examples", "help", "init", "list", "move", "open", "priority", "reconfigure", "remove", "rename", "report", "show", "site", "status", "tree", "version":
 		return true
 	default:
 		return false
@@ -152,6 +159,8 @@ func newRootCommand(rootPath string) *cobra.Command {
 		treeCommand(rootPath),
 		statusCommand(rootPath),
 		moveCommand(rootPath),
+		reconfigureCommand(rootPath),
+		removeCommand(rootPath),
 		renameCommand(rootPath),
 		openCommand(rootPath),
 		reportCommand(rootPath),
@@ -384,7 +393,7 @@ Taskr root.`,
 }
 
 func doctorCommand(rootPath string) *cobra.Command {
-	var fix bool
+	var fix, includeMounts bool
 
 	cmd := &cobra.Command{
 		Use:   "doctor",
@@ -404,23 +413,60 @@ apart from duplicate IDs; unsupported errors are reported and leave the
 worktree unchanged.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if fix {
-				return runDoctorFix(cmd, rootPath)
-			}
-			t, err := loadTree(rootPath)
+			root, err := discoverRoot(rootPath)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "ok root=%s items=%d files=%d\n", t.Root, len(t.Items), len(t.FileDirs))
+			root, err = filepath.Abs(root)
+			if err != nil {
+				return err
+			}
+			if fix {
+				if includeMounts {
+					if t, deepErr := loadTree(rootPath); deepErr != nil {
+						return exitError{code: 2, msg: fmt.Sprintf("not fixable in mounted roots: %v", deepErr)}
+					} else {
+						_ = t
+					}
+				}
+				removed, removeErr := removeBrokenLocalMounts(root)
+				if removeErr != nil {
+					return removeErr
+				}
+				if removed > 0 {
+					fmt.Fprintf(cmd.OutOrStdout(), "fixed mounts removed=%d\n", removed)
+				}
+				return runDoctorFix(cmd, rootPath)
+			}
+			t, err := loadLocalTree(root)
+			if err != nil {
+				return err
+			}
+			if err := finalizeTree(t, false); err != nil {
+				return err
+			}
+			mountCount, err := validateMountGraph(root)
+			if err != nil {
+				return err
+			}
+			if includeMounts {
+				deep, deepErr := loadTree(rootPath)
+				if deepErr != nil {
+					return deepErr
+				}
+				t = deep
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "ok root=%s items=%d files=%d mounts=%d\n", t.Root, len(t.Items), len(t.FileDirs), mountCount)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&fix, "fix", false, "repair duplicate IDs when the rest of the worktree is loadable")
+	cmd.Flags().BoolVar(&includeMounts, "include-mounts", false, "deeply validate mounted item structures")
 	return cmd
 }
 
 func createCommand(rootPath string) *cobra.Command {
-	var under, slug, status string
+	var under, slug, status, idFlag, mountName, mountMode, targetMount string
 	var edit, noEdit bool
 
 	cmd := &cobra.Command{
@@ -438,11 +484,14 @@ New work can only be created below open parent context. Parents with status
 done or cancelled are terminal and must be reopened before adding children.`,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, edit, noEdit)
+			if args[0] == "mount" {
+				return runCreateMount(cmd, rootPath, args[1], idFlag, mountName, mountMode)
+			}
+			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, targetMount, edit, noEdit)
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
-				return filterCompletions(itemTypes, toComplete), cobra.ShellCompDirectiveNoFileComp
+				return filterCompletions(append(append([]string{}, itemTypes...), "mount"), toComplete), cobra.ShellCompDirectiveNoFileComp
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
@@ -452,8 +501,13 @@ done or cancelled are terminal and must be reopened before adding children.`,
 	cmd.Flags().StringVar(&status, "status", "", "initial status (default open)")
 	cmd.Flags().BoolVar(&edit, "edit", false, "open marker in editor after creation")
 	cmd.Flags().BoolVar(&noEdit, "no-edit", false, "do not open marker in editor after creation")
-	mustRegisterCompletion(cmd, "under", writeParentCompletion(rootPath))
+	cmd.Flags().StringVar(&idFlag, "id", "", "mount ID (derived from name when omitted)")
+	cmd.Flags().StringVar(&mountName, "name", "", "mount name")
+	cmd.Flags().StringVar(&mountMode, "mode", mountReadOnly, "mount mode (read-only or read-write)")
+	cmd.Flags().StringVar(&targetMount, "mount", ".", "target mount ID (default local root)")
+	mustRegisterCompletion(cmd, "under", createParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "status", staticCompletion(initialStatuses))
+	mustRegisterCompletion(cmd, "mount", writableMountCompletion(rootPath))
 	return cmd
 }
 
@@ -479,6 +533,9 @@ multi-line comment from a pipe or heredoc.`,
 			if err != nil {
 				return err
 			}
+			if err := ensureWritableItem(it, "comment on"); err != nil {
+				return err
+			}
 			lines, err := commentLines(args[1:], fromStdin)
 			if err != nil {
 				return err
@@ -489,7 +546,7 @@ multi-line comment from a pipe or heredoc.`,
 			fmt.Fprintf(cmd.OutOrStdout(), "commented id=%s path=%s/%s\n", it.IDText, it.RelDir, it.Marker)
 			return nil
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: writableSelectorCompletion(rootPath, func(*item) bool { return true }),
 	}
 	cmd.Flags().BoolVar(&fromStdin, "stdin", false, "read comment text from stdin")
 	return cmd
@@ -529,7 +586,14 @@ taskr show '#website'.`,
 }
 
 func writeShownItem(w io.Writer, it *item, metaOnly bool) error {
+	if it.IsMount {
+		fmt.Fprintf(w, "ID: %s\nType: %s\nName: %s\nMode: %s\nPath: %s\n", it.IDText, it.Type, it.Title, it.MountMode, it.MountPath)
+		return nil
+	}
 	fmt.Fprintf(w, "ID: %s\nType: %s\nTitle: %s\nStatus: %s\n", it.IDText, it.Type, it.Title, it.Status)
+	if it.MountID != "" {
+		fmt.Fprintf(w, "Source: %s (%s)\n", it.MountID, it.MountName)
+	}
 	if it.Type == "task" && (metaOnly || it.Priority != "normal") {
 		fmt.Fprintf(w, "Priority: %s\n", it.Priority)
 	}
@@ -647,7 +711,7 @@ Use --tags with a comma-separated list to require all supplied tags.`,
 	cmd.Flags().StringVar(&groupBy, "group-by", "", "group task output by priority")
 	cmd.Flags().StringArrayVar(&globs, "glob", nil, "filter by case-insensitive glob over full marker text (repeatable)")
 	mustRegisterCompletion(cmd, "under", displayParentCompletion(rootPath))
-	mustRegisterCompletion(cmd, "type", staticCompletion(itemTypes))
+	mustRegisterCompletion(cmd, "type", staticCompletion([]string{"milestone", "task", "subtask", "mount\titem type"}))
 	mustRegisterCompletion(cmd, "status", staticCompletion(statuses))
 	mustRegisterCompletion(cmd, "priority", staticCompletion(priorities))
 	mustRegisterCompletion(cmd, "group-by", staticCompletion([]string{"priority"}))
@@ -731,6 +795,9 @@ current status succeeds without changing the marker.`,
 			if err != nil {
 				return err
 			}
+			if err := ensureWritableItem(it, "change status of"); err != nil {
+				return err
+			}
 			if newStatus == it.Status {
 				fmt.Fprintf(cmd.OutOrStdout(), "status id=%s old=%s new=%s changed=false\n", it.IDText, it.Status, newStatus)
 				return nil
@@ -758,7 +825,7 @@ current status succeeds without changing the marker.`,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			switch len(args) {
 			case 0:
-				return selectorCompletion(rootPath)(cmd, args, toComplete)
+				return writableSelectorCompletion(rootPath, func(*item) bool { return true })(cmd, args, toComplete)
 			case 1:
 				return filterCompletions(statuses, toComplete), cobra.ShellCompDirectiveNoFileComp
 			default:
@@ -789,6 +856,9 @@ updated_at; repeating the effective priority leaves the marker unchanged.`,
 			}
 			it, err := resolveItem(t, args[0])
 			if err != nil {
+				return err
+			}
+			if err := ensureWritableItem(it, "change priority of"); err != nil {
 				return err
 			}
 			if it.Type != "task" {
@@ -880,7 +950,7 @@ provide a different slug or --keep-slug to change only the title.`,
 			}
 			return runRename(cmd, rootPath, args[0], strings.Join(args[1:], " "), slug, slugSet, keepSlug)
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: writableSelectorCompletion(rootPath, func(*item) bool { return true }),
 	}
 	cmd.Flags().StringVar(&slug, "slug", "", "directory slug override")
 	cmd.Flags().BoolVar(&keepSlug, "keep-slug", false, "change the title without changing the directory slug")
@@ -903,6 +973,11 @@ func openCommand(rootPath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if !system {
+				if err := ensureWritableItem(it, "open in editor"); err != nil {
+					return err
+				}
+			}
 			opener := "editor"
 			if system {
 				opener = "system"
@@ -913,7 +988,15 @@ func openCommand(rootPath string) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "opened path=%s/%s opener=%s\n", it.RelDir, it.Marker, opener)
 			return nil
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) > 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			if system {
+				return selectorCompletion(rootPath)(cmd, args, toComplete)
+			}
+			return writableSelectorCompletion(rootPath, func(*item) bool { return true })(cmd, args, toComplete)
+		},
 	}
 	cmd.Flags().BoolVar(&system, "system", false, "open with the system opener")
 	return cmd
@@ -969,6 +1052,10 @@ func renderReport(t *tree, now time.Time) string {
 	fmt.Fprintln(&b, "# Task Priority Summary")
 	writeTaskPriorityCounts(&b, items)
 	b.WriteByte('\n')
+	fmt.Fprintln(&b, "# Tag Summary")
+	writeTagCounts(&b, items)
+	b.WriteByte('\n')
+	writeMountedRoots(&b, items)
 
 	fmt.Fprintln(&b, "# Status Extremes")
 	writeStatusExtremes(&b, items)
@@ -990,7 +1077,46 @@ func writeTaskPriorityCounts(w interface{ Write([]byte) (int, error) }, items []
 	}
 	for _, priority := range priorities {
 		fmt.Fprintf(w, "tasks with effective priority %q: %d\n", priority, counts[priority])
+		fmt.Fprintf(w, "tasks with priority %q: %d\n", priority, counts[priority])
 	}
+}
+
+func writeTagCounts(w interface{ Write([]byte) (int, error) }, items []*item) {
+	counts := map[string]int{}
+	for _, it := range items {
+		if it.IsMount {
+			continue
+		}
+		for _, tag := range it.Tags {
+			counts[tag]++
+		}
+	}
+	tags := make([]string, 0, len(counts))
+	for tag := range counts {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	for _, tag := range tags {
+		fmt.Fprintf(w, "items with tag %q: %d\n", tag, counts[tag])
+	}
+}
+
+func writeMountedRoots(w interface{ Write([]byte) (int, error) }, items []*item) {
+	var mounts []*item
+	for _, it := range items {
+		if it.IsMount {
+			mounts = append(mounts, it)
+		}
+	}
+	if len(mounts) == 0 {
+		return
+	}
+	sortItems(mounts)
+	fmt.Fprintln(w, "# Mounted Roots")
+	for _, mount := range mounts {
+		fmt.Fprintf(w, "%s [mount %s] %s\n", mount.IDText, mount.MountMode, mount.Title)
+	}
+	fmt.Fprintln(w)
 }
 
 func writeStatusSummary(w interface{ Write([]byte) (int, error) }, items []*item) {
@@ -1071,7 +1197,7 @@ func writeMilestoneSections(w interface{ Write([]byte) (int, error) }, items []*
 			fmt.Fprintln(w, "# Milestones")
 			wrote = true
 		}
-		fmt.Fprintf(w, "## %s (%s) [%s]\n", milestone.Title, milestone.Slug, milestone.Status)
+		fmt.Fprintf(w, "## %s (%s) [%s]\n", milestone.Title, qualifiedSlug(milestone), milestone.Status)
 		fmt.Fprintln(w, "### Ticket Status Counts")
 		for _, status := range statuses {
 			if count := counts[status]; count > 0 {
@@ -1142,10 +1268,21 @@ func reportItemLine(it *item, withType bool) string {
 	if tags != "" {
 		tags += " "
 	}
-	if withType {
-		return fmt.Sprintf("%s [%s %s] %s%s", it.IDText, it.Type, it.Status, tags, it.Title)
+	priority := ""
+	if it.Type == "task" && it.Priority != "normal" {
+		priority = "priority=" + it.Priority + " "
 	}
-	return fmt.Sprintf("%s [%s] %s%s", it.IDText, it.Status, tags, it.Title)
+	if withType {
+		return fmt.Sprintf("%s [%s %s] %s%s%s", it.IDText, it.Type, it.Status, tags, priority, it.Title)
+	}
+	return fmt.Sprintf("%s [%s] %s%s%s", it.IDText, it.Status, tags, priority, it.Title)
+}
+
+func qualifiedSlug(it *item) string {
+	if it.MountID == "" {
+		return it.Slug
+	}
+	return it.MountID + ":" + it.Slug
 }
 
 func titlePluralItemType(itemType string) string {
@@ -1211,6 +1348,9 @@ func archiveCommand(rootPath string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := ensureWritableItem(it, "archive"); err != nil {
+				return err
+			}
 			if it.Status != "done" {
 				return exitError{code: 2, msg: fmt.Sprintf("cannot archive %s: status is %s, not closed", it.IDText, it.Status)}
 			}
@@ -1218,7 +1358,7 @@ func archiveCommand(rootPath string) *cobra.Command {
 				return exitError{code: 2, msg: fmt.Sprintf("cannot archive %s: unfinished children %s", it.IDText, strings.Join(blockers, ", "))}
 			}
 			destRel := filepath.Join(t.ArchiveDir, to, filepath.Base(it.Dir))
-			dest := filepath.Join(t.Root, destRel)
+			dest := filepath.Join(it.Root, destRel)
 			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 				return err
 			}
@@ -1231,7 +1371,7 @@ func archiveCommand(rootPath string) *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(), "archived id=%s to=%s\n", it.IDText, filepath.ToSlash(destRel))
 			return nil
 		},
-		ValidArgsFunction: selectorArgCompletion(rootPath),
+		ValidArgsFunction: writableSelectorCompletion(rootPath, func(*item) bool { return true }),
 	}
 	cmd.Flags().StringVar(&to, "to", "", "archive destination below root archive directory")
 	return cmd
@@ -1282,7 +1422,7 @@ func initializeRoot(root string) (bool, error) {
 	return created, nil
 }
 
-func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, status string, edit, noEdit bool) error {
+func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, status, targetMount string, edit, noEdit bool) error {
 	marker, ok := typeMarkers[itemType]
 	if !ok {
 		return exitError{code: 2, msg: fmt.Sprintf("invalid item type %q", itemType)}
@@ -1294,10 +1434,30 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 	if err != nil {
 		return err
 	}
-	status = t.Config.initialCreateStatus(itemType, status)
+	targetRoot := t.Root
+	targetPrefix := ""
+	if targetMount != "" && targetMount != "." {
+		mountItem, resolveErr := resolveItem(t, targetMount)
+		if resolveErr != nil {
+			return resolveErr
+		}
+		if !mountItem.IsMount {
+			return exitError{code: 2, msg: fmt.Sprintf("%s is not a mount", targetMount)}
+		}
+		if mountItem.MountMode != mountReadWrite {
+			return exitError{code: 2, msg: fmt.Sprintf("mount %s is read-only", mountItem.IDText)}
+		}
+		targetRoot = mountItem.Root
+		targetPrefix = mountItem.IDText
+	}
+	targetConfig, err := loadProjectConfig(targetRoot)
+	if err != nil {
+		return err
+	}
+	status = targetConfig.initialCreateStatus(itemType, status)
 	var parent *item
 	if under != "" {
-		parent, err = resolveItem(t, under)
+		parent, err = resolveItemForRoot(t, under, targetRoot)
 		if err != nil {
 			return err
 		}
@@ -1316,7 +1476,13 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 	if slug == "" {
 		return exitError{code: 2, msg: "slug is empty"}
 	}
-	id := nextID(t.Items)
+	if parent != nil {
+		if err := ensureWritableItem(parent, "create below"); err != nil {
+			return err
+		}
+		targetRoot = parent.Root
+	}
+	id := nextID(itemsInRoot(t.Items, targetRoot))
 	idText := fmt.Sprintf("%03d", id)
 	baseDir := t.Root
 	if parent != nil {
@@ -1345,8 +1511,12 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 		}
 		opened = true
 	}
-	rel, _ := filepath.Rel(t.Root, dir)
-	fmt.Fprintf(cmd.OutOrStdout(), "created item id=%s path=%s marker=%s opened=%t\n", idText, filepath.ToSlash(rel), marker, opened)
+	rel, _ := filepath.Rel(targetRoot, dir)
+	displayID := idText
+	if targetPrefix != "" {
+		displayID = targetPrefix + ":" + idText
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "created item id=%s path=%s marker=%s opened=%t\n", displayID, filepath.ToSlash(rel), marker, opened)
 	return nil
 }
 
@@ -1362,13 +1532,22 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoo
 	if err != nil {
 		return err
 	}
-	destParent := t.Root
+	if err := ensureWritableItem(source, "move"); err != nil {
+		return err
+	}
+	destParent := source.Root
 	newType := source.Type
 	newMarker := source.Marker
 	if under != "" {
 		parent, err := resolveItem(t, under)
 		if err != nil {
 			return err
+		}
+		if err := ensureWritableItem(parent, "move below"); err != nil {
+			return err
+		}
+		if parent.Root != source.Root {
+			return exitError{code: 2, msg: "cannot move items across Taskr roots"}
 		}
 		if parent == source {
 			return exitError{code: 2, msg: "cannot move item under itself"}
@@ -1416,7 +1595,7 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoo
 			return err
 		}
 	}
-	if _, err := loadTree(t.Root); err != nil {
+	if _, err := loadLocalTree(source.Root); err != nil {
 		if markerChanged {
 			_ = os.Rename(newMarkerPath, oldMarkerPath)
 		}
@@ -1445,6 +1624,9 @@ func runRename(cmd *cobra.Command, rootPath, selector, title, slug string, slugS
 	}
 	it, err := resolveItem(t, selector)
 	if err != nil {
+		return err
+	}
+	if err := ensureWritableItem(it, "rename"); err != nil {
 		return err
 	}
 
@@ -1737,6 +1919,39 @@ func loadTreeWithOptions(rootPath string, allowDuplicateIDs bool) (*tree, error)
 	if err != nil {
 		return nil, err
 	}
+	t, err := loadLocalTree(abs)
+	if err != nil {
+		return nil, err
+	}
+	for _, it := range t.Items {
+		it.Root = abs
+		it.LocalID = it.IDText
+	}
+	seenMountIDs := map[string]string{}
+	if err := expandMounts(t, t, nil, "", mountReadWrite, map[string]bool{abs: true}, seenMountIDs); err != nil {
+		return nil, err
+	}
+	if err := finalizeTree(t, allowDuplicateIDs); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func finalizeTree(t *tree, allowDuplicateIDs bool) error {
+	sortItems(t.Items)
+	t.ByID = map[string][]*item{}
+	for _, it := range t.Items {
+		t.ByID[it.IDText] = append(t.ByID[it.IDText], it)
+	}
+	for id, items := range t.ByID {
+		if len(items) > 1 && !allowDuplicateIDs {
+			return exitError{code: 2, msg: fmt.Sprintf("duplicate id %s", id)}
+		}
+	}
+	return validateTerminalParents(t)
+}
+
+func loadLocalTree(abs string) (*tree, error) {
 	config, err := loadProjectConfig(abs)
 	if err != nil {
 		return nil, err
@@ -1748,22 +1963,80 @@ func loadTreeWithOptions(rootPath string, allowDuplicateIDs bool) (*tree, error)
 	if err := scanDir(t, abs, nil); err != nil {
 		return nil, err
 	}
-	sortItems(t.Items)
-	for _, it := range t.Items {
-		t.ByID[it.IDText] = append(t.ByID[it.IDText], it)
-	}
-	for id, items := range t.ByID {
-		if len(items) > 1 {
-			if allowDuplicateIDs {
-				continue
+	return t, nil
+}
+
+func expandMounts(target, owner *tree, parentMount *item, parentMountID, parentMode string, ancestors map[string]bool, seen map[string]string) error {
+	for _, mount := range owner.Config.Mounts {
+		if previous, ok := seen[mount.ID]; ok {
+			return exitError{code: 2, msg: fmt.Sprintf("duplicate transitive mount id %q in %s and %s", mount.ID, previous, owner.Root)}
+		}
+		seen[mount.ID] = owner.Root
+		path, err := mountedRootPath(owner.Root, mount)
+		if err != nil {
+			return err
+		}
+		if err := ensureMountPathReadable(path); err != nil {
+			return exitError{code: 2, msg: fmt.Sprintf("mount %s is not readable: %v", mount.ID, err)}
+		}
+		if ancestors[path] {
+			return exitError{code: 2, msg: fmt.Sprintf("mount cycle detected at %s (%s)", mount.ID, path)}
+		}
+		chainID := mount.ID
+		if parentMountID != "" {
+			chainID = parentMountID + ":" + mount.ID
+		}
+		mode := mount.Mode
+		if parentMode == mountReadOnly {
+			mode = mountReadOnly
+		}
+		mountItem := &item{
+			IDText:    chainID,
+			LocalID:   mount.ID,
+			Slug:      mount.ID,
+			Type:      "mount",
+			Title:     mount.Name,
+			Status:    mount.Mode,
+			MountID:   chainID,
+			MountName: mount.Name,
+			MountMode: mode,
+			MountPath: path,
+			Root:      path,
+			IsMount:   true,
+			Parent:    parentMount,
+		}
+		if parentMount != nil {
+			parentMount.Children = append(parentMount.Children, mountItem)
+		}
+		target.Items = append(target.Items, mountItem)
+
+		mounted, err := loadLocalTree(path)
+		if err != nil {
+			return exitError{code: errorExitCode(err), msg: fmt.Sprintf("mount %s: %v", chainID, err)}
+		}
+		for _, mountedItem := range mounted.Items {
+			mountedItem.Root = path
+			mountedItem.LocalID = mountedItem.IDText
+			mountedItem.IDText = chainID + ":" + mountedItem.IDText
+			mountedItem.MountID = chainID
+			mountedItem.MountName = mount.Name
+			mountedItem.MountMode = mode
+			if mountedItem.Parent == nil {
+				mountedItem.Parent = mountItem
+				mountItem.Children = append(mountItem.Children, mountedItem)
 			}
-			return nil, exitError{code: 2, msg: fmt.Sprintf("duplicate id %s", id)}
+		}
+		target.Items = append(target.Items, mounted.Items...)
+		nextAncestors := make(map[string]bool, len(ancestors)+1)
+		for ancestor := range ancestors {
+			nextAncestors[ancestor] = true
+		}
+		nextAncestors[path] = true
+		if err := expandMounts(target, mounted, mountItem, chainID, mode, nextAncestors, seen); err != nil {
+			return err
 		}
 	}
-	if err := validateTerminalParents(t); err != nil {
-		return nil, err
-	}
-	return t, nil
+	return nil
 }
 
 func discoverRoot(rootPath string) (string, error) {
@@ -1922,6 +2195,8 @@ func readItem(root, dir, marker string, parent *item) (*item, error) {
 		Marker:     marker,
 		MarkerPath: filepath.Join(dir, marker),
 		Parent:     parent,
+		Root:       root,
+		LocalID:    idText,
 	}, nil
 }
 
@@ -2067,6 +2342,18 @@ func resolveItem(t *tree, selector string) (*item, error) {
 	if selector == "" {
 		return nil, exitError{code: 2, msg: "empty selector"}
 	}
+	if strings.HasPrefix(selector, ".:") {
+		localID := strings.TrimPrefix(selector, ".:")
+		for _, it := range t.Items {
+			if it.MountID == "" && it.IDText == localID {
+				return it, nil
+			}
+		}
+		return nil, exitError{code: 2, msg: fmt.Sprintf("no match for selector %q", selector)}
+	}
+	if selector == "." {
+		return nil, exitError{code: 2, msg: "local root is not an item"}
+	}
 	if matches := t.ByID[selector]; len(matches) == 1 {
 		return matches[0], nil
 	}
@@ -2177,6 +2464,12 @@ func selectorCompletion(rootPath string) func(*cobra.Command, []string, string) 
 	return filteredSelectorCompletion(rootPath, func(*item) bool { return true })
 }
 
+func writableSelectorCompletion(rootPath string, include func(*item) bool) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return filteredSelectorCompletion(rootPath, func(it *item) bool {
+		return !it.IsMount && (it.MountID == "" || it.MountMode == mountReadWrite) && include(it)
+	})
+}
+
 func tagHashCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		t, err := loadTree(rootPath)
@@ -2216,14 +2509,14 @@ func moveArgCompletion(rootPath string) func(*cobra.Command, []string, string) (
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 		return filteredSelectorCompletion(rootPath, func(it *item) bool {
-			return it.Type == "task" || it.Type == "subtask"
+			return (it.Type == "task" || it.Type == "subtask") && !it.IsMount && (it.MountID == "" || it.MountMode == mountReadWrite)
 		})(cmd, args, toComplete)
 	}
 }
 
 func treeRootCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
 	return filteredSelectorCompletion(rootPath, func(it *item) bool {
-		return it.Type == "milestone" || (it.Type == "task" && len(it.Children) > 0)
+		return it.IsMount || it.Type == "milestone" || (it.Type == "task" && len(it.Children) > 0)
 	})
 }
 
@@ -2235,6 +2528,28 @@ func writeParentCompletion(rootPath string) func(*cobra.Command, []string, strin
 	return filteredSelectorCompletion(rootPath, func(it *item) bool {
 		return it.Type == "milestone" || it.Type == "task"
 	})
+}
+
+func createParentCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		t, err := loadTree(rootPath)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		mountID, _ := cmd.Flags().GetString("mount")
+		targetRoot := t.Root
+		if mountID != "" && mountID != "." {
+			mount, resolveErr := resolveItem(t, mountID)
+			if resolveErr != nil || !mount.IsMount || mount.MountMode != mountReadWrite {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			targetRoot = mount.Root
+		}
+		include := func(it *item) bool {
+			return !it.IsMount && filepath.Clean(it.Root) == filepath.Clean(targetRoot) && (it.Type == "milestone" || it.Type == "task")
+		}
+		return filterCompletions(selectorCompletions(t, include), toComplete), cobra.ShellCompDirectiveNoFileComp
+	}
 }
 
 func moveParentCompletion(rootPath string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
@@ -2251,6 +2566,14 @@ func moveParentCompletion(rootPath string) func(*cobra.Command, []string, string
 		}
 		retype, _ := cmd.Flags().GetBool("retype")
 		include := func(it *item) bool {
+			if it.IsMount || it.MountID != "" && it.MountMode != mountReadWrite {
+				return false
+			}
+			if len(args) > 0 {
+				if source, err := resolveItem(t, args[0]); err == nil && filepath.Clean(source.Root) != filepath.Clean(it.Root) {
+					return false
+				}
+			}
 			switch sourceType {
 			case "task":
 				if retype {
@@ -2290,7 +2613,11 @@ func selectorCompletions(t *tree, include func(*item) bool) []string {
 			continue
 		}
 		label := fmt.Sprintf("%s %s %s", it.Type, it.Status, it.Title)
-		for _, value := range []string{it.IDText, it.Slug} {
+		ids := []string{it.IDText, it.Slug}
+		if !it.IsMount && it.MountID == "" {
+			ids = append(ids, ".:"+it.IDText)
+		}
+		for _, value := range ids {
 			if value == "" || seen[value] {
 				continue
 			}
@@ -2341,7 +2668,7 @@ func filterCompletions(values []string, prefix string) []string {
 
 func filteredItems(t *tree, under, typeFilter, statusFilter, priorityFilter, tagFilter string, includeAll bool) ([]*item, error) {
 	if typeFilter != "" {
-		if _, ok := typeMarkers[typeFilter]; !ok {
+		if _, ok := typeMarkers[typeFilter]; !ok && typeFilter != "mount" {
 			return nil, exitError{code: 2, msg: fmt.Sprintf("invalid type %q", typeFilter)}
 		}
 	}
@@ -2491,6 +2818,9 @@ func filterItemsByMarkerGlobs(items []*item, globs []*regexp.Regexp) ([]*item, e
 	}
 	filtered := make([]*item, 0, len(items))
 	for _, it := range items {
+		if it.IsMount {
+			continue
+		}
 		content, err := os.ReadFile(it.MarkerPath)
 		if err != nil {
 			return nil, err
@@ -2620,6 +2950,9 @@ func allTasks(items []*item) bool {
 }
 
 func treeItemMeta(it *item, mode priorityDisplay) string {
+	if it.IsMount {
+		return "mount " + it.Status
+	}
 	meta := it.Type + " " + it.Status
 	if it.Type == "task" && (mode == priorityDisplayShow || mode == priorityDisplayAuto && it.Priority != "normal") {
 		meta += " priority=" + it.Priority

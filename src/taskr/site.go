@@ -22,6 +22,9 @@ type siteItem struct {
 	Milestone string   `json:"milestone,omitempty"`
 	Parent    string   `json:"parent,omitempty"`
 	URL       string   `json:"url"`
+	Mode      string   `json:"mode,omitempty"`
+	Mount     string   `json:"mount,omitempty"`
+	Source    string   `json:"source,omitempty"`
 }
 
 type markerSection struct {
@@ -141,12 +144,13 @@ func newSiteItem(it *item) siteItem {
 	return siteItem{
 		ID: it.IDText, Slug: it.Slug, Title: it.Title, Type: it.Type,
 		Status: it.Status, Priority: it.Priority, Tags: it.Tags, Milestone: milestoneID, Parent: parentID,
-		URL: "items/" + siteItemFilename(it),
+		URL:  "items/" + siteItemFilename(it),
+		Mode: it.MountMode, Mount: it.MountID, Source: it.MountName,
 	}
 }
 
 func siteItemFilename(it *item) string {
-	return it.IDText + "-" + it.Slug + ".html"
+	return strings.ReplaceAll(it.IDText, ":", "-") + "-" + it.Slug + ".html"
 }
 
 func renderIndexPage(t *tree, items []*item, generatedAt string) string {
@@ -155,6 +159,21 @@ func renderIndexPage(t *tree, items []*item, generatedAt string) string {
 	fmt.Fprintf(&content, `<header class="page-header"><div><p class="eyebrow">Taskr project</p><h1>%s</h1><p class="generated">Generated <time datetime="%s">%s</time></p></div></header>`, html.EscapeString(project), generatedAt, generatedAt)
 	content.WriteString(`<form class="search" action="results.html" method="get"><label for="site-search">Search items</label><div class="search-row"><input id="site-search" type="search" name="q" placeholder="ID, slug, or title" required><button type="submit">Search</button></div></form>`)
 	content.WriteString(renderStatusFilterControls())
+	content.WriteString(`<section><h2>Report summary</h2><pre>`)
+	var reportSummary strings.Builder
+	writeStatusSummary(&reportSummary, items)
+	writeTaskPriorityCounts(&reportSummary, items)
+	writeTagCounts(&reportSummary, items)
+	content.WriteString(html.EscapeString(reportSummary.String()))
+	content.WriteString(`</pre></section>`)
+	content.WriteString(`<section><h2>Mounted roots</h2><div class="item-list">`)
+	for _, mount := range items {
+		if !mount.IsMount {
+			continue
+		}
+		fmt.Fprintf(&content, `<div class="item-row"><a data-mount-filter-link href="results.html?mount=%s">%s</a><span>%s [mount %s] %s</span></div>`, html.EscapeString(mount.IDText), html.EscapeString(mount.IDText), html.EscapeString(mount.IDText), html.EscapeString(mount.MountMode), html.EscapeString(mount.Title))
+	}
+	content.WriteString(`</div></section>`)
 	content.WriteString(`<section><h2>Project status</h2>`)
 	content.WriteString(renderStatusLinks(items, ""))
 	content.WriteString(`</section><section><h2>Milestones</h2>`)
@@ -230,11 +249,15 @@ func itemMilestone(it *item) *item {
 }
 
 func renderResultsPage(t *tree, generatedAt string) string {
-	content := `<header class="page-header compact"><div><p class="eyebrow">Taskr results</p><h1 id="results-title">Matching items</h1><p id="results-summary" aria-live="polite"></p></div><a href="index.html">Project overview</a></header><main><div class="table-wrap"><table id="result-table"><thead><tr><th>ID</th><th>Title</th><th>Slug</th><th>Type</th><th>Status</th><th>Tags</th></tr></thead><tbody></tbody></table><p id="empty-results" hidden>No matching items.</p></div><nav class="pager" aria-label="Result pages"><button id="previous-page" type="button">Previous</button><span id="page-status"></span><button id="next-page" type="button">Next</button></nav></main>`
+	content := `<header class="page-header compact"><div><p class="eyebrow">Taskr results</p><h1 id="results-title">Matching items</h1><p id="results-summary" aria-live="polite"></p></div><a href="index.html">Project overview</a></header><main data-mount-filter-link><div class="table-wrap"><table id="result-table"><thead><tr><th>ID</th><th>Title</th><th>Slug</th><th>Type</th><th>Status</th><th>Tags</th></tr></thead><tbody></tbody></table><p id="empty-results" hidden>No matching items.</p></div><nav class="pager" aria-label="Result pages"><button id="previous-page" type="button">Previous</button><span id="page-status"></span><button id="next-page" type="button">Next</button></nav></main>`
 	return siteDocument(filepath.Base(t.Root)+" results - Taskr", "", content, true)
 }
 
 func renderItemPage(t *tree, it *item, generatedAt string) (string, error) {
+	if it.IsMount {
+		content := fmt.Sprintf(`<header class="page-header compact"><div><p class="eyebrow">mount <span>%s</span></p><h1>%s</h1><p class="meta"><span>%s</span><span>%s</span></p></div><a data-mount-filter-link href="../results.html?mount=%s">Mounted items</a></header>`, html.EscapeString(it.IDText), html.EscapeString(it.Title), html.EscapeString(it.MountMode), html.EscapeString(it.MountPath), html.EscapeString(it.IDText))
+		return siteDocument(it.Title+" - Taskr", "../", content, true), nil
+	}
 	content, err := os.ReadFile(it.MarkerPath)
 	if err != nil {
 		return "", err
@@ -245,6 +268,9 @@ func renderItemPage(t *tree, it *item, generatedAt string) (string, error) {
 	}
 	var body strings.Builder
 	fmt.Fprintf(&body, `<header class="page-header compact"><div><p class="eyebrow">%s <span>%s</span></p><div class="title-row"><a id="previous-result" class="result-nav" hidden aria-label="Previous result">&lt;</a><h1>%s</h1><a id="next-result" class="result-nav" hidden aria-label="Next result">&gt;</a></div><p class="meta"><span>%s</span><span>%s</span><span>%s</span><span>%s</span></p></div><a href="../index.html">Project overview</a></header>`, html.EscapeString(it.Type), html.EscapeString(it.IDText), html.EscapeString(it.Title), html.EscapeString(it.Slug), html.EscapeString(it.Status), html.EscapeString(it.Priority), renderSiteTags(it.Tags, "../"))
+	if it.MountID != "" {
+		fmt.Fprintf(&body, `<p class="meta">Source: %s (%s) <a data-mount-filter-link href="../results.html?mount=%s">View mounted root</a></p>`, html.EscapeString(it.MountID), html.EscapeString(it.MountName), html.EscapeString(it.MountID))
+	}
 	body.WriteString(`<main class="ticket" data-result-context><section class="metadata"><h2>Metadata</h2><dl>`)
 	metadata := [][2]string{{"ID", it.IDText}, {"Type", it.Type}, {"Slug", it.Slug}, {"Status", it.Status}, {"Priority", it.Priority}, {"Created", it.CreatedAt}, {"Updated", it.UpdatedAt}}
 	for _, entry := range metadata {
@@ -407,7 +433,7 @@ const siteJavaScript = `(() => {
   const params = new URLSearchParams(window.location.search);
   const pageSize = 25;
   const defaultStatuses = ['open','designing','developing','active','reviewing','blocked'];
-  const normalizedID = value => value.replace(/^0+/, '') || '0';
+  const normalizedID = value => value.split(':').map(part => part.replace(/^0+/, '') || '0').join(':');
   const explicitStatuses = parameters => parameters.getAll('status').filter(Boolean);
   const activeStatuses = parameters => {
     const explicit = explicitStatuses(parameters);
@@ -424,7 +450,9 @@ const siteJavaScript = `(() => {
   const itemMatches = (item, parameters) => {
     const query = (parameters.get('q') || '').trim().toLowerCase();
     const milestone = parameters.get('milestone') || '';
-    if (!activeStatuses(parameters).has(item.status)) return false;
+    const mount = parameters.get('mount') || '';
+    if (item.type !== 'mount' && !activeStatuses(parameters).has(item.status)) return false;
+    if (mount && item.id !== mount && item.mount !== mount && !item.id.startsWith(mount + ':')) return false;
     if (milestone && item.milestone !== milestone && item.id !== milestone) return false;
     return queryMatches(item, query);
   };
@@ -434,6 +462,7 @@ const siteJavaScript = `(() => {
     return item.type === 'milestone' && itemHasMatchingDescendant(item, all, parameters);
   });
   window.taskrVisibleSiteItems = visibleSiteItems;
+  window.taskrSearchSiteItems = visibleSiteItems;
   const matches = item => {
     const query = (params.get('q') || '').trim().toLowerCase();
     const milestone = params.get('milestone') || '';
