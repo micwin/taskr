@@ -1,9 +1,10 @@
 ---
 title: Route mounted item status changes
-status: designing
+status: developing
 created_at: 2026-08-25T17:20:20Z
-updated_at: 2026-08-25T17:20:20Z
+updated_at: 2026-08-25T18:47:31Z
 designing_at: 2026-08-25T17:20:20Z
+developing_at: 2026-08-25T18:47:31Z
 ---
 
 # Description
