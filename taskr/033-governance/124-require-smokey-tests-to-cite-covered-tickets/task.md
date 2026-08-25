@@ -1,9 +1,11 @@
 ---
 title: Require Smokey tests to cite covered tickets
-status: designing
+status: reviewing
 created_at: 2026-08-25T17:38:00Z
-updated_at: 2026-08-25T17:38:00Z
+updated_at: 2026-08-25T17:50:44Z
 designing_at: 2026-08-25T17:38:00Z
+developing_at: 2026-08-25T17:50:24Z
+reviewing_at: 2026-08-25T17:50:44Z
 ---
 
 # Description
@@ -37,3 +39,10 @@ follow-up pass, even when they are not otherwise being changed.
   is accepted; this is expected to generate follow-up work.
 
 # Outcome
+
+Added the Smokey ticket-citation rule to `AGENTS.md`.
+
+New and substantially changed Smokey test blocks must cite the covered Taskr
+ticket ID in a nearby comment. One comment may cover a coherent assertion
+block. Existing Smokey tests must also be assigned to ticket IDs through a
+dedicated audit or when they are next touched.

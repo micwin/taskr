@@ -26,6 +26,10 @@ conflict.
 - Smokey tests must follow `smokey agents-help`: suite-only execution,
   Smokey-managed state, readable directory tests, committed fixtures, and no
   direct-test fallbacks.
+- New and substantially changed Smokey test blocks must cite the covered Taskr
+  ticket ID in a nearby comment. One comment may cover a coherent
+  multi-assertion block. Existing Smokey tests also need ticket assignment in a
+  dedicated audit or when they are next touched.
 
 ## Taskr-Specific Safety
 
