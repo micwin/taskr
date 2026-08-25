@@ -131,7 +131,7 @@ run_taskr mount_show_help "${root}" show --help
 grep -qi 'mount\|mounted\|prefix' "${stdout}"
 run_taskr mount_show_completion "${root}" __complete show ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^vendor\tmount' "${stdout}"
+grep -q $'^vendor\tmount' "${stdout}"
 grep -q '^vendor:002' "${stdout}"
-grep -q '^vendor:lib\tmount' "${stdout}"
+grep -q $'^vendor:lib\tmount' "${stdout}"
 grep -q '^vendor:lib:002' "${stdout}"
