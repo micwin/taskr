@@ -1,9 +1,10 @@
 ---
 title: Complete mounted selectors
-status: designing
+status: developing
 created_at: 2026-08-25T17:20:21Z
-updated_at: 2026-08-25T17:20:21Z
+updated_at: 2026-08-25T19:08:13Z
 designing_at: 2026-08-25T17:20:21Z
+developing_at: 2026-08-25T19:08:13Z
 ---
 
 # Description
