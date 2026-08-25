@@ -23,6 +23,14 @@ const (
 type projectConfig struct {
 	Site     *siteProjectConfig     `toml:"site"`
 	Defaults *defaultsProjectConfig `toml:"defaults"`
+	Mounts   []mountProjectConfig   `toml:"mounts"`
+}
+
+type mountProjectConfig struct {
+	ID   string `toml:"id"`
+	Name string `toml:"name"`
+	Path string `toml:"path"`
+	Mode string `toml:"mode"`
 }
 
 type siteProjectConfig struct {
@@ -72,6 +80,32 @@ func loadProjectConfig(root string) (projectConfig, error) {
 			if value != "" && !isInitialStatus(value) {
 				return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: defaults.%s has invalid initial status %q", path, key, value)}
 			}
+		}
+	}
+	seenMountIDs := map[string]bool{}
+	for i := range config.Mounts {
+		mount := &config.Mounts[i]
+		mount.ID = strings.TrimSpace(mount.ID)
+		mount.Name = strings.TrimSpace(mount.Name)
+		mount.Path = strings.TrimSpace(mount.Path)
+		if mount.Mode == "" {
+			mount.Mode = "read-only"
+		}
+		if !validMountID(mount.ID) {
+			return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: mounts[%d].id is invalid: %q", path, i, mount.ID)}
+		}
+		if seenMountIDs[mount.ID] {
+			return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: duplicate mount id %q", path, mount.ID)}
+		}
+		seenMountIDs[mount.ID] = true
+		if mount.Name == "" {
+			return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: mounts[%d].name must not be empty", path, i)}
+		}
+		if mount.Path == "" {
+			return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: mounts[%d].path must not be empty", path, i)}
+		}
+		if !validMountMode(mount.Mode) {
+			return projectConfig{}, exitError{code: 2, msg: fmt.Sprintf("%s: mounts[%d].mode is invalid: %q", path, i, mount.Mode)}
 		}
 	}
 	return config, nil
