@@ -1,11 +1,12 @@
 ---
 title: Fix release note bullets starting with code spans
-status: reviewing
+status: done
 created_at: 2026-08-23T12:42:08Z
-updated_at: 2026-08-25T16:21:37Z
+updated_at: 2026-08-25T16:27:20Z
 designing_at: 2026-08-23T12:42:08Z
 developing_at: 2026-08-25T16:17:11Z
 reviewing_at: 2026-08-25T16:21:37Z
+done_at: 2026-08-25T16:27:20Z
 ---
 
 # Description
