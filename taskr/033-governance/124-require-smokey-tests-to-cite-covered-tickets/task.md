@@ -1,11 +1,12 @@
 ---
 title: Require Smokey tests to cite covered tickets
-status: reviewing
+status: done
 created_at: 2026-08-25T17:38:00Z
-updated_at: 2026-08-25T17:50:44Z
+updated_at: 2026-08-25T17:52:03Z
 designing_at: 2026-08-25T17:38:00Z
 developing_at: 2026-08-25T17:50:24Z
 reviewing_at: 2026-08-25T17:50:44Z
+done_at: 2026-08-25T17:52:03Z
 ---
 
 # Description
