@@ -1,9 +1,10 @@
 ---
 title: Archive mounted items
-status: designing
+status: developing
 created_at: 2026-08-25T17:31:00Z
-updated_at: 2026-08-25T17:31:00Z
+updated_at: 2026-08-25T19:29:35Z
 designing_at: 2026-08-25T17:31:00Z
+developing_at: 2026-08-25T19:29:35Z
 ---
 
 # Description
