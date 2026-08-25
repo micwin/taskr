@@ -70,6 +70,10 @@ The command surface treats mounts as Taskr objects:
 - `taskr create subtask "Follow-up" --mount vendor --under vendor:003`
 - `taskr list --type mount`
 - `taskr show vendor`
+- `taskr open vendor:003`
+- `taskr comment vendor:003 "Needs vendor input"`
+- `taskr move vendor:004 --under vendor:003 --retype`
+- `taskr archive vendor:003`
 - `taskr reconfigure mount vendor --mode read-write`
 - `taskr reconfigure mount vendor --path ../vendor/taskr`
 - `taskr reconfigure mount vendor --name "Vendor Tickets" --mode read-only`
@@ -160,8 +164,11 @@ used or invalid, creation fails with a clear English error such as
   modifying either the local root or the mounted root.
 - Read-write mutations target the mounted root's files, not shadow copies in
   the parent root.
-- Supported read-write mutations are explicitly listed before implementation
-  and covered by Smokey.
+- Supported read-write mutations include `create`, `status`, `comment`, `move`,
+  and `archive` unless a command-specific subticket explicitly defers behavior
+  with user agreement.
+- `open` supports mounted item selectors and must not silently open writable
+  editors for read-only mounted roots.
 - Root-local validations such as doctor distinguish local-root errors from
   mounted-root errors and report the mount ID in diagnostics.
 - Default `taskr doctor` validates local structure, mount configuration, mount
@@ -188,12 +195,14 @@ used or invalid, creation fails with a clear English error such as
 - Mutating-command completion suggests mounted selectors only when the command
   can legally mutate that mounted item.
 - Documentation, help, and examples cover mounted read-only display,
-  reconfiguration, removal, and read-write mutation.
+  reconfiguration, removal, opening, commenting, moving, archiving, and
+  read-write mutation.
 - Smokey coverage includes mount creation, listing, updating, removal,
-  mounted-root item creation, collision behavior, read-only mutation rejection,
-  read-write mutation routing, doctor validation, unavailable mounted roots,
-  transitive mounts, cyclic mount rejection, transitive mount ID collisions,
-  generated site output, and completion.
+  mounted-root item creation, opening, commenting, moving, archiving, collision
+  behavior, read-only mutation rejection, read-write mutation routing, doctor
+  validation, unavailable mounted roots, transitive mounts, cyclic mount
+  rejection, transitive mount ID collisions, generated site output, and
+  completion.
 
 # Comments
 
@@ -236,5 +245,7 @@ used or invalid, creation fails with a clear English error such as
 - 2026-08-25: Added `.` as the explicit current-root placeholder for mount
   selectors, for example `--mount .` and `taskr show .:005`. Completion must
   include `.` and transitive mount IDs.
+- 2026-08-25: Added missing command-specific subtickets for `open`, `comment`,
+  `move`, and `archive` surfaces.
 
 # Outcome
