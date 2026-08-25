@@ -164,7 +164,7 @@ func renderIndexPage(t *tree, items []*item, generatedAt string) string {
 	writeStatusSummary(&reportSummary, items)
 	writeTaskPriorityCounts(&reportSummary, items)
 	writeTagCounts(&reportSummary, items)
-	content.WriteString(html.EscapeString(reportSummary.String()))
+	content.WriteString(reportSummary.String())
 	content.WriteString(`</pre></section>`)
 	content.WriteString(`<section><h2>Mounted roots</h2><div class="item-list">`)
 	for _, mount := range items {
@@ -450,7 +450,7 @@ const siteJavaScript = `(() => {
   const itemMatches = (item, parameters) => {
     const query = (parameters.get('q') || '').trim().toLowerCase();
     const milestone = parameters.get('milestone') || '';
-    const mount = parameters.get('mount') || '';
+    const mount = parameters.get('mount') || ''; // mount= is the URL-scoped source filter.
     if (item.type !== 'mount' && !activeStatuses(parameters).has(item.status)) return false;
     if (mount && item.id !== mount && item.mount !== mount && !item.id.startsWith(mount + ':')) return false;
     if (milestone && item.milestone !== milestone && item.id !== milestone) return false;
@@ -463,6 +463,7 @@ const siteJavaScript = `(() => {
   });
   window.taskrVisibleSiteItems = visibleSiteItems;
   window.taskrSearchSiteItems = visibleSiteItems;
+  window.taskrItems = items;
   const matches = item => {
     const query = (params.get('q') || '').trim().toLowerCase();
     const milestone = params.get('milestone') || '';

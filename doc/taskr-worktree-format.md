@@ -1,5 +1,14 @@
 # Taskr Worktree Format
 
+## Mounted roots
+
+Project configuration may contain repeated `[[mounts]]` tables. Each table has
+an `id`, `name`, `path`, and `mode` (`read-only` or `read-write`). The ID is
+unique across the complete transitive graph and qualifies selectors such as
+`vendor:003`; `.` identifies the local root. A chain is writable only when
+every edge is read-write. Paths may identify a Taskr root or its direct parent.
+Unreadable roots, cycles, and duplicate transitive IDs stop graph loading.
+
 Taskr stores work as directories with Markdown marker files.
 
 The worktree is the source of truth. Every MVP workflow must be possible with

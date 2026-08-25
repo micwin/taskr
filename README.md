@@ -270,6 +270,24 @@ invalid TOML, a non-string directory, and an empty site directory are errors.
 They stop commands that load the root and are reported by `taskr doctor`.
 `doctor --fix` does not rewrite project configuration.
 
+Taskr roots can include other roots through `[[mounts]]` entries:
+
+```toml
+[[mounts]]
+id = "vendor"
+name = "Vendor Project"
+path = "../vendor/taskr"
+mode = "read-only"
+```
+
+Create and manage these entries with `taskr create mount`, `taskr reconfigure
+mount`, and `taskr remove mount`. Mounted item IDs are qualified, for example
+`vendor:002`; `.:002` explicitly selects the local root. Mounts are transitive,
+while cycles and duplicate mount IDs across the resolved graph are errors.
+Mutating commands require every mount in the selected chain to be
+`read-write`. `taskr doctor` validates the mount graph and
+`taskr doctor --include-mounts` also validates marker structures inside mounts.
+
 Initialize the shared site output with an existing empty directory:
 
 ```bash

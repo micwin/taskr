@@ -34,6 +34,13 @@ func ensureWritableItem(it *item, operation string) error {
 	return nil
 }
 
+func mountedSourcePrefix(it *item) string {
+	if it.MountID == "" {
+		return ""
+	}
+	return fmt.Sprintf("source=%s (%s) ", it.MountID, it.MountName)
+}
+
 func itemsInRoot(items []*item, root string) []*item {
 	var selected []*item
 	for _, it := range items {
@@ -51,7 +58,7 @@ func resolveItemForRoot(t *tree, selector, root string) (*item, error) {
 			return nil, err
 		}
 		if filepath.Clean(it.Root) != filepath.Clean(root) {
-			return nil, exitError{code: 2, msg: fmt.Sprintf("selector %q belongs to a different Taskr root", selector)}
+			return nil, exitError{code: 2, msg: fmt.Sprintf("cross-root selector %q belongs to a different Taskr root", selector)}
 		}
 		return it, nil
 	}
