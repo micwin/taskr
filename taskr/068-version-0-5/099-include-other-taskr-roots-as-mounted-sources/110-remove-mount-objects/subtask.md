@@ -1,9 +1,10 @@
 ---
 title: Remove mount objects
-status: designing
+status: developing
 created_at: 2026-08-25T17:20:18Z
-updated_at: 2026-08-25T17:20:18Z
+updated_at: 2026-08-25T18:13:40Z
 designing_at: 2026-08-25T17:20:18Z
+developing_at: 2026-08-25T18:13:40Z
 ---
 
 # Description
