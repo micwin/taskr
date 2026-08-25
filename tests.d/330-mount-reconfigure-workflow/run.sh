@@ -52,7 +52,7 @@ grep -q "path = \"${new_target}\"" "${root}/taskr.toml"
 
 # Ticket 109: multiple fields can be updated in one invocation.
 root="$(create_mount_fixture mount-reconfigure-multiple)"
-new_target="$(make_mount_target mount-reconfigure-multiple-target)"
+new_target="$(make_mount_target mount-reconfigure-multiple-new-target)"
 run_taskr mount_reconfigure_multiple "${root}" reconfigure mount vendor --name "Combined Mount" --path "${new_target}" --mode read-write
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q 'name = "Combined Mount"' "${root}/taskr.toml"
