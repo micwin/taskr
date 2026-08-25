@@ -1,9 +1,10 @@
 ---
 title: Create items in mounted roots
-status: designing
+status: developing
 created_at: 2026-08-25T17:27:18Z
-updated_at: 2026-08-25T17:27:18Z
+updated_at: 2026-08-25T19:15:04Z
 designing_at: 2026-08-25T17:27:18Z
+developing_at: 2026-08-25T19:15:04Z
 ---
 
 # Description
@@ -37,6 +38,9 @@ Example forms:
 - `--under` accepts both mount-prefixed selectors such as `vendor:003` and
   unprefixed selectors such as `003` when unambiguous inside the selected
   mount.
+- A mount-prefixed `--under` selector must match the selected `--mount` target.
+  For example, `--mount archive --under vendor:003` fails clearly instead of
+  crossing into another mounted root.
 - `--under` accepts local-root-prefixed selectors such as `.:003` when
   `--mount .` targets the current root.
 - A `--mount` value that is unknown, ambiguous, unavailable, cyclic, or blocked
@@ -51,7 +55,7 @@ Example forms:
   milestone, mounted subtask creation under a task, read-only rejection,
   transitive read-write creation, `--mount .`, `.:003`, prefixed and unprefixed
   `--under`, target-root ID allocation, unchanged parent root, invalid mount
-  selectors, and completion.
+  selectors, mismatched `--mount`/`--under` prefixes, and completion.
 
 # Comments
 
@@ -61,5 +65,7 @@ Example forms:
 - 2026-08-25: Creation must also work through transitive writable mounts.
   `.` is the explicit current-root placeholder for `--mount` and prefixed local
   selectors.
+- 2026-08-25: A prefixed `--under` selector must point into the same root as
+  `--mount`; mixing two mounted roots in one create command is an error.
 
 # Outcome
