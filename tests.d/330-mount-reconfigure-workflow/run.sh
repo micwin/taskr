@@ -113,6 +113,33 @@ grep -qi "path\\|missing\\|exist\\|read" "${stderr}"
 run_taskr mount_reconfigure_id_and_auto "${root}" reconfigure mount vendor --id next --auto-adjust-id
 [ "${exit_code}" -ne 0 ] || { echo "--id and --auto-adjust-id should be exclusive" >&2; exit 1; }
 grep -qi "exclusive\\|auto-adjust-id\\|id" "${stderr}"
+run_taskr mount_reconfigure_empty_name "${root}" reconfigure mount vendor --name ""
+[ "${exit_code}" -ne 0 ] || { echo "empty mount name should fail" >&2; exit 1; }
+grep -qi "name\\|empty" "${stderr}"
+run_taskr mount_reconfigure_empty_id "${root}" reconfigure mount vendor --id ""
+[ "${exit_code}" -ne 0 ] || { echo "empty mount id should fail" >&2; exit 1; }
+grep -qi "id\\|empty\\|invalid" "${stderr}"
+duplicate_target="$(make_mount_target mount-reconfigure-duplicate-id-target)"
+cat >>"${root}/taskr.toml" <<EOF
+[[mounts]]
+id = "taken"
+name = "Taken"
+path = "${duplicate_target}"
+mode = "read-only"
+EOF
+run_taskr mount_reconfigure_duplicate_id "${root}" reconfigure mount vendor --id taken
+[ "${exit_code}" -ne 0 ] || { echo "duplicate mount id should fail" >&2; exit 1; }
+grep -qi "duplicate\\|exists\\|id" "${stderr}"
+
+# Ticket 109: unchanged reconfigure requests succeed as no-op updates.
+root="$(create_mount_fixture mount-reconfigure-unchanged)"
+before="$(sha256sum "${root}/taskr.toml")"
+run_taskr mount_reconfigure_unchanged_name "${root}" reconfigure mount vendor --name "Vendor Project"
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+after="$(sha256sum "${root}/taskr.toml")"
+[ "${before}" = "${after}" ] || { echo "unchanged mount name should not alter config" >&2; exit 1; }
+run_taskr mount_reconfigure_unchanged_mode "${root}" reconfigure mount vendor --mode read-only
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 
 # Ticket 109: ambiguous or missing selectors fail clearly.
 root="$(create_mount_fixture mount-reconfigure-selector)"

@@ -47,19 +47,35 @@ are mutually exclusive.
 - Multiple parameters may be changed in one invocation.
 - At least one update parameter is required.
 - `--name` accepts quoted values with spaces.
-- Invalid selector, ambiguous selector, invalid mode, invalid path, and
-  unchanged/empty update requests fail clearly.
+- Invalid selector, ambiguous selector, duplicate ID, invalid mode or path, and
+  empty update values fail clearly.
+- Update requests whose resulting values are unchanged succeed as no-op
+  reconfigurations.
 - Help, docs, examples, and shell completion cover `reconfigure mount` and
   mount selectors.
 - Smokey covers single-field updates, multi-field updates, quoted names,
   path resolution, mode validation, explicit ID change, auto-adjusted ID,
   auto-adjusted unchanged ID, `--id`/`--auto-adjust-id` exclusivity, invalid
-  values, missing update parameters, and ambiguity.
+  values, duplicate ID, missing update parameters, unchanged no-op requests,
+  empty update values, and ambiguity.
+- Negative permission-denied cases for unreadable roots and unwritable
+  read-write roots require robust Smokey permission fixtures and are deferred
+  until that Smokey-side support exists. The implementation still must perform
+  the runtime readability and writability checks.
 
 # Comments
 
 - 2026-08-25: Command-specific slice of ticket 099.
 - 2026-08-25: Michael added mode access validation, explicit ID changes, and
   `--auto-adjust-id`.
+- 2026-08-25: Chmod-based unreadable/unwritable Smokey cases are not part of
+  this suite because permission behavior depends on the test runner
+  environment. Robust permission fixture support is tracked in the Smokey
+  project.
+- 2026-08-25: Unchanged reconfigure requests are no-op successes, not errors.
+  Here, unchanged means provided parameters resolve to the mount's existing
+  values.
+- 2026-08-25: Empty update values such as `--name ""` and `--id ""` are errors.
+  Explicit `--id` changes must also reject IDs already used by another mount.
 
 # Outcome
