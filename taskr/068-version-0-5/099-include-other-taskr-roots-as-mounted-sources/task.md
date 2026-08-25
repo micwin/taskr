@@ -1,9 +1,9 @@
 ---
 title: Include other Taskr roots as mounted sources
-status: developing
+status: designing
 created_at: 2026-08-17T07:23:50Z
-updated_at: 2026-08-25T17:16:10Z
-designing_at: 2026-08-17T07:23:50Z
+updated_at: 2026-08-25T17:18:02Z
+designing_at: 2026-08-25T17:18:02Z
 developing_at: 2026-08-25T17:16:10Z
 ---
 
@@ -57,12 +57,17 @@ This ticket owns the mounted-root feature as one cohesive change. The
 configuration schema, virtual mount objects, read-only views, read-write
 mutation routing, doctor checks, generated site support, reports, completion,
 documentation, help, examples, and Smokey coverage belong here.
+Implementation is tracked by command- and surface-specific subtickets under
+this ticket.
 
 The command surface treats mounts as Taskr objects:
 
 - `taskr create mount <path> --id vendor --name "Vendor Project"`
 - `taskr create mount <path> --name "Vendor Project"`
 - `taskr create mount <path> --id vendor --name "Vendor Project" --mode read-write`
+- `taskr create task "Local work" --mount . --under .:003`
+- `taskr create task "New work" --mount vendor --under 003`
+- `taskr create subtask "Follow-up" --mount vendor --under vendor:003`
 - `taskr list --type mount`
 - `taskr show vendor`
 - `taskr reconfigure mount vendor --mode read-write`
@@ -79,6 +84,11 @@ when quoted.
 `taskr remove mount <id>` removes only the mount entry from local
 `taskr.toml`. It must not delete, modify, archive, or otherwise touch the
 mounted Taskr root.
+
+The selector prefix `.` is reserved for the current local root. It may be used
+where a mount ID is accepted, for example `--mount .`, and in item selectors
+such as `.:005`. Shell completion must include `.` and transitive mount IDs
+where relevant.
 
 When `taskr create mount` omits `--id`, Taskr derives an ID candidate from the
 first word of `--name`: first letter lowercased, then the first two letters,
@@ -109,6 +119,19 @@ used or invalid, creation fails with a clear English error such as
   first word of the name by trying progressively longer lowercase prefixes.
 - ID derivation fails clearly when all candidates from the first name word are
   already used or invalid.
+- `taskr create milestone|task|subtask ... --mount <id>` creates work items in
+  a read-write mounted root.
+- `taskr create milestone|task|subtask ... --mount .` targets the current local
+  root explicitly.
+- `taskr create ... --mount <id> --under <selector>` resolves the parent inside
+  the selected mounted root. Selectors may be written with or without the mount
+  ID prefix when they are unambiguous inside that mount.
+- `.:<selector>` addresses items in the current local root and works anywhere a
+  mount-prefixed item selector is accepted.
+- Creating work items through a read-only mount fails clearly without modifying
+  any root.
+- Creating work items through transitive read-write mounts is supported when
+  the complete mount chain is writable.
 - `taskr list --type mount` and `taskr show <id>` expose mount objects.
 - `taskr reconfigure mount <searchterm/slug/id>` updates one or more mount
   parameters from the create surface, including `--name`, `--path`, and
@@ -160,15 +183,17 @@ used or invalid, creation fails with a clear English error such as
   local identity.
 - Shell completion covers mount IDs and mounted item selectors at every command
   surface that accepts them.
+- Shell completion covers the local-root placeholder `.` and transitive mount
+  IDs wherever mount IDs or mount-prefixed selectors are accepted.
 - Mutating-command completion suggests mounted selectors only when the command
   can legally mutate that mounted item.
 - Documentation, help, and examples cover mounted read-only display,
   reconfiguration, removal, and read-write mutation.
 - Smokey coverage includes mount creation, listing, updating, removal,
-  collision behavior, read-only mutation rejection, read-write mutation routing,
-  doctor validation, unavailable mounted roots, transitive mounts, cyclic mount
-  rejection, transitive mount ID collisions, generated site output, and
-  completion.
+  mounted-root item creation, collision behavior, read-only mutation rejection,
+  read-write mutation routing, doctor validation, unavailable mounted roots,
+  transitive mounts, cyclic mount rejection, transitive mount ID collisions,
+  generated site output, and completion.
 
 # Comments
 
@@ -203,5 +228,13 @@ used or invalid, creation fails with a clear English error such as
   are reported by normal operation and doctor, and are not `--fix`-able.
 - 2026-08-25: Follow-up ticket 107 tracks future user-controlled collision
   resolution mechanisms.
+- 2026-08-25: Split implementation into command- and surface-specific
+  subtickets below this ticket while keeping this ticket as the overall
+  requirements package.
+- 2026-08-25: Added `create ... --mount <id>` for creating milestones, tasks,
+  and subtasks inside read-write mounted roots.
+- 2026-08-25: Added `.` as the explicit current-root placeholder for mount
+  selectors, for example `--mount .` and `taskr show .:005`. Completion must
+  include `.` and transitive mount IDs.
 
 # Outcome
