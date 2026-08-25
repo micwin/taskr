@@ -1,10 +1,11 @@
 ---
 title: Validate mounted roots with doctor
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:20:20Z
-updated_at: 2026-08-25T18:54:24Z
+updated_at: 2026-08-25T20:15:42Z
 designing_at: 2026-08-25T17:20:20Z
 developing_at: 2026-08-25T18:54:24Z
+reviewing_at: 2026-08-25T20:15:42Z
 ---
 
 # Description
@@ -53,3 +54,12 @@ and mounted roots with source-aware diagnostics.
   behavior.
 
 # Outcome
+
+Doctor validates mount configuration, graph readability/writability, cycles,
+transitive ID collisions, optional deep marker structure, and removable broken
+local entries.
+
+# Release Notes
+
+`taskr doctor` validates mounted roots and supports deep checks with
+`--include-mounts`.
