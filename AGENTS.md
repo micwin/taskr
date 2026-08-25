@@ -95,6 +95,17 @@ conflict.
   applicable release note, and the ticket status change.
 - Commit review corrections while the ticket remains in `reviewing`. Do not
   combine implementation or review corrections with ticket acceptance.
+- If an implementation ticket cannot be moved to `reviewing` without changing
+  its already accepted tests, preserve the blocked state instead of silently
+  rewriting the contract. Create a branch named from the ticket slug, containing
+  all implementation changes so far plus the proposed test change. On
+  `develop`, set the original implementation ticket that requires the test
+  change to `blocked` and add a ticket comment naming that branch and
+  explaining why the ticket could not reach `reviewing`.
+- When processing a stack of tickets and one ticket is blocked by such a test
+  contract change, comment out the failing test in one focused commit with a
+  descriptive message, continue with the next ticket, and report at the end
+  which tickets were not finished and the one-line reason for each.
 - Move a ticket from `reviewing` to `done` only after explicit user instruction
   and in a dedicated closure commit. That commit contains only the ticket
   status and timestamp update plus the required `BUILD` update.
