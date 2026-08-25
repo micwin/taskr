@@ -8,9 +8,9 @@ designing_at: 2026-08-17T07:23:50Z
 
 # Description
 
-Define and implement support for mounting other Taskr roots into the current
-Taskr root so external work can be shown and, when explicitly configured,
-edited from the parent root.
+Define support for mounting other Taskr roots into the current Taskr root so
+external work can be shown and, when explicitly configured, edited from the
+parent root.
 
 Mounted roots should behave like attached subtrees for display, selectors,
 search, reports, and generated sites while preserving clear source identity.
@@ -32,8 +32,10 @@ Example identity shape to evaluate:
 - local slug `workflow`
 - mounted slug `vendor:workflow`
 
-The exact separator and allowed identifier syntax must be decided before
-implementation.
+This parent ticket owns the overall mounted-root contract. Implementation is
+split into subtasks so the schema, read-only views, mutation routing, doctor
+checks, and site/report/completion surfaces can be designed, tested, and
+reviewed independently.
 
 # Acceptance
 
@@ -64,10 +66,9 @@ implementation.
   when a mount identifier is used.
 - Decide whether mounted-root failures block normal parent-root operation or
   can be degraded for read-only display.
-- Identify whether this must be split into implementation subtickets, likely
-  config/schema, mount command, read-only display/selectors, read-write
-  mutation routing, doctor validation, generated site support, and Smokey
-  workflow coverage.
+- Split the feature into implementation subtickets for config/schema and mount
+  commands, read-only view loading, read-write mutation routing, doctor
+  validation, and site/report/completion support.
 - Identify Smokey coverage before implementation begins, including collision,
   read-only mutation rejection, read-write mutation routing, and unavailable
   mounted roots.
@@ -81,5 +82,8 @@ implementation.
   and optionally edit another Taskr root as if it were part of the visible tree,
   while mounted items remain distinguishable by a root identifier such as a
   prefix before IDs/slugs.
+- 2026-08-25: Split into subtasks 107-111. Keep 099 as the parent contract and
+  close it only when the mounted-root feature is coherent across the agreed
+  surfaces.
 
 # Outcome
