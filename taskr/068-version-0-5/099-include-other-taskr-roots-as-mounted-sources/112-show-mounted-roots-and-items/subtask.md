@@ -1,9 +1,10 @@
 ---
 title: Show mounted roots and items
-status: designing
+status: developing
 created_at: 2026-08-25T17:20:19Z
-updated_at: 2026-08-25T17:20:19Z
+updated_at: 2026-08-25T18:27:51Z
 designing_at: 2026-08-25T17:20:19Z
+developing_at: 2026-08-25T18:27:51Z
 ---
 
 # Description
