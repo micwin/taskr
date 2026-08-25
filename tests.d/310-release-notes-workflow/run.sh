@@ -70,6 +70,48 @@ if grep -q 'Users can see the visible change\.' "${stdout}"; then
   exit 1
 fi
 
+mkdir -p "${boundary_repo}/taskr-data/001-release-notes/005-code-span-bullets"
+cat >"${boundary_repo}/taskr-data/001-release-notes/005-code-span-bullets/task.md" <<'EOF'
+---
+title: Code span release bullets
+status: done
+created_at: 2026-08-23T00:00:00Z
+updated_at: 2026-08-23T00:00:00Z
+done_at: 2026-08-23T00:00:00Z
+---
+
+# Description
+
+Release-note fixture for code-span bullets.
+
+# Acceptance
+
+- Release notes preserve distinct bullets that start with code spans.
+
+# Comments
+
+# Outcome
+
+Release-note extraction was tested.
+
+# Release Notes
+
+- GitHub Release notes keep a regular bullet.
+- `scripts/prepare-release.sh` keeps a code-span-starting bullet.
+- `taskr move` keeps another code-span-starting bullet.
+EOF
+git -C "${boundary_repo}" add .
+git -C "${boundary_repo}" commit -m code-span-notes >/dev/null
+run_command render_code_span_bullets env -C "${boundary_repo}" "${PWD}/scripts/collect-taskr-release-notes.sh" taskr-data --since-ref v0.1.0+1
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx -- '- GitHub Release notes keep a regular bullet\.' "${stdout}"
+grep -qx -- '- `scripts/prepare-release.sh` keeps a code-span-starting bullet\.' "${stdout}"
+grep -qx -- '- `taskr move` keeps another code-span-starting bullet\.' "${stdout}"
+if grep -qx -- '- - `taskr move` keeps another code-span-starting bullet\.' "${stdout}"; then
+  echo "release-note helper must not prefix existing bullets twice" >&2
+  exit 1
+fi
+
 # prepare-release.sh should build Taskr's changelog entry from Taskr-root notes
 # before release.sh commits and pushes the release branch.
 release_remote="${SMOKEY_STATE_DIR}/release-notes-origin.git"
@@ -85,6 +127,36 @@ cp scripts/collect-taskr-release-notes.sh "${release_repo}/scripts/collect-taskr
 chmod +x "${release_repo}/scripts/release.sh"
 chmod +x "${release_repo}/scripts/prepare-release.sh"
 cp -R "${root}" "${release_repo}/taskr-data"
+mkdir -p "${release_repo}/taskr-data/001-release-notes/004-code-span-bullets"
+cat >"${release_repo}/taskr-data/001-release-notes/004-code-span-bullets/task.md" <<'EOF'
+---
+title: Code span release bullets
+status: done
+created_at: 2026-08-23T00:00:00Z
+updated_at: 2026-08-23T00:00:00Z
+done_at: 2026-08-23T00:00:00Z
+---
+
+# Description
+
+Release-note fixture for prepare-release.
+
+# Acceptance
+
+- Prepare release keeps code-span bullets separate.
+
+# Comments
+
+# Outcome
+
+Release-note extraction was tested through prepare-release.
+
+# Release Notes
+
+- GitHub Release notes keep a regular bullet.
+- `scripts/prepare-release.sh` keeps a code-span-starting bullet.
+- `taskr move` keeps another code-span-starting bullet.
+EOF
 printf '0.1.0\n' >"${release_repo}/VERSION"
 printf '99\n' >"${release_repo}/BUILD"
 cat >"${release_repo}/CHANGELOG.md" <<'EOF'
@@ -103,5 +175,8 @@ run_command prepare_collects_notes env -C "${release_repo}" TASKR_ROOT=taskr-dat
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q '^## \[0\.1\.0+99\]' "${release_repo}/CHANGELOG.md"
 grep -q 'Users can see the visible change\.' "${release_repo}/CHANGELOG.md"
+grep -qx -- '- GitHub Release notes keep a regular bullet\.' "${release_repo}/CHANGELOG.md"
+grep -qx -- '- `scripts/prepare-release.sh` keeps a code-span-starting bullet\.' "${release_repo}/CHANGELOG.md"
+grep -qx -- '- `taskr move` keeps another code-span-starting bullet\.' "${release_repo}/CHANGELOG.md"
 run_command release_collects_notes env -C "${release_repo}" scripts/release.sh
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
