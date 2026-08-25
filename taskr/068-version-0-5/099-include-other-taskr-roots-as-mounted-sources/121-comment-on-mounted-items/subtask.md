@@ -1,9 +1,10 @@
 ---
 title: Comment on mounted items
-status: designing
+status: developing
 created_at: 2026-08-25T17:30:59Z
-updated_at: 2026-08-25T17:30:59Z
+updated_at: 2026-08-25T19:23:32Z
 designing_at: 2026-08-25T17:30:59Z
+developing_at: 2026-08-25T19:23:32Z
 ---
 
 # Description
