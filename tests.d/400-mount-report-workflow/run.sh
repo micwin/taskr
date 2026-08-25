@@ -100,6 +100,22 @@ grep -q '^# Mounted Roots$' "${target}"
 grep -q '^vendor \[mount read-only\] Vendor Project$' "${target}"
 grep -q '^vendor:002 \[developing\] #external priority=high Mounted Developing Task$' "${target}"
 
+# Ticket 116: the generated site's report-like overview uses the same mounted report data.
+site_target="${SMOKEY_STATE_DIR}/mount-report-site"
+run_taskr mount_report_site_init "${root}" site init "${site_target}" --create-if-missing
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+run_taskr mount_report_site_generate "${root}" site generate
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -q '^generated site index=' "${stdout}"
+grep -Fq 'Mounted roots' "${site_target}/index.html"
+grep -Fq 'vendor [mount read-only] Vendor Project' "${site_target}/index.html"
+grep -Fq 'vendor:lib [mount read-only] Library Project' "${site_target}/index.html"
+grep -Fq 'archive [mount read-write] Archive Project' "${site_target}/index.html"
+grep -Fq 'tasks with status "developing": 3' "${site_target}/index.html"
+grep -Fq 'tasks with priority "high": 3' "${site_target}/index.html"
+grep -Fq 'items with tag "external": 6' "${site_target}/index.html"
+grep -Fq 'vendor:002' "${site_target}/index.html"
+
 # Ticket 116: unavailable mounts fail clearly instead of creating partial reports.
 bad_root="$(new_root mount-report-unavailable)"
 cat >"${bad_root}/taskr.toml" <<EOF

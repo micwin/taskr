@@ -9,8 +9,9 @@ developing_at: 2026-08-25T18:56:59Z
 
 # Description
 
-Extend `taskr report` so repository reports include mounted roots and mounted
-items with explicit source identity.
+Extend `taskr report` and the report-like overview portion of generated sites
+so repository reports include mounted roots and mounted items with explicit
+source identity.
 
 # Acceptance
 
@@ -20,13 +21,20 @@ items with explicit source identity.
   distinguishable.
 - Report status, priority, and tag summaries include mounted items according to
   documented rules.
+- The generated site's report-like overview uses the same mounted-root report
+  data: mounted root section, mounted status counts, mounted priority/tag
+  summaries, and source-qualified visible rows.
 - Unavailable mounts fail clearly.
 - Help, docs, and examples cover mounted report output.
 - Smokey covers mounted report section/counts, local/mounted collision
-  readability, tags, priorities, and unavailable mount failure.
+  readability, tags, priorities, site report overview output, and unavailable
+  mount failure.
 
 # Comments
 
 - 2026-08-25: Report-specific slice of ticket 099.
+- 2026-08-25: The report-like overview in generated sites belongs to this
+  report slice too. It must stay consistent with `taskr report` when mounted
+  roots are included.
 
 # Outcome
