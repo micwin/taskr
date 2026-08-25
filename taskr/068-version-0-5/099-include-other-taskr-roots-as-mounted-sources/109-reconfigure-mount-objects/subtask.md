@@ -1,10 +1,11 @@
 ---
 title: Reconfigure mount objects
-status: developing
+status: blocked
 created_at: 2026-08-25T17:20:18Z
-updated_at: 2026-08-25T17:57:55Z
+updated_at: 2026-08-25T20:13:07Z
 designing_at: 2026-08-25T17:20:18Z
 developing_at: 2026-08-25T17:57:55Z
+blocked_at: 2026-08-25T20:13:07Z
 ---
 
 # Description
@@ -77,5 +78,7 @@ are mutually exclusive.
   values.
 - 2026-08-25: Empty update values such as `--name ""` and `--id ""` are errors.
   Explicit `--id` changes must also reject IDs already used by another mount.
+
+- 2026-08-25 22:13: Blocked on branch reconfigure-mount-objects: the accepted suite creates mount-reconfigure-multiple-target twice and the second setup fails before reconfigure can run. The branch separates the two fixture targets.
 
 # Outcome

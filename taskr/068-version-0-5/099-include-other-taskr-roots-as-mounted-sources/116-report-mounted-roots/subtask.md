@@ -1,10 +1,11 @@
 ---
 title: Report mounted roots
-status: developing
+status: blocked
 created_at: 2026-08-25T17:20:20Z
-updated_at: 2026-08-25T18:56:59Z
+updated_at: 2026-08-25T20:13:09Z
 designing_at: 2026-08-25T17:20:20Z
 developing_at: 2026-08-25T18:56:59Z
+blocked_at: 2026-08-25T20:13:09Z
 ---
 
 # Description
@@ -36,5 +37,7 @@ source identity.
 - 2026-08-25: The report-like overview in generated sites belongs to this
   report slice too. It must stay consistent with `taskr report` when mounted
   roots are included.
+
+- 2026-08-25 22:13: Blocked on branch report-mounted-roots: the fixture creates three mounted reviewing tasks but the accepted status assertion expects two while its priority and tag assertions count all three. The branch corrects the reviewing count to three.
 
 # Outcome
