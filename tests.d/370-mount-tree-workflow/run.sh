@@ -56,12 +56,12 @@ root="$(create_mount_tree_fixture mount-tree-root)"
 # Ticket 113: default tree renders mount objects with mode, not lifecycle status.
 run_taskr mount_tree_default "${root}" tree
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx 'vendor [mount read-only] Vendor Project' "${stdout}"
-grep -qx '  vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx '    vendor:002 [task open] Mounted Task' "${stdout}"
-grep -qx 'vendor:lib [mount read-only] Library Project' "${stdout}"
-grep -qx '  vendor:lib:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx 'archive [mount read-write] Archive Project' "${stdout}"
+grep -Fqx 'vendor [mount read-only] Vendor Project' "${stdout}"
+grep -Fqx '  vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx '    vendor:002 [task open] Mounted Task' "${stdout}"
+grep -Fqx 'vendor:lib [mount read-only] Library Project' "${stdout}"
+grep -Fqx '  vendor:lib:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx 'archive [mount read-write] Archive Project' "${stdout}"
 if grep -Eq 'vendor \\[mount (open|designing|developing|active|reviewing|blocked|done|cancelled)\\]' "${stdout}"; then
   echo "mount tree rows should show mode instead of Taskr lifecycle status" >&2
   exit 1
@@ -74,14 +74,14 @@ if grep -q 'Mounted Done Task' "${stdout}"; then
 fi
 run_taskr mount_tree_all "${root}" tree --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx '    vendor:003 [task done] Mounted Done Task' "${stdout}"
-grep -qx '    archive:003 [task done] Mounted Done Task' "${stdout}"
+grep -Fqx '    vendor:003 [task done] Mounted Done Task' "${stdout}"
+grep -Fqx '    archive:003 [task done] Mounted Done Task' "${stdout}"
 
 # Ticket 113: selected mounted subtrees start at the selected mounted item.
 run_taskr mount_tree_selected "${root}" tree vendor:001
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx 'vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx '  vendor:002 [task open] Mounted Task' "${stdout}"
+grep -Fqx 'vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx '  vendor:002 [task open] Mounted Task' "${stdout}"
 if grep -q '^vendor \\[mount read-only\\]' "${stdout}"; then
   echo "selected mounted subtree should not include parent mount object" >&2
   exit 1
@@ -90,24 +90,24 @@ fi
 # Ticket 113: alternate indentation modes work with mounted roots.
 run_taskr mount_tree_ascii "${root}" tree --ascii
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx '+- vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx '|  +- vendor:002 [task open] Mounted Task' "${stdout}"
+grep -Fqx '+- vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx '|  +- vendor:002 [task open] Mounted Task' "${stdout}"
 run_taskr mount_tree_tabs "${root}" tree --tabs
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -qx $'\tvendor:001 [milestone open] Mounted Roadmap' "${stdout}"
 grep -qx $'\t\tvendor:002 [task open] Mounted Task' "${stdout}"
 run_taskr mount_tree_wide "${root}" tree --wide
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx '    vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx '        vendor:002 [task open] Mounted Task' "${stdout}"
+grep -Fqx '    vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx '        vendor:002 [task open] Mounted Task' "${stdout}"
 
 # Ticket 113: local and mounted IDs can coexist in the same tree.
 run_taskr mount_tree_collision "${root}" tree --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx '001 [milestone active] #(public,website) MVP' "${stdout}"
-grep -qx '  002 [task done] #internal Define directory structure' "${stdout}"
-grep -qx '  vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx '    vendor:002 [task open] Mounted Task' "${stdout}"
+grep -Fqx '001 [milestone active] #(public,website) MVP' "${stdout}"
+grep -Fqx '  002 [task done] #internal Define directory structure' "${stdout}"
+grep -Fqx '  vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx '    vendor:002 [task open] Mounted Task' "${stdout}"
 
 # Ticket 113: unavailable mounts fail clearly instead of being silently skipped.
 bad_root="$(new_root mount-tree-unavailable)"
@@ -149,7 +149,7 @@ run_taskr mount_tree_help "${root}" tree --help
 grep -qi 'mount\|mounted\|prefix' "${stdout}"
 run_taskr mount_tree_completion "${root}" __complete tree ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -q '^vendor\tmount' "${stdout}"
+grep -q $'^vendor\tmount' "${stdout}"
 grep -q '^vendor:001' "${stdout}"
-grep -q '^vendor:lib\tmount' "${stdout}"
+grep -q $'^vendor:lib\tmount' "${stdout}"
 grep -q '^vendor:lib:001' "${stdout}"
