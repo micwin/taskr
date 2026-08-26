@@ -1,10 +1,11 @@
 ---
 title: Remove mount objects
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:20:18Z
-updated_at: 2026-08-25T18:13:40Z
+updated_at: 2026-08-25T20:15:41Z
 designing_at: 2026-08-25T17:20:18Z
 developing_at: 2026-08-25T18:13:40Z
+reviewing_at: 2026-08-25T20:15:41Z
 ---
 
 # Description
@@ -30,3 +31,9 @@ modifies, archives, or rewrites the mounted Taskr root.
 - 2026-08-25: Command-specific slice of ticket 099.
 
 # Outcome
+
+Implemented selector-based mount removal that changes only local configuration.
+
+# Release Notes
+
+Mount entries can be removed with `taskr remove mount`.

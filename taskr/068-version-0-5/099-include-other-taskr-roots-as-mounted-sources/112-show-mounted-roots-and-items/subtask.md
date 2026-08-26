@@ -1,10 +1,11 @@
 ---
 title: Show mounted roots and items
-status: developing
+status: blocked
 created_at: 2026-08-25T17:20:19Z
-updated_at: 2026-08-25T18:27:51Z
+updated_at: 2026-08-25T20:13:08Z
 designing_at: 2026-08-25T17:20:19Z
 developing_at: 2026-08-25T18:27:51Z
+blocked_at: 2026-08-25T20:13:08Z
 ---
 
 # Description
@@ -28,5 +29,7 @@ ID-prefixed selectors.
 # Comments
 
 - 2026-08-25: Show-specific slice of ticket 099.
+
+- 2026-08-25 22:13: Blocked on branch show-mounted-roots-and-items: accepted completion checks use grep '\t' in a basic regular expression, which does not match tab-delimited completion output. The branch uses Bash tab quoting.
 
 # Outcome
