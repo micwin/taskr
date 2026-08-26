@@ -76,7 +76,7 @@ grep -Fqx 'archive:002 [developing] #external priority=high Mounted Developing T
 grep -Fqx 'vendor:lib:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
 
 # Ticket 116: local and mounted numeric IDs stay distinguishable in the report.
-grep -Fqx '002 [done] #internal Define directory structure' "${stdout}"
+grep -Fq '003 [active] #(release,website) Define workflows' "${stdout}"
 grep -Fqx 'vendor:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
 grep -Fqx 'archive:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
 
