@@ -1,10 +1,11 @@
 ---
 title: Move mounted items
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:31:00Z
-updated_at: 2026-08-25T19:27:44Z
+updated_at: 2026-08-25T20:15:44Z
 designing_at: 2026-08-25T17:31:00Z
 developing_at: 2026-08-25T19:27:44Z
+reviewing_at: 2026-08-25T20:15:44Z
 ---
 
 # Description
@@ -41,3 +42,10 @@ mounted move behavior is same-root inside the selected mounted root.
 - 2026-08-25: Added after reviewing 099 command coverage.
 
 # Outcome
+
+Move operates within the source root, supports qualified and source-relative
+parents, preserves retyping rules, and rejects cross-root or read-only moves.
+
+# Release Notes
+
+`taskr move` supports items inside writable mounted roots.

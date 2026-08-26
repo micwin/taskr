@@ -1,10 +1,11 @@
 ---
 title: List mounted roots
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:20:19Z
-updated_at: 2026-08-25T18:23:10Z
+updated_at: 2026-08-25T20:15:42Z
 designing_at: 2026-08-25T17:20:19Z
 developing_at: 2026-08-25T18:23:10Z
+reviewing_at: 2026-08-25T20:15:42Z
 ---
 
 # Description
@@ -41,3 +42,10 @@ output with clear source identity.
 - 2026-08-25: List-specific slice of ticket 099.
 
 # Outcome
+
+List output now includes virtual mounts, transitive mounts, and qualified items;
+mount rows display access mode instead of lifecycle status.
+
+# Release Notes
+
+`taskr list` displays mounted roots and their source-qualified items.
