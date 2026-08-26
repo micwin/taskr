@@ -70,15 +70,15 @@ grep -q '^archive \[mount read-write\] Archive Project$' "${stdout}"
 grep -q '^tasks with status "developing": 3$' "${stdout}"
 grep -q '^tasks with status "reviewing": 3$' "${stdout}"
 grep -q '^tasks with status "done": 4$' "${stdout}"
-grep -q '^vendor:002 \[developing\] #external priority=high Mounted Developing Task$' "${stdout}"
-grep -q '^vendor:003 \[reviewing\] #(external,review) priority=low Mounted Reviewing Task$' "${stdout}"
-grep -q '^archive:002 \[developing\] #external priority=high Mounted Developing Task$' "${stdout}"
-grep -q '^vendor:lib:002 \[developing\] #external priority=high Mounted Developing Task$' "${stdout}"
+grep -Fqx 'vendor:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
+grep -Fqx 'vendor:003 [reviewing] #(external,review) priority=low Mounted Reviewing Task' "${stdout}"
+grep -Fqx 'archive:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
+grep -Fqx 'vendor:lib:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
 
 # Ticket 116: local and mounted numeric IDs stay distinguishable in the report.
-grep -q '^002 \[done\] #internal Define directory structure$' "${stdout}"
-grep -q '^vendor:002 \[developing\] #external priority=high Mounted Developing Task$' "${stdout}"
-grep -q '^archive:002 \[developing\] #external priority=high Mounted Developing Task$' "${stdout}"
+grep -Fqx '002 [done] #internal Define directory structure' "${stdout}"
+grep -Fqx 'vendor:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
+grep -Fqx 'archive:002 [developing] #external priority=high Mounted Developing Task' "${stdout}"
 
 # Ticket 116: priority and tag summaries include mounted items.
 grep -q '^tasks with priority "high": 3$' "${stdout}"
@@ -87,9 +87,9 @@ grep -q '^items with tag "external": 6$' "${stdout}"
 grep -q '^items with tag "review": 3$' "${stdout}"
 
 # Ticket 116: mounted milestone sections retain source identity.
-grep -q '^## Mounted Roadmap (vendor:mounted-roadmap) \[open\]$' "${stdout}"
-grep -q '^## Mounted Roadmap (archive:mounted-roadmap) \[open\]$' "${stdout}"
-grep -q '^## Mounted Roadmap (vendor:lib:mounted-roadmap) \[open\]$' "${stdout}"
+grep -Fqx '## Mounted Roadmap (vendor:mounted-roadmap) [open]' "${stdout}"
+grep -Fqx '## Mounted Roadmap (archive:mounted-roadmap) [open]' "${stdout}"
+grep -Fqx '## Mounted Roadmap (vendor:lib:mounted-roadmap) [open]' "${stdout}"
 
 # Ticket 116: file report output matches the mounted report content.
 target="${SMOKEY_STATE_DIR}/mount-report.txt"
@@ -98,7 +98,7 @@ run_taskr mount_report_file "${root}" report --output "${target}"
 grep -q "wrote report path=${target}" "${stdout}"
 grep -q '^# Mounted Roots$' "${target}"
 grep -q '^vendor \[mount read-only\] Vendor Project$' "${target}"
-grep -q '^vendor:002 \[developing\] #external priority=high Mounted Developing Task$' "${target}"
+grep -Fqx 'vendor:002 [developing] #external priority=high Mounted Developing Task' "${target}"
 
 # Ticket 116: the generated site's report-like overview uses the same mounted report data.
 site_target="${SMOKEY_STATE_DIR}/mount-report-site"
