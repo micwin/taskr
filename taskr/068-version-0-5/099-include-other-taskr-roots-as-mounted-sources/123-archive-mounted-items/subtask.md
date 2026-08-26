@@ -1,10 +1,11 @@
 ---
 title: Archive mounted items
-status: developing
+status: blocked
 created_at: 2026-08-25T17:31:00Z
-updated_at: 2026-08-25T19:29:35Z
+updated_at: 2026-08-25T20:13:10Z
 designing_at: 2026-08-25T17:31:00Z
 developing_at: 2026-08-25T19:29:35Z
+blocked_at: 2026-08-25T20:13:10Z
 ---
 
 # Description
@@ -30,5 +31,7 @@ archived in that mounted root.
 # Comments
 
 - 2026-08-25: Added after reviewing 099 command coverage.
+
+- 2026-08-25 22:13: Blocked on branch archive-mounted-items: the accepted transitive archive check first creates the same relative archive path in the direct mount and then requires that path not to exist. The branch gives the transitive case an isolated destination.
 
 # Outcome

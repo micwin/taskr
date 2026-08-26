@@ -1,10 +1,11 @@
 ---
 title: Generate site with mounted roots
-status: developing
+status: blocked
 created_at: 2026-08-25T17:20:21Z
-updated_at: 2026-08-25T19:04:17Z
+updated_at: 2026-08-25T20:15:00Z
 designing_at: 2026-08-25T17:20:21Z
 developing_at: 2026-08-25T19:04:17Z
+blocked_at: 2026-08-25T20:15:00Z
 ---
 
 # Description
@@ -42,5 +43,7 @@ include mount objects and mounted items.
   clickable filter affordance. The item link still opens the item; the mount
   link opens the shared results page scoped to that mount and includes
   transitive mounted content.
+
+- 2026-08-25 22:15: Blocked on branch generate-site-with-mounted-roots: the accepted item-page check expects results.html beside generated item pages, but the valid link from items/vendor-002-mounted-task.html is ../results.html. The branch corrects the expected relative URL.
 
 # Outcome

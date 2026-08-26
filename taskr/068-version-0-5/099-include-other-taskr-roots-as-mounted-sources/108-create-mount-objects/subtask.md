@@ -1,10 +1,11 @@
 ---
 title: Create mount objects
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:20:17Z
-updated_at: 2026-08-25T17:49:17Z
+updated_at: 2026-08-25T20:15:41Z
 designing_at: 2026-08-25T17:20:17Z
 developing_at: 2026-08-25T17:49:17Z
+reviewing_at: 2026-08-25T20:15:41Z
 ---
 
 # Description
@@ -57,3 +58,10 @@ creating and removing a short temporary file in the mounted Taskr root.
   project.
 
 # Outcome
+
+Implemented persisted virtual mounts with explicit or derived IDs, strict mode
+validation, parent-path resolution, and runtime readability/writability probes.
+
+# Release Notes
+
+Taskr can mount another Taskr root with `taskr create mount`.
