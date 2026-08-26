@@ -94,8 +94,8 @@ grep -Fqx '+- vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
 grep -Fqx '   +- vendor:002 [task open] Mounted Task' "${stdout}"
 run_taskr mount_tree_tabs "${root}" tree --tabs
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -qx $'\tvendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -qx $'\t\tvendor:002 [task open] Mounted Task' "${stdout}"
+grep -Fqx $'\tvendor:001 [milestone open] Mounted Roadmap' "${stdout}"
+grep -Fqx $'\t\tvendor:002 [task open] Mounted Task' "${stdout}"
 run_taskr mount_tree_wide "${root}" tree --wide
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -Fqx '    vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
