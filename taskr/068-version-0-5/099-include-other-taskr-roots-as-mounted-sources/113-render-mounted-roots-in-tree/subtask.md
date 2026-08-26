@@ -1,10 +1,11 @@
 ---
 title: Render mounted roots in tree
-status: developing
+status: blocked
 created_at: 2026-08-25T17:20:19Z
-updated_at: 2026-08-25T18:40:36Z
+updated_at: 2026-08-25T20:13:09Z
 designing_at: 2026-08-25T17:20:19Z
 developing_at: 2026-08-25T18:40:36Z
+blocked_at: 2026-08-25T20:13:09Z
 ---
 
 # Description
@@ -32,5 +33,7 @@ output.
 # Comments
 
 - 2026-08-25: Tree-specific slice of ticket 099.
+
+- 2026-08-25 22:13: Blocked on branch render-mounted-roots-in-tree: accepted exact-row checks pass unescaped square brackets to grep as regular expressions. The branch performs literal fixed-string checks and correct tab matching.
 
 # Outcome

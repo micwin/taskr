@@ -1,10 +1,11 @@
 ---
 title: Include other Taskr roots as mounted sources
-status: developing
+status: blocked
 created_at: 2026-08-17T07:23:50Z
-updated_at: 2026-08-25T19:30:33Z
+updated_at: 2026-08-25T20:16:03Z
 designing_at: 2026-08-25T17:18:02Z
 developing_at: 2026-08-25T19:30:33Z
+blocked_at: 2026-08-25T20:16:03Z
 ---
 
 # Description
@@ -247,5 +248,7 @@ used or invalid, creation fails with a clear English error such as
   include `.` and transitive mount IDs.
 - 2026-08-25: Added missing command-specific subtickets for `open`, `comment`,
   `move`, and `archive` surfaces.
+
+- 2026-08-25 22:16: Blocked by accepted Smokey contract defects in subtasks 109, 112, 113, 116, 117, 118, and 123. Proposed corrections are preserved on their ticket-slug branches; nine independent command slices reached reviewing.
 
 # Outcome
