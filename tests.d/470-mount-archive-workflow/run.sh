@@ -96,12 +96,12 @@ grep -q 'to=archive/local/002-verzeichnisstruktur' "${stdout}"
 test -f "${root}/archive/local/002-verzeichnisstruktur/task.md"
 
 # Ticket 123: transitive read-write mounted archive uses the transitive root's archive area.
-run_taskr mount_archive_transitive_read_write "${root}" archive archive:child:002 --to 2026
+run_taskr mount_archive_transitive_read_write "${root}" archive archive:child:002 --to child-2026
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q 'archived source=archive:child (Writable Child)' "${stdout}"
-grep -q 'to=archive/2026/002-mounted-done-task' "${stdout}"
-test -f "${archive_child_root}/archive/2026/002-mounted-done-task/task.md"
-test ! -e "${archive_root}/archive/2026/002-mounted-done-task/task.md"
+grep -q 'to=archive/child-2026/002-mounted-done-task' "${stdout}"
+test -f "${archive_child_root}/archive/child-2026/002-mounted-done-task/task.md"
+test ! -e "${archive_root}/archive/child-2026/002-mounted-done-task/task.md"
 
 # Ticket 123: read-only mounted roots reject archive and leave roots unchanged.
 vendor_before="$(hash_root_files "${vendor_root}")"
