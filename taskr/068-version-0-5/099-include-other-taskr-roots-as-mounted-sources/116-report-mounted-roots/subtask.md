@@ -1,11 +1,12 @@
 ---
 title: Report mounted roots
-status: blocked
+status: reviewing
 created_at: 2026-08-25T17:20:20Z
-updated_at: 2026-08-25T20:13:09Z
+updated_at: 2026-08-26T16:12:25Z
 designing_at: 2026-08-25T17:20:20Z
 developing_at: 2026-08-25T18:56:59Z
 blocked_at: 2026-08-25T20:13:09Z
+reviewing_at: 2026-08-26T16:12:25Z
 ---
 
 # Description
@@ -41,3 +42,10 @@ source identity.
 - 2026-08-25 22:13: Blocked on branch report-mounted-roots: the fixture creates three mounted reviewing tasks but the accepted status assertion expects two while its priority and tag assertions count all three. The branch corrects the reviewing count to three.
 
 # Outcome
+
+Reports now include mounted-root inventory, mounted item status, priority, and
+tag summaries, source-qualified rows, and corresponding site overview data.
+
+# Release Notes
+
+Reports now aggregate mounted roots while preserving source identity.

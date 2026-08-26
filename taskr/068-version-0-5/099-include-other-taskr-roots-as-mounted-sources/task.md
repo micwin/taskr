@@ -1,11 +1,12 @@
 ---
 title: Include other Taskr roots as mounted sources
-status: blocked
+status: reviewing
 created_at: 2026-08-17T07:23:50Z
-updated_at: 2026-08-25T20:16:03Z
+updated_at: 2026-08-26T16:12:27Z
 designing_at: 2026-08-25T17:18:02Z
 developing_at: 2026-08-25T19:30:33Z
 blocked_at: 2026-08-25T20:16:03Z
+reviewing_at: 2026-08-26T16:12:27Z
 ---
 
 # Description
@@ -252,3 +253,11 @@ used or invalid, creation fails with a clear English error such as
 - 2026-08-25 22:16: Blocked by accepted Smokey contract defects in subtasks 109, 112, 113, 116, 117, 118, and 123. Proposed corrections are preserved on their ticket-slug branches; nine independent command slices reached reviewing.
 
 # Outcome
+
+Implemented mounted Taskr roots across configuration, commands, validation,
+reporting, generated sites, and completion with read-only/read-write routing
+and transitive source-qualified identities.
+
+# Release Notes
+
+Taskr roots can now be mounted and used as source-qualified local or remote worktrees.

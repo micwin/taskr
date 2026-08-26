@@ -1,11 +1,12 @@
 ---
 title: Reconfigure mount objects
-status: blocked
+status: reviewing
 created_at: 2026-08-25T17:20:18Z
-updated_at: 2026-08-25T20:13:07Z
+updated_at: 2026-08-26T16:12:24Z
 designing_at: 2026-08-25T17:20:18Z
 developing_at: 2026-08-25T17:57:55Z
 blocked_at: 2026-08-25T20:13:07Z
+reviewing_at: 2026-08-26T16:12:24Z
 ---
 
 # Description
@@ -82,3 +83,11 @@ are mutually exclusive.
 - 2026-08-25 22:13: Blocked on branch reconfigure-mount-objects: the accepted suite creates mount-reconfigure-multiple-target twice and the second setup fails before reconfigure can run. The branch separates the two fixture targets.
 
 # Outcome
+
+Implemented mount reconfiguration for identity, name, path, and mode, including
+access validation, automatic ID adjustment, no-op updates, and invalid-value
+rejection.
+
+# Release Notes
+
+Mount definitions can now be updated safely with `taskr reconfigure mount`.

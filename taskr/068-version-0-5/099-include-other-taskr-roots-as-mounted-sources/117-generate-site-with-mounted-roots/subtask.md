@@ -1,11 +1,12 @@
 ---
 title: Generate site with mounted roots
-status: blocked
+status: reviewing
 created_at: 2026-08-25T17:20:21Z
-updated_at: 2026-08-25T20:15:00Z
+updated_at: 2026-08-26T16:12:26Z
 designing_at: 2026-08-25T17:20:21Z
 developing_at: 2026-08-25T19:04:17Z
 blocked_at: 2026-08-25T20:15:00Z
+reviewing_at: 2026-08-26T16:12:26Z
 ---
 
 # Description
@@ -47,3 +48,10 @@ include mount objects and mounted items.
 - 2026-08-25 22:15: Blocked on branch generate-site-with-mounted-roots: the accepted item-page check expects results.html beside generated item pages, but the valid link from items/vendor-002-mounted-task.html is ../results.html. The branch corrects the expected relative URL.
 
 # Outcome
+
+Generated sites now include mounted roots and items in overview, search,
+filters, result navigation, and item pages with source-qualified links.
+
+# Release Notes
+
+Generated Taskr sites now expose mounted-root content and navigation.

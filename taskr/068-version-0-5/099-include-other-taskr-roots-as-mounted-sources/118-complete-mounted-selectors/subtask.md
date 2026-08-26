@@ -1,11 +1,12 @@
 ---
 title: Complete mounted selectors
-status: blocked
+status: reviewing
 created_at: 2026-08-25T17:20:21Z
-updated_at: 2026-08-25T19:57:25Z
+updated_at: 2026-08-26T16:12:26Z
 designing_at: 2026-08-25T17:20:21Z
 developing_at: 2026-08-25T19:08:13Z
 blocked_at: 2026-08-25T19:57:25Z
+reviewing_at: 2026-08-26T16:12:26Z
 ---
 
 # Description
@@ -48,3 +49,10 @@ mount IDs. Transitive mount IDs must be completed as well.
 - 2026-08-25 21:57: Blocked on branch complete-mounted-selectors: ticket 114 expects read-only vendor status targets in completion, while ticket 118 requires mutating completion to omit read-only targets. The accepted contracts cannot both pass without changing ticket 114's Smokey expectation.
 
 # Outcome
+
+Shell completion now covers local, direct, and transitive mounted selectors at
+all supported command surfaces while excluding read-only mutation targets.
+
+# Release Notes
+
+Shell completion now suggests valid mounted-root selectors contextually.

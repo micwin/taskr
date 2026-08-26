@@ -1,11 +1,12 @@
 ---
 title: Render mounted roots in tree
-status: blocked
+status: reviewing
 created_at: 2026-08-25T17:20:19Z
-updated_at: 2026-08-25T20:13:09Z
+updated_at: 2026-08-26T16:12:25Z
 designing_at: 2026-08-25T17:20:19Z
 developing_at: 2026-08-25T18:40:36Z
 blocked_at: 2026-08-25T20:13:09Z
+reviewing_at: 2026-08-26T16:12:25Z
 ---
 
 # Description
@@ -37,3 +38,10 @@ output.
 - 2026-08-25 22:13: Blocked on branch render-mounted-roots-in-tree: accepted exact-row checks pass unescaped square brackets to grep as regular expressions. The branch performs literal fixed-string checks and correct tab matching.
 
 # Outcome
+
+Mounted roots and their item hierarchies now render in every tree indentation
+mode with source-qualified identities and mount access modes.
+
+# Release Notes
+
+`taskr tree` now includes mounted roots and their items.

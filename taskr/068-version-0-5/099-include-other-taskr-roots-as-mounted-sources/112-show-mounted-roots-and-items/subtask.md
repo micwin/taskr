@@ -1,11 +1,12 @@
 ---
 title: Show mounted roots and items
-status: blocked
+status: reviewing
 created_at: 2026-08-25T17:20:19Z
-updated_at: 2026-08-25T20:13:08Z
+updated_at: 2026-08-26T16:12:25Z
 designing_at: 2026-08-25T17:20:19Z
 developing_at: 2026-08-25T18:27:51Z
 blocked_at: 2026-08-25T20:13:08Z
+reviewing_at: 2026-08-26T16:12:25Z
 ---
 
 # Description
@@ -33,3 +34,10 @@ ID-prefixed selectors.
 - 2026-08-25 22:13: Blocked on branch show-mounted-roots-and-items: accepted completion checks use grep '\t' in a basic regular expression, which does not match tab-delimited completion output. The branch uses Bash tab quoting.
 
 # Outcome
+
+Implemented `show` support for mount objects and source-qualified mounted item
+selectors, including ambiguity handling and completion.
+
+# Release Notes
+
+`taskr show` now displays mounted roots and mounted items.
