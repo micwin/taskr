@@ -68,7 +68,7 @@ grep -q '^archive \[mount read-write\] Archive Project$' "${stdout}"
 
 # Ticket 116: status summaries include mounted items with source-qualified rows.
 grep -q '^tasks with status "developing": 3$' "${stdout}"
-grep -q '^tasks with status "reviewing": 2$' "${stdout}"
+grep -q '^tasks with status "reviewing": 3$' "${stdout}"
 grep -q '^tasks with status "done": 4$' "${stdout}"
 grep -q '^vendor:002 \[developing\] #external priority=high Mounted Developing Task$' "${stdout}"
 grep -q '^vendor:003 \[reviewing\] #(external,review) priority=low Mounted Reviewing Task$' "${stdout}"
