@@ -1,10 +1,11 @@
 ---
 title: Open mounted items
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:30:59Z
-updated_at: 2026-08-25T19:21:04Z
+updated_at: 2026-08-25T20:15:43Z
 designing_at: 2026-08-25T17:30:59Z
 developing_at: 2026-08-25T19:21:04Z
+reviewing_at: 2026-08-25T20:15:43Z
 ---
 
 # Description
@@ -40,3 +41,10 @@ not promise write access.
   treated as a display/open operation and may target read-only mounted roots.
 
 # Outcome
+
+Mounted markers open through the editor when writable and through the system
+opener when read-only, with source-qualified output and completion.
+
+# Release Notes
+
+`taskr open` supports mount-prefixed selectors.
