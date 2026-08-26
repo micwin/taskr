@@ -1,10 +1,11 @@
 ---
 title: Route mounted item status changes
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:20:20Z
-updated_at: 2026-08-25T18:47:31Z
+updated_at: 2026-08-25T20:15:42Z
 designing_at: 2026-08-25T17:20:20Z
 developing_at: 2026-08-25T18:47:31Z
+reviewing_at: 2026-08-25T20:15:42Z
 ---
 
 # Description
@@ -31,3 +32,10 @@ mount and reject status mutations through read-only mounts.
 - 2026-08-25: Status-specific mutation slice of ticket 099.
 
 # Outcome
+
+Status changes route to writable mounted roots, preserve timestamp and child
+rules, and reject read-only mount chains.
+
+# Release Notes
+
+`taskr status` supports writable mount-prefixed selectors.

@@ -1,10 +1,11 @@
 ---
 title: Create items in mounted roots
-status: developing
+status: reviewing
 created_at: 2026-08-25T17:27:18Z
-updated_at: 2026-08-25T19:15:04Z
+updated_at: 2026-08-25T20:15:43Z
 designing_at: 2026-08-25T17:27:18Z
 developing_at: 2026-08-25T19:15:04Z
+reviewing_at: 2026-08-25T20:15:43Z
 ---
 
 # Description
@@ -69,3 +70,10 @@ Example forms:
   `--mount`; mixing two mounted roots in one create command is an error.
 
 # Outcome
+
+Item creation can target local, direct, or transitive writable roots with
+root-relative parent selection and target-root ID allocation.
+
+# Release Notes
+
+`taskr create` supports `--mount` for writable mounted roots.

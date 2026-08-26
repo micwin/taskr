@@ -168,6 +168,10 @@ func newRootCommand(rootPath string) *cobra.Command {
 		examplesCommand(),
 		versionCommand(),
 	)
+	cmd.InitDefaultCompletionCmd()
+	if completion, _, err := cmd.Find([]string{"completion"}); err == nil && completion != nil {
+		completion.Long += "\n\nGenerated completion includes local and mount-prefixed Taskr selectors where commands accept them."
+	}
 
 	return cmd
 }
@@ -188,6 +192,7 @@ Initialize the project site output:
 
 Generate the project site:
   taskr site generate
+  # Generated reports include mounted roots and their qualified items.
 
 Open the generated project site:
   taskr site open
@@ -195,6 +200,15 @@ Open the generated project site:
 
 Create a milestone:
   taskr create milestone "MVP" --no-edit
+
+Mount another Taskr root:
+  taskr create mount ../vendor/taskr --id vendor --name "Vendor Project" --mode read-only
+  taskr reconfigure mount vendor --mode read-write
+  taskr remove mount vendor
+
+Create work in mounted or local roots:
+  taskr create task "New work" --mount vendor --under 003
+  taskr create task "Local work" --mount . --under .:003
 
 Create a ticket below a milestone:
   taskr create task "Define workflows" --under 001 --no-edit
@@ -212,6 +226,8 @@ Edit an item:
 Append comments:
   taskr comment 002 "Reviewed with Michael"
   printf 'first detail\nsecond detail\n' | taskr comment 002 --stdin
+  taskr comment vendor:003 "Reviewed external work"
+  taskr comment .:003 "Reviewed local work"
 
 Inspect work:
   taskr list
@@ -229,6 +245,13 @@ Inspect work:
   taskr show '#website'
   taskr show 002 --meta
   taskr report
+  # Reports include mounted roots when they are configured.
+
+Inspect mounted work:
+  taskr show vendor:002
+  taskr tree vendor
+  taskr open vendor:003 --system
+  taskr open .:003
 
 Prioritize a ticket:
   taskr priority 002 high
@@ -242,6 +265,9 @@ Rename an item:
 Move or reorganize work:
   taskr move 003 --under 001
   taskr move 003 --under 004 --retype
+  taskr move archive:005 --under archive:004
+  taskr move archive:005 --under 004
+  taskr move .:005 --under .:001
 
 List tickets by status:
   taskr list --type task --status open
@@ -260,9 +286,16 @@ Review and close work:
   taskr status 003 done
   taskr status 002 done
   taskr status 001 done
+  taskr status vendor:003 reviewing
 
 Archive closed work:
   taskr archive 002 --to 2026
+  taskr archive archive:002 --to 2026
+  taskr archive .:002 --to 2026
+
+Validate mounted roots:
+  taskr doctor --include-mounts
+  taskr doctor --fix
 `)
 		},
 	}
@@ -313,7 +346,8 @@ func siteOpenCommand(rootPath string, configFile *string) *cobra.Command {
 The existing generated site is served without modification. Use --regenerate
 to generate once before serving and --watch to regenerate after relevant Taskr
 source changes. Browser selection uses personal configuration, then BROWSER,
-then the platform system opener.`,
+then the platform system opener. Generated content includes configured mounted
+roots and source-qualified mounted items.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSiteOpen(cmd, rootPath, *configFile, args, siteOpenOptions{
@@ -342,7 +376,7 @@ func siteGenerateCommand(rootPath string) *cobra.Command {
 
 The complete static site is rendered before the existing Taskr-owned output is
 atomically replaced. Run taskr site init first to associate an output directory
-with the selected Taskr root.`,
+with the selected Taskr root. Configured mounts are rendered with qualified IDs.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
@@ -406,7 +440,8 @@ values, optional status-transition timestamps, task priority metadata, tags, and
 root-wide duplicate IDs. Terminal parent contexts are validated so done or
 cancelled items cannot contain unfinished descendants. Optional root-local
 taskr.toml project configuration is parsed strictly; configured site paths and
-ownership markers are validated with the worktree.
+ownership markers and mount graphs are validated with the worktree. Use
+--include-mounts to validate marker structure inside mounted roots.
 
 Fix mode currently repairs only duplicate IDs. The worktree must be loadable
 apart from duplicate IDs; unsupported errors are reported and leave the
@@ -481,13 +516,14 @@ defaults to open. Valid initial statuses are open, designing, developing,
 active, reviewing, and blocked.
 
 New work can only be created below open parent context. Parents with status
-done or cancelled are terminal and must be reopened before adding children.`,
+done or cancelled are terminal and must be reopened before adding children.
+Use --mount with a writable mount ID, including transitive IDs, or . for local.`,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "mount" {
 				return runCreateMount(cmd, rootPath, args[1], idFlag, mountName, mountMode)
 			}
-			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, targetMount, edit, noEdit)
+			return runCreate(cmd, rootPath, args[0], strings.Join(args[1:], " "), under, slug, status, targetMount, cmd.Flags().Changed("mount"), edit, noEdit)
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
@@ -520,7 +556,8 @@ func commentCommand(rootPath string) *cobra.Command {
 		Long: `Append one dated comment entry to an item's # Comments section.
 
 Pass text arguments for a single-line comment, or use --stdin to read a
-multi-line comment from a pipe or heredoc.`,
+multi-line comment from a pipe or heredoc. Mount-prefixed targets require an
+effectively read-write mount chain.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return exitError{code: 2, msg: "comment requires selector and text or --stdin"}
@@ -543,7 +580,7 @@ multi-line comment from a pipe or heredoc.`,
 			if err := appendComment(it.MarkerPath, lines); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "commented id=%s path=%s/%s\n", it.IDText, it.RelDir, it.Marker)
+			fmt.Fprintf(cmd.OutOrStdout(), "commented %sid=%s path=%s/%s\n", mountedSourcePrefix(it), it.IDText, it.RelDir, it.Marker)
 			return nil
 		},
 		ValidArgsFunction: writableSelectorCompletion(rootPath, func(*item) bool { return true }),
@@ -563,7 +600,8 @@ func showCommand(rootPath string) *cobra.Command {
 By default, show prints readable item identity and the complete Markdown body.
 Stored high and low task priorities are always visible. Use --meta to print all
 marker metadata, including effective normal priority, without the body.
-Ambiguous selectors fail and list every matching item's ID and title.
+Ambiguous selectors fail and list every matching item's ID and title. Mounted
+items use mount-prefixed selectors such as vendor:002; .:002 selects local work.
 
 Use a quoted or escaped #tag selector to search exact tags, for example
 taskr show '#website'.`,
@@ -655,7 +693,8 @@ Explicit done or cancelled status filters therefore require --all. Repeated
 --glob values filter complete marker text case-insensitively and must each match
 at least one marker line.
 
-Use --tags with a comma-separated list to require all supplied tags.`,
+Use --tags with a comma-separated list to require all supplied tags. Mount
+mount objects show their read-only or read-write mode instead of an item status.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showPriority && hidePriority {
@@ -729,7 +768,8 @@ func treeCommand(rootPath string) *cobra.Command {
 
 By default, done and cancelled items are hidden. Use --all to include them.
 
-The default format uses two spaces per hierarchy level. Use --ascii for branch
+Mounted roots and items retain their qualified ID prefixes. The default format
+uses two spaces per hierarchy level. Use --ascii for branch
 markers, --tabs for tab indentation, or --wide for wider space indentation.
 Non-normal task priority is shown by default; --show-priority includes normal
 and --hide-priority suppresses all priority labels.`,
@@ -780,7 +820,8 @@ func statusCommand(rootPath string) *cobra.Command {
 
 A real transition updates updated_at and the target status's *_at timestamp.
 Reopening a done or cancelled item also updates reopened_at. Repeating the
-current status succeeds without changing the marker.`,
+current status succeeds without changing the marker. Mounted selectors route
+writes only through effectively read-write mount chains.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			newStatus := args[1]
@@ -917,7 +958,7 @@ Root-level moves keep the current item type.
 
 Move follows the same closed-parent rule as create: done and cancelled parent
 contexts are terminal and must be reopened before unfinished work can be moved
-below them.`,
+below them. Mounted items can move only within the same mounted root.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMove(cmd, rootPath, args[0], under, retype, toRoot)
@@ -963,6 +1004,7 @@ func openCommand(rootPath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "open <selector>",
 		Short: "Open an item marker",
+		Long:  "Open a local or mount-prefixed item marker. Editor mode requires a writable mount; --system may open read-only mounted markers.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
@@ -985,7 +1027,7 @@ func openCommand(rootPath string) *cobra.Command {
 			if err := openPath(it.MarkerPath, system); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "opened path=%s/%s opener=%s\n", it.RelDir, it.Marker, opener)
+			fmt.Fprintf(cmd.OutOrStdout(), "opened %spath=%s/%s opener=%s\n", mountedSourcePrefix(it), it.RelDir, it.Marker, opener)
 			return nil
 		},
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -1011,8 +1053,12 @@ func reportCommand(rootPath string) *cobra.Command {
 		Long: `Render a top-level repository report.
 
 The default report includes status summaries, effective task-priority counts,
-status extremes, milestone sections, and open milestones without tickets.`,
+status extremes, milestone sections, open milestones without tickets, and
+mounted roots with source-qualified items.`,
 		Args: cobra.NoArgs,
+		ValidArgsFunction: func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
 			if err != nil {
@@ -1338,6 +1384,7 @@ func archiveCommand(rootPath string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "archive <selector>",
 		Short: "Archive a closed subtree",
+		Long:  "Archive a closed local or mount-prefixed subtree inside its own writable Taskr root.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			t, err := loadTree(rootPath)
@@ -1368,7 +1415,7 @@ func archiveCommand(rootPath string) *cobra.Command {
 			if err := os.Rename(it.Dir, dest); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "archived id=%s to=%s\n", it.IDText, filepath.ToSlash(destRel))
+			fmt.Fprintf(cmd.OutOrStdout(), "archived %sid=%s to=%s\n", mountedSourcePrefix(it), it.IDText, filepath.ToSlash(destRel))
 			return nil
 		},
 		ValidArgsFunction: writableSelectorCompletion(rootPath, func(*item) bool { return true }),
@@ -1422,7 +1469,7 @@ func initializeRoot(root string) (bool, error) {
 	return created, nil
 }
 
-func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, status, targetMount string, edit, noEdit bool) error {
+func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, status, targetMount string, mountExplicit, edit, noEdit bool) error {
 	marker, ok := typeMarkers[itemType]
 	if !ok {
 		return exitError{code: 2, msg: fmt.Sprintf("invalid item type %q", itemType)}
@@ -1435,7 +1482,6 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 		return err
 	}
 	targetRoot := t.Root
-	targetPrefix := ""
 	if targetMount != "" && targetMount != "." {
 		mountItem, resolveErr := resolveItem(t, targetMount)
 		if resolveErr != nil {
@@ -1448,20 +1494,26 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 			return exitError{code: 2, msg: fmt.Sprintf("mount %s is read-only", mountItem.IDText)}
 		}
 		targetRoot = mountItem.Root
-		targetPrefix = mountItem.IDText
+	}
+	var parent *item
+	if under != "" {
+		if !mountExplicit && targetMount == "." && strings.Contains(under, ":") {
+			parent, err = resolveItem(t, under)
+			if err == nil {
+				targetRoot = parent.Root
+			}
+		} else {
+			parent, err = resolveItemForRoot(t, under, targetRoot)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	targetConfig, err := loadProjectConfig(targetRoot)
 	if err != nil {
 		return err
 	}
 	status = targetConfig.initialCreateStatus(itemType, status)
-	var parent *item
-	if under != "" {
-		parent, err = resolveItemForRoot(t, under, targetRoot)
-		if err != nil {
-			return err
-		}
-	}
 	if err := validateChildType(parent, itemType); err != nil {
 		return err
 	}
@@ -1484,7 +1536,7 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 	}
 	id := nextID(itemsInRoot(t.Items, targetRoot))
 	idText := fmt.Sprintf("%03d", id)
-	baseDir := t.Root
+	baseDir := targetRoot
 	if parent != nil {
 		baseDir = parent.Dir
 	}
@@ -1512,11 +1564,7 @@ func runCreate(cmd *cobra.Command, rootPath, itemType, title, under, slug, statu
 		opened = true
 	}
 	rel, _ := filepath.Rel(targetRoot, dir)
-	displayID := idText
-	if targetPrefix != "" {
-		displayID = targetPrefix + ":" + idText
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "created item id=%s path=%s marker=%s opened=%t\n", displayID, filepath.ToSlash(rel), marker, opened)
+	fmt.Fprintf(cmd.OutOrStdout(), "created item id=%s path=%s marker=%s opened=%t\n", idText, filepath.ToSlash(rel), marker, opened)
 	return nil
 }
 
@@ -1539,7 +1587,7 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoo
 	newType := source.Type
 	newMarker := source.Marker
 	if under != "" {
-		parent, err := resolveItem(t, under)
+		parent, err := resolveItemForRoot(t, under, source.Root)
 		if err != nil {
 			return err
 		}
@@ -1568,7 +1616,8 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoo
 	}
 	dest := filepath.Join(destParent, filepath.Base(source.Dir))
 	if filepath.Clean(dest) == filepath.Clean(source.Dir) {
-		return exitError{code: 2, msg: "move destination is the current location"}
+		fmt.Fprintf(cmd.OutOrStdout(), "moved %sid=%s from=%s to=%s type=%s changed=false\n", mountedSourcePrefix(source), source.IDText, source.RelDir, source.RelDir, source.Type)
+		return nil
 	}
 	if source.Type != newType && newType == "subtask" && len(source.Children) > 0 {
 		return exitError{code: 2, msg: fmt.Sprintf("cannot retype %s %s to subtask while it has children", source.Type, source.IDText)}
@@ -1579,7 +1628,7 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoo
 		return err
 	}
 	oldRel := source.RelDir
-	newRel := relPath(t.Root, dest)
+	newRel := relPath(source.Root, dest)
 	if err := os.Rename(source.Dir, dest); err != nil {
 		return err
 	}
@@ -1609,7 +1658,7 @@ func runMove(cmd *cobra.Command, rootPath, selector, under string, retype, toRoo
 	if source.Type != newType {
 		typeChange = source.Type + "->" + newType
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "moved id=%s from=%s to=%s type=%s\n", source.IDText, oldRel, newRel, typeChange)
+	fmt.Fprintf(cmd.OutOrStdout(), "moved %sid=%s from=%s to=%s type=%s\n", mountedSourcePrefix(source), source.IDText, oldRel, newRel, typeChange)
 	return nil
 }
 
@@ -2003,10 +2052,7 @@ func expandMounts(target, owner *tree, parentMount *item, parentMountID, parentM
 			MountPath: path,
 			Root:      path,
 			IsMount:   true,
-			Parent:    parentMount,
-		}
-		if parentMount != nil {
-			parentMount.Children = append(parentMount.Children, mountItem)
+			Parent:    nil,
 		}
 		target.Items = append(target.Items, mountItem)
 
@@ -2591,7 +2637,17 @@ func moveParentCompletion(rootPath string) func(*cobra.Command, []string, string
 				return it.Type == "milestone" || it.Type == "task"
 			}
 		}
-		return filterCompletions(selectorCompletions(t, include), toComplete), cobra.ShellCompDirectiveNoFileComp
+		values := selectorCompletions(t, include)
+		if sourceType != "" && toComplete != "" && !strings.Contains(toComplete, ":") && len(args) > 0 {
+			if source, resolveErr := resolveItem(t, args[0]); resolveErr == nil && source.MountID != "" {
+				for _, it := range t.Items {
+					if include(it) {
+						values = append(values, fmt.Sprintf("%s\t%s %s %s", it.LocalID, it.Type, it.Status, it.Title))
+					}
+				}
+			}
+		}
+		return filterCompletions(values, toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
 }
 

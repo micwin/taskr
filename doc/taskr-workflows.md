@@ -1,5 +1,15 @@
 # Taskr MVP Workflows
 
+## Mount Other Taskr Roots
+
+Use `taskr create mount <path> --name <name>` to add a virtual root object to
+`taskr.toml`; `--id` overrides ID derivation and `--mode read-write` permits
+mutations after readability and writability probes. `taskr reconfigure mount`
+updates entries and `taskr remove mount` removes only the local entry. Mounted
+items use qualified selectors such as `vendor:002`, while `.:002` explicitly
+selects local work. Reads follow transitive mounts; mutations require an
+entirely read-write chain and remain inside the selected root.
+
 MVP workflows are defined at behavior level. Concrete command names, arguments,
 and flags are derived in the command-definition task.
 

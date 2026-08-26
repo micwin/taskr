@@ -1,10 +1,11 @@
 ---
 title: Complete mounted selectors
-status: developing
+status: blocked
 created_at: 2026-08-25T17:20:21Z
-updated_at: 2026-08-25T19:08:13Z
+updated_at: 2026-08-25T19:57:25Z
 designing_at: 2026-08-25T17:20:21Z
 developing_at: 2026-08-25T19:08:13Z
+blocked_at: 2026-08-25T19:57:25Z
 ---
 
 # Description
@@ -43,5 +44,7 @@ mount IDs. Transitive mount IDs must be completed as well.
 - 2026-08-25: Completion-specific slice of ticket 099.
 - 2026-08-25: Completion must include transitive mount IDs and the `.` local
   root placeholder.
+
+- 2026-08-25 21:57: Blocked on branch complete-mounted-selectors: ticket 114 expects read-only vendor status targets in completion, while ticket 118 requires mutating completion to omit read-only targets. The accepted contracts cannot both pass without changing ticket 114's Smokey expectation.
 
 # Outcome
