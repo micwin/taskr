@@ -517,7 +517,10 @@ active, reviewing, and blocked.
 
 New work can only be created below open parent context. Parents with status
 done or cancelled are terminal and must be reopened before adding children.
-Use --mount with a writable mount ID, including transitive IDs, or . for local.`,
+Use --mount with a writable mount ID, including transitive IDs, or . for local.
+
+To attach another Taskr root, use taskr create mount <path> --name <name>.
+Run taskr create mount --help for mount modes, ID derivation, and examples.`,
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "mount" {
@@ -544,6 +547,7 @@ Use --mount with a writable mount ID, including transitive IDs, or . for local.`
 	mustRegisterCompletion(cmd, "under", createParentCompletion(rootPath))
 	mustRegisterCompletion(cmd, "status", staticCompletion(initialStatuses))
 	mustRegisterCompletion(cmd, "mount", writableMountCompletion(rootPath))
+	cmd.AddCommand(createMountCommand(rootPath))
 	return cmd
 }
 
@@ -768,7 +772,8 @@ func treeCommand(rootPath string) *cobra.Command {
 
 By default, done and cancelled items are hidden. Use --all to include them.
 
-Mounted roots and items retain their qualified ID prefixes. The default format
+Each mount is a virtual root, including roots with tasks but no milestones.
+Its items remain below that mount and retain their qualified ID prefixes. The default format
 uses two spaces per hierarchy level. Use --ascii for branch
 markers, --tabs for tab indentation, or --wide for wider space indentation.
 Non-normal task priority is shown by default; --show-priority includes normal
@@ -2109,6 +2114,8 @@ func isTaskrRoot(path string) bool {
 	if err != nil {
 		return false
 	}
+	hasFileContainer := false
+	hasUnmarkedDirectory := false
 	for _, entry := range entries {
 		name := entry.Name()
 		if !entry.IsDir() {
@@ -2119,16 +2126,29 @@ func isTaskrRoot(path string) bool {
 		}
 		childEntries, err := os.ReadDir(filepath.Join(path, name))
 		if err != nil {
+			hasUnmarkedDirectory = true
 			continue
 		}
+		isFileContainer := false
 		for _, child := range childEntries {
+			if child.IsDir() {
+				continue
+			}
 			childName := child.Name()
-			if _, ok := markerTypes[childName]; ok || childName == "files.md" {
+			if _, ok := markerTypes[childName]; ok {
 				return true
 			}
+			if childName == "files.md" {
+				isFileContainer = true
+			}
+		}
+		hasFileContainer = hasFileContainer || isFileContainer
+		if !isFileContainer && name != "archive" {
+			hasUnmarkedDirectory = true
 		}
 	}
-	return false
+	// Files-only roots are valid, but a project-side container is not root evidence.
+	return hasFileContainer && !hasUnmarkedDirectory
 }
 
 func scanDir(t *tree, dir string, parent *item) error {
@@ -2983,7 +3003,16 @@ func visibleItems(items []*item, opts treeOptions) []*item {
 	if allTasks(sorted) {
 		sortItemsByPriority(sorted)
 	} else {
-		sortItems(sorted)
+		// Virtual mounts share numeric ID zero and have no directory path.
+		sort.Slice(sorted, func(i, j int) bool {
+			if sorted[i].ID != sorted[j].ID {
+				return sorted[i].ID < sorted[j].ID
+			}
+			if sorted[i].RelDir != sorted[j].RelDir {
+				return sorted[i].RelDir < sorted[j].RelDir
+			}
+			return sorted[i].IDText < sorted[j].IDText
+		})
 	}
 	for _, it := range sorted {
 		if treeItemVisible(it, opts) {

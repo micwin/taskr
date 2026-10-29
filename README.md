@@ -238,6 +238,11 @@ child. For `taskr .`, candidates are:
 ./taskr/
 ```
 
+File containers alone identify a files-only root only when its other
+directories are file containers or archive areas. A project containing
+`files/files.md` beside unrelated directories such as `src/` or `.crush/`
+still discovers its `taskr/` child. Explicit root arguments remain strict.
+
 A Taskr root is a directory whose work tree contains valid item directories.
 Every non-root work-tree directory must contain exactly one recognized marker
 file unless it is below a `files.md` container. Work-item directories must use
@@ -287,6 +292,18 @@ while cycles and duplicate mount IDs across the resolved graph are errors.
 Mutating commands require every mount in the selected chain to be
 `read-write`. `taskr doctor` validates the mount graph and
 `taskr doctor --include-mounts` also validates marker structures inside mounts.
+
+```bash
+taskr create mount ../vendor --name "Vendor Project"
+taskr create mount ../vendor/taskr --id vendor --name "Vendor Tickets" --mode read-write
+taskr create mount --help
+```
+
+Mount creation defaults to `read-only`. Without `--id`, the first name word
+must contain only ASCII letters; Taskr tries progressively longer lowercase
+prefixes until a free ID is found. Every target must be readable; `read-write`
+also requires a successful temporary write probe. Creation stores only the
+virtual mount in `taskr.toml` and does not open an editor.
 
 Initialize the shared site output with an existing empty directory:
 

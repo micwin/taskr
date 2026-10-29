@@ -1,0 +1,4 @@
+tickets [mount read-only] Tickets Project
+  tickets:001 [task open] Task A
+    tickets:003 [subtask open] Task child
+  tickets:002 [task open] Task B

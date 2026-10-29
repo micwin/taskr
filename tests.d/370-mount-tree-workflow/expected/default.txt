@@ -1,0 +1,16 @@
+archive [mount read-write] Archive Project
+  archive:001 [milestone open] Mounted Roadmap
+    archive:002 [task open] Mounted Task
+      archive:004 [subtask open] Mounted Child
+vendor [mount read-only] Vendor Project
+  vendor:001 [milestone open] Mounted Roadmap
+    vendor:002 [task open] Mounted Task
+      vendor:004 [subtask open] Mounted Child
+vendor:lib [mount read-only] Library Project
+  vendor:lib:001 [milestone open] Mounted Roadmap
+    vendor:lib:002 [task open] Mounted Task
+      vendor:lib:004 [subtask open] Mounted Child
+001 [milestone active] #(public,website) MVP
+  003 [task active] #(release,website) Define workflows
+    004 [subtask designing] #copy Define selectors
+  005 [task active] Open work

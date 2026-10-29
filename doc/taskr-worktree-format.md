@@ -15,6 +15,13 @@ The worktree is the source of truth. Every MVP workflow must be possible with
 only the Taskr CLI and a text editor. Taskr must not require users to duplicate
 role, ID, parent, status, or outcome information in multiple places.
 
+Implicit discovery examines the current directory before its direct `taskr/`
+child. Work-item markers identify a candidate for strict validation. File
+containers alone identify a files-only candidate only if all its directories
+are file containers or archive areas; project directories with unrelated
+subdirectories do not become roots merely through a `files/files.md` file.
+An explicit root is always selected directly and validated strictly.
+
 # Project Configuration
 
 An optional `taskr.toml` may live directly in the Taskr root. It configures

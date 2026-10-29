@@ -59,10 +59,12 @@ run_taskr mount_create_derived_next "${root}" create mount "${target_ve}" --name
 grep -q "created item id=ve" "${stdout}"
 grep -q 'id = "ve"' "${root}/taskr.toml"
 
-# Ticket 108: parent-directory input is resolved and stored as the Taskr root.
+# Tickets 108 and 127: parent paths with project file containers resolve to the child root.
 root="$(new_root mount-create-parent-path)"
 target="$(make_mount_target parent-path-target)"
 parent="$(dirname "${target}")"
+mkdir -p "${parent}/files" "${parent}/src" "${parent}/.crush"
+cp "${TASKR_BASE_ROOT}/files/files.md" "${parent}/files/files.md"
 run_taskr mount_create_parent_path "${root}" create mount "${parent}" --id parent --name "Parent Path" --no-edit
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "path = \"${target}\"" "${root}/taskr.toml"
@@ -117,11 +119,28 @@ grep -qi "taskr\\|root\\|marker" "${stderr}"
 run_taskr mount_create_help "${root}" create --help
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "mount" "${stdout}"
+
+grep -Fq 'taskr create mount <path> --name <name>' "${stdout}"
 run_taskr mount_create_mount_help "${root}" create mount --help
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -Fq 'taskr create mount <path> [flags]' "${stdout}"
+grep -Fq 'parent directory' "${stdout}"
+grep -Fq 'first word' "${stdout}"
+grep -Fq 'progressively longer lowercase prefixes' "${stdout}"
+grep -Fq 'read-only (default)' "${stdout}"
+grep -Fq 'read-write' "${stdout}"
+grep -Fq 'write probe' "${stdout}"
+grep -Fq 'taskr.toml' "${stdout}"
+grep -Fq 'taskr create mount ../vendor --name "Vendor Project"' "${stdout}"
 grep -q -- "--id" "${stdout}"
 grep -q -- "--name" "${stdout}"
 grep -q -- "--mode" "${stdout}"
 run_taskr mount_create_completion "${root}" __complete create ""
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
 grep -q "mount" "${stdout}"
+
+# Ticket 108: mode completion is wired on the actual create mount subcommand.
+run_taskr mount_create_mode_completion "${root}" __complete create mount --mode ""
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+grep -qx 'read-only' "${stdout}"
+grep -qx 'read-write' "${stdout}"

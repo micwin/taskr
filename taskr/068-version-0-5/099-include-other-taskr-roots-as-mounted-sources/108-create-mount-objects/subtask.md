@@ -57,10 +57,16 @@ creating and removing a short temporary file in the mounted Taskr root.
   environment. Robust permission fixture support is tracked in the Smokey
   project.
 
+- 2026-10-06 15:57: Review correction: dedicated create mount help now documents path resolution, modes, ID derivation, access probes, and examples. Strengthened Smokey coverage includes exact help content and mount mode completion. Full suite: 48/48 with final teardown; Go tests and Doctor pass.
+
 # Outcome
 
 Implemented persisted virtual mounts with explicit or derived IDs, strict mode
 validation, parent-path resolution, and runtime readability/writability probes.
+
+Review correction: `create mount` now has dedicated help with its actual
+path argument, mode choices, ID derivation, access probes, and examples.
+Smokey verifies these details and mode completion at this subcommand.
 
 # Release Notes
 

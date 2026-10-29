@@ -9,6 +9,48 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func createMountCommand(rootPath string) *cobra.Command {
+	var id, name, mode string
+	var noEdit bool
+	cmd := &cobra.Command{
+		Use:   "mount <path>",
+		Short: "Attach another Taskr root",
+		Long: `Attach another Taskr root as a virtual mount in local taskr.toml.
+
+The path may point directly to a Taskr root or to its parent directory
+containing a taskr child. The resolved root path is stored in configuration.
+No item directory or marker is created, and no editor is opened.
+
+--name is required; quote names containing spaces. Without --id, Taskr tries
+progressively longer lowercase prefixes of the first word of the name until
+it finds a free ID. That first word must contain only ASCII letters. If every
+candidate is taken, creation fails. Explicit IDs use a lowercase letter first,
+followed by lowercase letters, digits, or hyphens.
+
+Modes are read-only (default) and read-write. Every target is checked for
+readability. A read-write target must also pass a write probe that creates
+and removes a temporary file before the configuration is stored.`,
+		Example: `  taskr create mount ../vendor --name "Vendor Project"
+  taskr create mount ../vendor/taskr --id vendor --name "Vendor Tickets" --mode read-write`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCreateMount(cmd, rootPath, args[0], id, name, mode)
+		},
+		ValidArgsFunction: func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return nil, cobra.ShellCompDirectiveFilterDirs
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+	}
+	cmd.Flags().StringVar(&id, "id", "", "mount ID (derived from name when omitted)")
+	cmd.Flags().StringVar(&name, "name", "", "required mount name; quote names with spaces")
+	cmd.Flags().StringVar(&mode, "mode", mountReadOnly, "mount mode (read-only or read-write)")
+	cmd.Flags().BoolVar(&noEdit, "no-edit", false, "accepted for compatibility; mounts do not open an editor")
+	mustRegisterCompletion(cmd, "mode", staticCompletion([]string{mountReadOnly, mountReadWrite}))
+	return cmd
+}
+
 func runCreateMount(cmd *cobra.Command, rootPath, path, id, name, mode string) error {
 	root, err := discoverRoot(rootPath)
 	if err != nil {

@@ -10,6 +10,16 @@ items use qualified selectors such as `vendor:002`, while `.:002` explicitly
 selects local work. Reads follow transitive mounts; mutations require an
 entirely read-write chain and remain inside the selected root.
 
+```bash
+taskr create mount ../vendor --name "Vendor Project"
+taskr create mount ../vendor/taskr --id vendor --name "Vendor Tickets" --mode read-write
+```
+
+The path may name the root or its parent directory. Omitted mode is
+`read-only`; an omitted ID is the first available lowercase prefix of the
+first name word, which must contain only ASCII letters. Inspect the complete
+argument contract with `taskr create mount --help`.
+
 MVP workflows are defined at behavior level. Concrete command names, arguments,
 and flags are derived in the command-definition task.
 
@@ -285,6 +295,12 @@ priority, `--show-priority` and `--hide-priority` control row labels, and
 not an item selector or free-text search term.
 
 # Tree Workflow
+
+Each mounted root appears as a virtual root row. Its descendants stay within
+that source branch, including when sources have the same item IDs and titles.
+A source without milestones displays its root-level tasks directly below the
+mount object, with subtasks below their parent task. Transitive mounts use
+their qualified mount identity in separate root rows.
 
 Tree output preserves hierarchy while sorting sibling tasks by effective
 priority as `high`, `normal`, `low`, with stable ID order inside each level.

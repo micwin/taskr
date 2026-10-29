@@ -15,6 +15,9 @@ make_tree_mount_target() {
   [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
   run_taskr "tree_target_${name}_done_status" "${root}" status 003 done
   [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+  # Ticket 113: each source has its own subtask with the same local ID and title.
+  run_taskr "tree_target_${name}_subtask" "${root}" create subtask "Mounted Child" --under 002 --no-edit
+  [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
   printf '%s\n' "${root}"
 }
 
@@ -53,61 +56,59 @@ EOF
 
 root="$(create_mount_tree_fixture mount-tree-root)"
 
-# Ticket 113: default tree renders mount objects with mode, not lifecycle status.
+# Ticket 113: full default output keeps each root's milestone, task, and subtask together, even with identical IDs and titles.
 run_taskr mount_tree_default "${root}" tree
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx 'vendor [mount read-only] Vendor Project' "${stdout}"
-grep -Fqx '  vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx '    vendor:002 [task open] Mounted Task' "${stdout}"
-grep -Fqx 'vendor:lib [mount read-only] Library Project' "${stdout}"
-grep -Fqx '  vendor:lib:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx 'archive [mount read-write] Archive Project' "${stdout}"
-if grep -Eq 'vendor \\[mount (open|designing|developing|active|reviewing|blocked|done|cancelled)\\]' "${stdout}"; then
-  echo "mount tree rows should show mode instead of Taskr lifecycle status" >&2
-  exit 1
-fi
+diff -u "${SMOKEY_TEST_DIR}/expected/default.txt" "${stdout}"
 
-# Ticket 113: default unfinished filtering applies inside mounted roots.
-if grep -q 'Mounted Done Task' "${stdout}"; then
-  echo "default tree should hide done mounted leaves" >&2
-  exit 1
-fi
+# Ticket 113: --all restores closed tasks inside their own root, including local and mounted ID collisions.
 run_taskr mount_tree_all "${root}" tree --all
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx '    vendor:003 [task done] Mounted Done Task' "${stdout}"
-grep -Fqx '    archive:003 [task done] Mounted Done Task' "${stdout}"
+diff -u "${SMOKEY_TEST_DIR}/expected/all.txt" "${stdout}"
 
-# Ticket 113: selected mounted subtrees start at the selected mounted item.
+# Ticket 113: selected vendor milestones include only their own task and subtask.
 run_taskr mount_tree_selected "${root}" tree vendor:001
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx 'vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx '  vendor:002 [task open] Mounted Task' "${stdout}"
-if grep -q '^vendor \\[mount read-only\\]' "${stdout}"; then
-  echo "selected mounted subtree should not include parent mount object" >&2
-  exit 1
-fi
+diff -u "${SMOKEY_TEST_DIR}/expected/selected-vendor.txt" "${stdout}"
 
-# Ticket 113: alternate indentation modes work with mounted roots.
+# Ticket 113: selecting the other direct mount never includes vendor or local work.
+run_taskr mount_tree_selected_archive "${root}" tree archive:001
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+diff -u "${SMOKEY_TEST_DIR}/expected/selected-archive.txt" "${stdout}"
+
+# Ticket 113: selecting the transitive mount never includes its owner's or another root's work.
+run_taskr mount_tree_selected_transitive "${root}" tree vendor:lib:001
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+diff -u "${SMOKEY_TEST_DIR}/expected/selected-lib.txt" "${stdout}"
+
+# Ticket 113: ASCII branches keep complete sibling roots and their descendants separated.
 run_taskr mount_tree_ascii "${root}" tree --ascii
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx '+- vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx '   +- vendor:002 [task open] Mounted Task' "${stdout}"
+diff -u "${SMOKEY_TEST_DIR}/expected/ascii.txt" "${stdout}"
+
+# Ticket 113: tabs preserve the same complete hierarchy and mount boundaries.
 run_taskr mount_tree_tabs "${root}" tree --tabs
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx $'\tvendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx $'\t\tvendor:002 [task open] Mounted Task' "${stdout}"
+diff -u "${SMOKEY_TEST_DIR}/expected/tabs.txt" "${stdout}"
+
+# Ticket 113: wide indentation preserves the same complete hierarchy and mount boundaries.
 run_taskr mount_tree_wide "${root}" tree --wide
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx '    vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx '        vendor:002 [task open] Mounted Task' "${stdout}"
+diff -u "${SMOKEY_TEST_DIR}/expected/wide.txt" "${stdout}"
 
-# Ticket 113: local and mounted IDs can coexist in the same tree.
-run_taskr mount_tree_collision "${root}" tree --all
+# Ticket 113: task-only roots stay grouped under their virtual mount beside all other sources.
+tasks_only_target="${SMOKEY_STATE_DIR}/mount-tree-tasks-only"
+cp -R "${SMOKEY_TEST_DIR}/fixtures/tasks-only" "${tasks_only_target}"
+run_taskr mount_tree_add_tasks_only "${root}" create mount "${tasks_only_target}" --id tickets --name "Tickets Project"
 [ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
-grep -Fqx '001 [milestone active] #(public,website) MVP' "${stdout}"
-grep -Fqx '  002 [task done] #internal Define directory structure' "${stdout}"
-grep -Fqx '  vendor:001 [milestone open] Mounted Roadmap' "${stdout}"
-grep -Fqx '    vendor:002 [task open] Mounted Task' "${stdout}"
+run_taskr mount_tree_tasks_only_combined "${root}" tree
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+diff -u "${SMOKEY_TEST_DIR}/expected/tasks-only-combined.txt" "${stdout}"
+
+# Ticket 113: selecting a task-only mount includes precisely its tasks and subtask.
+run_taskr mount_tree_tasks_only_selected "${root}" tree tickets
+[ "${exit_code}" -eq 0 ] || { cat "${stderr}" >&2; exit 1; }
+diff -u "${SMOKEY_TEST_DIR}/expected/tasks-only-selected.txt" "${stdout}"
 
 # Ticket 113: unavailable mounts fail clearly instead of being silently skipped.
 bad_root="$(new_root mount-tree-unavailable)"
